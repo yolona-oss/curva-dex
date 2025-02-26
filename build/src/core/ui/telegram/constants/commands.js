@@ -1,0 +1,82 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.DefaultTgUICommands = void 0;
+const db_1 = require("@core/db");
+exports.DefaultTgUICommands = [
+    {
+        command: "start",
+        description: "Start dummy command",
+        args: [],
+        fn: async function (ctx) {
+            await ctx.reply("Hello, dummy comman here :-)");
+        }
+    },
+    {
+        command: "setname",
+        description: "Set your name",
+        args: ["name"],
+        fn: async function (ctx) {
+            let name = "";
+            if (ctx.message && ctx.message.text) {
+                name = String(ctx.message.text.slice('setname'.length + 2)).trim();
+            }
+            if (name !== "") {
+                await ctx.manager.updateOne({ $set: { name: name } });
+                await ctx.reply("Now your will called " + name);
+            }
+            else {
+                await ctx.reply('No string passed, try: "/setname The Emperor"');
+            }
+        }
+    },
+    {
+        command: "set_avatar_from_account",
+        description: "Update your avatar from current on account",
+        args: [],
+        fn: async function (ctx) {
+            let photos = await ctx.telegram.getUserProfilePhotos(ctx.from.id, 0, 1);
+            let file = await ctx.telegram.getFile(photos.photos[0][0].file_id);
+            let url = await ctx.telegram.getFileLink(file.file_id);
+            let l_file = await db_1.FilesWrapper.saveFile(url.href, "avatars");
+            if (l_file) {
+                await ctx.manager.updateOne({ $set: { avatar: l_file.id } });
+            }
+            else {
+                await ctx.reply("Loading error. Try another time ^_^");
+            }
+        }
+    },
+    {
+        command: "gooffline",
+        description: "Go offline",
+        args: [],
+        fn: async function (ctx) {
+            await ctx.manager.updateOne({ $set: { online: false } });
+        },
+    },
+    {
+        command: "goonline",
+        description: "Go online",
+        args: [],
+        fn: async function (ctx) {
+            await ctx.manager.updateOne({ $set: { online: true } });
+        },
+    },
+    {
+        command: "status",
+        description: "Get your status",
+        args: [],
+        fn: async function (ctx) {
+            await ctx.reply("Your status: " + (ctx.manager.online ? "online" : "offline"));
+        }
+    },
+    {
+        command: "setgreeting",
+        description: "On or Off bot startup greeting",
+        args: ["on", "off"],
+        fn: async function (ctx) {
+            await ctx.manager.updateOne({ $set: { useGreeting: (ctx.message.text.includes("on")) } });
+            await ctx.reply("Startup greeting setted to: " + (ctx.manager.useGreeting ? "on" : "off"));
+        }
+    }
+];
