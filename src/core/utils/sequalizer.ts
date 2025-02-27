@@ -29,6 +29,7 @@ interface SequalizerMetrics {
 
 class SequalizerCtx {
     private _metrics: SequalizerMetrics
+    private concurrency: number = 10
 
     constructor(
         private state: SequalizerState
@@ -52,11 +53,11 @@ class SequalizerCtx {
     }
 
     public getConcurrency() {
-        return this.state.getConcurrency()
+        return this.concurrency
     }
 
     public setConcurrency(concurrency: number) {
-        this.state.setConcurrency(concurrency)
+        this.concurrency = concurrency
     }
 
     public metrics(): SequalizerMetrics {
@@ -90,40 +91,17 @@ class SequalizerCtx {
     }
 }
 
-interface ISeqaulizerState {
-    getConcurrency(): number
-    getLatency(): HMSTime
+interface ISeqaulizerStateBase {
 }
 
-class SequalizerState extends AbstractState<SequalizerCtx> implements ISeqaulizerState {
-    private latency: HMSTime
-    private concurrency: number
-
+class SequalizerState extends AbstractState<SequalizerCtx> implements ISeqaulizerStateBase {
     constructor() {
         super()
-        this.latency = new HMSTime()
-        this.concurrency = 1
-    }
-
-    public getConcurrency() {
-        return this.concurrency
-    }
-
-    public setConcurrency(concurrency: number) {
-        this.concurrency = concurrency
-    }
-
-    public getLatency(): HMSTime {
-        return this.latency
-    }
-
-    public setLatency(latency: HMSTime) {
-        this.latency = latency
     }
 }
 
 export class Sequalizer implements IRunnable {
-    private active: boolean = false
+    private _isRunning: boolean = false
     private executingTasksId = new Array<string>
     private taskQueue: ITask<any, any>[] = []
 
@@ -143,7 +121,7 @@ export class Sequalizer implements IRunnable {
     }
 
     public isRunning(): boolean {
-        return this.active
+        return this._isRunning
     }
 
     public genId(): string {
@@ -216,7 +194,7 @@ export class Sequalizer implements IRunnable {
     }
 
     enqueue<T>(task: ITask<T>): void {
-        if (!this.active) {
+        if (!this._isRunning) {
             throw new Error("Sequalizer::enqueue() Sequalizer is not running")
         }
 
@@ -341,20 +319,20 @@ export class Sequalizer implements IRunnable {
     }
 
     public async run() {
-        if (this.active) {
+        if (this._isRunning) {
             log.warn("Sequalizer::run() called when already active")
             return
         }
 
-        this.active = true
+        this._isRunning = true
         return this.processQueue()
     }
 
     public async terminate() {
-        if (this.active == false) {
+        if (this._isRunning == false) {
             log.warn("Sequalizer::terminate() called when not active")
             return
         }
-        this.active = false
+        this._isRunning = false
     }
 }
