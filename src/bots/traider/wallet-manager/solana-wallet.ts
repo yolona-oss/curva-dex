@@ -127,6 +127,25 @@ export class SolanaWalletManager extends BaseWalletManager {
         return ret
     }
 
+    async collectToken(src: IDEXWallet[], dst: Omit<IDEXWallet, 'secretKey'>, mint: string): Promise<(IBalance<bigint> & Omit<IDEXWallet, 'secretKey'>)[]> {
+        src;dst;mint
+        return []
+        //const ret = []
+        //for (const wallet of src) {
+        //    const { success, transferAmount, message } = await this.collectFromOne(wallet, dst)
+        //    if (success) {
+        //        ret.push({
+        //            publicKey: wallet.publicKey,
+        //            mint,
+        //            amount: transferAmount!
+        //        })
+        //    } else if (message) {
+        //        log.error(`Error collecting from ${wallet.publicKey}: ${message}`)
+        //    }
+        //}
+        //return ret
+    }
+
     async send(src: Omit<IDEXWallet, "publicKey">, dst: Omit<IDEXWallet, "secretKey">, amount: bigint) {
         const retries = 3
         const srcWallet = this.decodeWallet(src.secretKey)

@@ -34,6 +34,7 @@ export abstract class BaseWalletManager {
 
     abstract createWallet(): Promise<IDEXWallet>;
     abstract collect(src: IDEXWallet[], dst: Omit<IDEXWallet, "secretKey">): Promise<(IBalance<bigint>&Omit<IDEXWallet, "secretKey">)[]>
+    abstract collectToken(src: IDEXWallet[], dst: Omit<IDEXWallet, "secretKey">, mint: string): Promise<(IBalance<bigint>&Omit<IDEXWallet, "secretKey">)[]>
     abstract send(src: Omit<IDEXWallet, "publicKey">, dst: Omit<IDEXWallet, "secretKey">, amount: bigint): Promise<void>
     abstract distribute(src: Omit<IDEXWallet, "publicKey">, dst: { wallet: Omit<IDEXWallet, "secretKey">, amount: bigint }[]): Promise<(IBalance<bigint>&Omit<IDEXWallet, "secretKey">)[]>
     abstract balance(wallet: Omit<IDEXWallet, "secretKey">): Promise<IBalanceList>

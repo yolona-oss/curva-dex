@@ -146,6 +146,14 @@ export abstract class MasterTraderCtrl<
         return await this.walletMngr.distribute(mother, destinations)
     }
 
+    public async collectNativeFromSlave(slave: SlaveTraderCtrl<TradeApi, AssetType>, to: IDEXWallet) {
+        return await this.walletMngr.collect([slave.Wallet], to)
+    }
+
+    public async collectTokenFromSlave(slave: SlaveTraderCtrl<TradeApi, AssetType>, mint: string, to: IDEXWallet) {
+        return await this.walletMngr.collectToken([slave.Wallet], to, mint)
+    }
+
     public async collectSlavesNativeCoins(to: IDEXWallet) {
         const slavesWallets = this.slaves.map(s => s.Wallet)
         return await this.walletMngr.collect(slavesWallets, to)

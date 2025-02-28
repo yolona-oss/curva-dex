@@ -1,20 +1,25 @@
 import { IRunnable } from "@core/types/runnable";
 import { AbstractState } from "@core/types/state";
 import { sleep } from "@utils/time";
+import { IEventTradePayload } from "./impl/pump.fun/api/ev-impl";
 
-export abstract class BaseTTickerState extends AbstractState<AbstractTTickerCtx> { }
+export abstract class BaseTTickerState extends AbstractState<AbstractTTickerCtx<BaseTTickerState>> { }
 
-export abstract class AbstractTTickerCtx {
+export abstract class AbstractTTickerCtx<StateType extends BaseTTickerState> {
     constructor(
-        private state: BaseTTickerState
+        protected state: StateType
     ) {
         this.transitionTo(state)
     }
 
-    public transitionTo(state: BaseTTickerState) {
+    onmessage = (_: any) => {}
+
+    public transitionTo(state: StateType) {
         this.state = state
         this.state.setContext(this)
     }
+
+    abstract handleOtherTx(tx: any): Promise<void>
 
     abstract tick(): Promise<void>
     abstract exit(): Promise<void>
@@ -22,15 +27,12 @@ export abstract class AbstractTTickerCtx {
 
 export class TTicker implements IRunnable {
     private _isRunning: boolean = false
-    private ctx: AbstractTTickerCtx
+    protected ctx: AbstractTTickerCtx<BaseTTickerState>
     private interval = 100
 
-    constructor(ctx: AbstractTTickerCtx) {
+    constructor(ctx: AbstractTTickerCtx<BaseTTickerState>) {
         this.ctx = ctx
-    }
-
-    setState(state: BaseTTickerState) {
-        this.ctx.transitionTo(state)
+        this.ctx.onmessage = () => {}
     }
 
     isRunning(): boolean {

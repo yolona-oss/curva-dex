@@ -1,6 +1,6 @@
 import { BaseCommandService } from "@core/command-handler";
 
-import { IBCPS_Config, defaultCfg } from "./pf-config";
+import { IPumpFunRobotConfig, defaultCfg } from "./pf-config";
 
 import { defaultServiceParamsMap, IDefaultServiceParams, IDefaultServiceSessionData } from "@core/command-handler/command-service";
 import { PumpFunRobot } from "./pf-robot";
@@ -39,7 +39,7 @@ interface IServiceSessionData extends IDefaultServiceSessionData {
  */
 export type IPumpFunRobotSessionState = "ready" | "inited" | "distribute" | "initial_buy" | "collect" | "end" | "run"
 
-export class PumpFunRobot_service extends BaseCommandService<IBCPS_Config, IPumpFunRobotParams, IServiceSessionData> {
+export class PumpFunRobot_service extends BaseCommandService<IPumpFunRobotConfig, IPumpFunRobotParams, IServiceSessionData> {
     protected __serviceParamMap: IPumpFunRobotParams = pumpFunParamsMap;
 
     // @ts-ignore
@@ -48,7 +48,7 @@ export class PumpFunRobot_service extends BaseCommandService<IBCPS_Config, IPump
     constructor(
         userId: string = BLANK_USER_ID,
         inputParam: string[] = [],
-        config: Partial<IBCPS_Config> = defaultCfg,
+        config: Partial<IPumpFunRobotConfig> = defaultCfg,
         name: string = serviceName
     ) {
         const _config = {...defaultCfg, ...config}
@@ -80,10 +80,11 @@ export class PumpFunRobot_service extends BaseCommandService<IBCPS_Config, IPump
         )
 
         await this.robot.Initialize()
+        await this.robot.start()
     }
 
     async terminateWrapper() {
-        await this.robot.terminateImitateTxs()
+        await this.robot.stop()
         const session_data = this.robot.toSave()
         this.setSessionDataValue('master_state_save', session_data)
     }

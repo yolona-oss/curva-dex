@@ -7,7 +7,7 @@ export type OnPriceSupportFailAction = "sell-all" | "idle"
 
 // check for initialize2 to radium migration
 // https://solscan.io/account/39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg
-export interface IBCPS_Config {
+export interface IPumpFunRobotConfig {
     targetAsset: IBaseDEXTradeAsset&{bondCurvMint: string}
 
     // wallet to distribute to other
@@ -102,7 +102,7 @@ export interface IBCPS_Config {
     },
 }
 
-export const defaultCfg: IBCPS_Config = {
+export const defaultCfg: IPumpFunRobotConfig = {
     targetAsset: {
         bondCurvMint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwy6H5v2",
         symbol: "USDC",
