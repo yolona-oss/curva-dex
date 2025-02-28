@@ -11,6 +11,7 @@ import { SlaveDictionary } from "./slave-dict";
 import { PFTicker, PFTickerCtx } from "./ticker";
 
 import log from '@utils/logger'
+import { CmdOfferBuilder } from "@bots/traider/offer-cmd";
 
 export class PumpFunRobot extends EventEmitter {
     private impl: ITradeArchImpl<PumpFunApi, PumpFunAssetType, SolanaWalletManager>
@@ -53,12 +54,16 @@ export class PumpFunRobot extends EventEmitter {
             this.master = this.impl.mtc.clone(
                 id, curve, tradeAsset, _slaves
             )
+
+            this.state = 'ready'
         } else {
             this.master = this.impl.mtc.clone(
                 `${prefix}_master`,
                 null,
                 asset
             )
+
+            this.state = "inited"
         }
 
         this.slavesDict = new SlaveDictionary(this.master)
@@ -73,8 +78,6 @@ export class PumpFunRobot extends EventEmitter {
                 log.error("Unknown message type", msg)
             }
         }
-
-        this.state = "inited"
     }
 
     async Initialize() {
@@ -86,6 +89,7 @@ export class PumpFunRobot extends EventEmitter {
         await this.slavesDict.create(this.config.holders.count, "holder", this.impl.walletManager, this.impl.stc)
         await this.slavesDict.create(this.config.traiders.count, "traider", this.impl.walletManager, this.impl.stc)
         await this.slavesDict.create(this.config.volatile.count, "volatile", this.impl.walletManager, this.impl.stc)
+        this.state = 'inited'
     }
 
     private other_traides_listner_id = -1
@@ -110,16 +114,58 @@ export class PumpFunRobot extends EventEmitter {
     }
 
     async start() {
+        this.state = 'run'
         await this.subToNotBotTrades((_, tx) => this.tickerCtx.handleOtherTx.bind(this.tickerCtx)(tx))
+
         this.ticker.run()
     }
 
     async stop() {
+        this.state = 'end'
         this.ticker.terminate()
+        this.api.unsubscribeFromAssetTrades(this.config.targetAsset.mint, this.other_traides_listner_id)
+    }
+
+    async pause() {
+        this.state = 'pause'
+        this.ticker.pause()
+        this.api.unsubscribeFromAssetTrades(this.config.targetAsset.mint, this.other_traides_listner_id)
+    }
+
+    async resume() {
+        this.state = 'run'
+        await this.subToNotBotTrades((_, tx) => this.tickerCtx.handleOtherTx.bind(this.tickerCtx)(tx))
+        this.ticker.resume()
+    }
+
+    async sellAll() {
+        this.state = 'end'
+        this.ticker.terminate()
+        this.api.unsubscribeFromAssetTrades(this.config.targetAsset.mint, this.other_traides_listner_id)
+
+        for (const slave of this.master.Slaves) {
+            const balances = await this.impl.walletManager.balance(slave.Wallet)
+            const tokens = balances.find(b => b.mint === this.config.targetAsset.mint)
+            if (tokens) {
+                const offerB = new CmdOfferBuilder()
+                offerB
+                    .setFee(this.config.fee.priority.feeSol * LAMPORTS_PER_SOL)
+                    .setMaxSpent(tokens.amount)
+                    .setTraider({wallet: slave.Wallet})
+                    .setAsset(this.config.targetAsset)
+                const offer = offerB.build()
+                slave.pushSell(offer.offer, {...offer})
+            }
+        }
+        await this.master.waitAllSlaveOperations()
+        await this.master.collectSlavesNativeCoins(this.config.motherShip)
     }
 
     toSave() {
-        return this.master.toSave()
+        return {
+            master: this.master.toSave(),
+            state: this.state
+        }
     }
 
     async distribute() {

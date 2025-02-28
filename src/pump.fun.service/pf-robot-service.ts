@@ -21,6 +21,7 @@ const pumpFunParamsMap: IPumpFunRobotParams = {
 }
 
 interface IServiceSessionData extends IDefaultServiceSessionData {
+    state: IPumpFunRobotSessionState
     master_state_save: IMTCStateSave<PumpFunAssetType>
 }
 
@@ -36,11 +37,18 @@ interface IServiceSessionData extends IDefaultServiceSessionData {
  * 5. run - main loop
  * 6. collect - all collecting ops done
  * 7. end - nothing to do
+ *
+ * ...
+ *
+ * pause - pause the robot
  */
-export type IPumpFunRobotSessionState = "ready" | "inited" | "distribute" | "initial_buy" | "collect" | "end" | "run"
+export type IPumpFunRobotSessionState = "ready" | "inited" | "distribute" | "initial_buy" | "collect" | "end" | "run" | "pause"
+
+export type IPumpFunRobotMessageReceiveType = "pause" | "resume" | "stop" | "sell-all"
 
 export class PumpFunRobot_service extends BaseCommandService<IPumpFunRobotConfig, IPumpFunRobotParams, IServiceSessionData> {
     protected __serviceParamMap: IPumpFunRobotParams = pumpFunParamsMap;
+    //protected __serviceMessages: IPumpFunRobotMessageReceiveType = ['pause', 'resume', 'stop', 'sell-all']
 
     // @ts-ignore
     private robot: PumpFunRobot
@@ -64,8 +72,21 @@ export class PumpFunRobot_service extends BaseCommandService<IPumpFunRobotConfig
         return new PumpFunRobot_service(userId, inputParam, Object.assign({}, this.config), newName)
     }
 
-    async receiveMsg(_: string, __: string[]): Promise<void> {
-
+    async receiveMsg(msg: string, __: string[]): Promise<void> {
+        switch (msg) {
+            case 'pause':
+                await this.robot.pause()
+                break
+            case 'resume':
+                await this.robot.resume()
+                break
+            case 'stop':
+                await this.robot.stop()
+                break
+            case 'sell-all':
+                await this.robot.sellAll()
+                break
+        }
     }
 
     protected async runWrapper() {
@@ -86,7 +107,8 @@ export class PumpFunRobot_service extends BaseCommandService<IPumpFunRobotConfig
     async terminateWrapper() {
         await this.robot.stop()
         const session_data = this.robot.toSave()
-        this.setSessionDataValue('master_state_save', session_data)
+        await this.setSessionDataValue('master_state_save', session_data.master)
+        await this.setSessionDataValue('state', session_data.state)
     }
 
 }

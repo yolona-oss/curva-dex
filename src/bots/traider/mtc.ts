@@ -447,6 +447,10 @@ export abstract class MasterTraderCtrl<
         return await this.sharedSequalizer.waitTask(opId)
     }
 
+    public async waitAllSlaveOperations() {
+        return await this.sharedSequalizer.waitAll()
+    }
+
     slavesMetrics() {
         return this.agregateMetrics(this.slaves.map(s => s.metrics()))
     }

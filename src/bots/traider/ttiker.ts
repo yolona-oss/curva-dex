@@ -27,12 +27,21 @@ export abstract class AbstractTTickerCtx<StateType extends BaseTTickerState> {
 
 export class TTicker implements IRunnable {
     private _isRunning: boolean = false
+    private _isPaused = false
     protected ctx: AbstractTTickerCtx<BaseTTickerState>
     private interval = 100
 
     constructor(ctx: AbstractTTickerCtx<BaseTTickerState>) {
         this.ctx = ctx
         this.ctx.onmessage = () => {}
+    }
+
+    pause() {
+        this._isPaused = true
+    }
+
+    resume() {
+        this._isPaused = false
     }
 
     isRunning(): boolean {
@@ -51,7 +60,9 @@ export class TTicker implements IRunnable {
 
         while (this._isRunning) {
             const startTime = performance.now()
-            await this.ctx.tick()
+            if (!this._isPaused) {
+                await this.ctx.tick()
+            }
             const elapsedTime = performance.now() - startTime
 
             if (elapsedTime < this.interval) {
