@@ -47,6 +47,10 @@ export class PumpFunRobot_service extends BaseCommandService<IBCPS_Config, IPump
         return new PumpFunRobot_service(userId, inputParam, Object.assign({}, this.config), newName)
     }
 
+    async receiveMsg(_: string, __: string[]): Promise<void> {
+
+    }
+
     protected async runWrapper() {
 
         //await this.createSlaves(this.config.traiders.count, slaveTraider_Signature)

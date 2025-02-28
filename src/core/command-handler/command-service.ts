@@ -68,7 +68,12 @@ export abstract class BaseCommandService<
 
     protected abstract runWrapper(): Promise<void>
     protected abstract terminateWrapper(): Promise<void>
+    abstract receiveMsg(msg: string, args: string[]): Promise<void>
     abstract clone(userId: string, inputParam: string[], newName?: string): BaseCommandService<CfgType, TServiceParams, TServiceSessionData>
+
+    sendMsg(msg: string) {
+        this.emit("message", msg)
+    }
 
     protected createServicePrefix() {
         return `${this.name}-${this.session_id}-${this.userId}`

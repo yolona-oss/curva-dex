@@ -380,6 +380,25 @@ Prev: ${cmd.prev ?? "None"}\n\
             } else {
                 return `Service ${serviceName} not active.`
             }
+        } else if (command === DefaultServiceCommandsEnum.SEND_MSG_COMMAND) {
+            if (arg.length < 2) {
+                return "No service name and message passed"
+            }
+            const serviceName = arg[0]
+            const msg = arg[1]
+            const msgArg = arg.slice(2)
+
+            if (!this.activeServices.has(userId)) {
+                this.activeServices.set(userId, [])
+            }
+            const userServices = this.activeServices.get(userId)!
+            const userServicesNames = userServices.map(s => s.name)
+            if (userServicesNames.includes(serviceName)) {
+                await userServices.find(serv => serv.name === serviceName)!.receiveMsg(msg, msgArg)
+                return `Service "${serviceName}" message sent.`
+            } else {
+                return `Service ${serviceName} not active.`
+            }
         }
         return null
     }

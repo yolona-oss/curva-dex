@@ -5,7 +5,8 @@ export const DefaultSeqCommandsEnum = {
 }
 
 export const DefaultServiceCommandsEnum = {
-    STOP_COMMAND: "stop"
+    STOP_COMMAND: "stop",
+    SEND_MSG_COMMAND: "msg",
 }
 
 export const DefaultAccountCommandsEnum = {

@@ -4,7 +4,8 @@ import { genRandomNumberBetweenWithScatter } from '@utils/random'
 import { sleep } from '@utils/time'
 
 export class TestService extends BaseCommandService {
-    private max: number = 1000
+    private max = 1000n
+    private i = 3n
 
     protected __serviceParamMap = defaultServiceParamsMap
 
@@ -12,10 +13,24 @@ export class TestService extends BaseCommandService {
         super(userId, {}, input, name)
     }
 
-    parseInputParams(...args: string[]): string | void {
-        const max = Number(args[0])
-        if (max && max > 0) {
-            this.max = max
+    private isPaused = false
+
+    async receiveMsg(msg: string, args: string[]): Promise<void> {
+        if (msg === 'pause') {
+            this.isPaused = true
+        } else if (msg === 'resume') {
+            this.isPaused = false
+        } else if (msg === 'stop') {
+            await this.terminate()
+        } else if (msg == 'reset') {
+            this.max = 1000n
+            this.i = 3n
+        } else if (msg === 'setmax') {
+            if (args.length < 1 || Number.isNaN(Number(args[0]))) {
+                this.sendMsg("Usage: setmax <max>")
+                return
+            }
+            this.max = BigInt(args[0])
         }
     }
 
@@ -24,17 +39,21 @@ export class TestService extends BaseCommandService {
     }
 
     async runWrapper() {
-        let i = 3n
         while (true) {
             if (!super.isRunning()) {
                 break
             }
-            this.emit("message", "blob" + i)
-            i = i + genRandomNumberBetweenWithScatter(199n, 320n, 30n)
+            if (!this.isPaused) {
+                this.emit("message", "blob" + this.i)
+                this.i += genRandomNumberBetweenWithScatter(199n, 320n, 30n)
+            }
             await sleep(1000)
-            if (i > this.max) {
+            if (this.i > this.max) {
                 await this.terminate()
             }
         }
+    }
+
+    async terminateWrapper() {
     }
 }
