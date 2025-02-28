@@ -13,7 +13,10 @@ interface bcs_em<T = string> extends EventMap {
 
 export const BLANK_SERVICE_NAME = "__blank_service_name__"
 export const BLANK_SERVICE_SESSION_ID = "__blank_session_id__"
+export const DEFAULT_INCREMENTAL_EXPIRITY_OPT = true
 export const DEFAULT_SERVICE_SESSION_EXPIRITY = 1000 * 60 * 60 * 24 * 2 // 2 days
+
+// TODO: create corn job for session expirity
 
 export interface IDefaultServiceSessionData {
     createTime: number
@@ -142,10 +145,21 @@ export abstract class BaseCommandService<
                     await account.unsetModuleData(module_session_name)
                     await this.initSession(true) // create new blank session
                 } else if (this.session_data.incrementalExpirity && this.session_data.initialExpirity) {
+                    // incremental expirity
+                    // TODO do not change expirity every time :))) but how?
                     this.session_data.expirity += this.session_data.initialExpirity
                     await account.setModuleData(module_session_name, "expirity", this.session_data.expirity)
                 }
             }
+        } else {
+            const sessionData = {
+                createTime: Date.now(),
+                expirity: DEFAULT_SERVICE_SESSION_EXPIRITY,
+                initialExpirity: DEFAULT_SERVICE_SESSION_EXPIRITY,
+                incrementalExpirity: DEFAULT_INCREMENTAL_EXPIRITY_OPT,
+            }
+            await account.setModuleData(module_session_name, "", sessionData)
+            this.session_data = sessionData as TServiceSessionData
         }
     }
 
