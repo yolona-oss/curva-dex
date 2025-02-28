@@ -4,8 +4,8 @@ import log from "@utils/logger";
 import { sleep, timeoutPromise } from "@utils/time";
 import { Sequalizer } from "@utils/sequalizer";
 
-import { SlaveTraderCtrl } from "./stc";
-import { ISTCMetrics } from "./stc-metric";
+import { ISTCStateSave, SlaveTraderCtrl } from "./stc";
+import { ISTCMetrics, ISTCMetricsSave } from "./stc-metric";
 import { BaseTradeApi } from "./base-trade-api";
 import { ITradeCommit, TradeSideConst, TradeSideType } from "./types/trade";
 import { BotDrivenCurve } from "./bot-driven-curve";
@@ -16,9 +16,18 @@ import { intersect, isUnique } from "@utils/array";
 import { ALLOW_SLAVE_WALLET_DUPS } from "./constants";
 import { IMTC_OfferOpts } from "./mtc-offer-builder";
 import { OfferVerifier } from "./offer-cmd";
-import { BLANK_MINT_PREFIX } from "./impl/built-in";
+import { ExCurveSaveTradePoints } from "./curve";
+import { ExCurveTradeSave } from "./types/ex-curve";
 
-// NOTE: maybe create additional classes for master slave control logic like addition/removal, trades etc?
+export interface IMTCStateSave<AT extends IBaseTradeAsset> {
+    id: string
+    tradeAsset: IBaseTradeAsset
+    slaves: ISTCStateSave<AT>[]
+    curve: {
+        full: ExCurveSaveTradePoints
+        bots: ExCurveSaveTradePoints
+    }
+}
 
 export abstract class MasterTraderCtrl<
         TradeApi extends BaseTradeApi<AssetType> = BaseTradeApi<any>,
@@ -29,6 +38,8 @@ export abstract class MasterTraderCtrl<
         IRunnable,
         Identificable
 {
+    static slaveOrdinaryNumber = 0n
+
     private _isRunning: boolean = false
     protected sharedSequalizer: Sequalizer
 
@@ -38,12 +49,15 @@ export abstract class MasterTraderCtrl<
     private full_curve_id
 
     constructor(
-        public readonly tradeAsset: AssetType,
+        public readonly id: string,
+        protected readonly tradeAsset: AssetType,
+        curveSaves: {
+            full: ExCurveSaveTradePoints,
+            bots: ExCurveSaveTradePoints
+        }|null = null,
         protected slaves: Array<SlaveTraderCtrl<TradeApi, AssetType>>,
         protected tradeApi: TradeApi,
-        protected owner: string,
         protected walletMngr: WMType,
-        public readonly id: string = "id_mtc_main"
     ) {
         this.sharedSequalizer = new Sequalizer()
 
@@ -51,27 +65,48 @@ export abstract class MasterTraderCtrl<
             this.applySlave(slave)
         }
 
-        this.bots_curve_id = `${owner}_${this.id}_${this.tradeApi.id}_${this.tradeAsset.symbol}_bots_curve`
-        this.full_curve_id = `${owner}_${this.id}_${this.tradeApi.id}_${this.tradeAsset.symbol}_full_curve`
+        this.bots_curve_id = `${this.tradeAsset.mint}_bots_curve`
+        this.full_curve_id = `${this.tradeAsset.mint}_full_curve`
 
-        if (tradeAsset.mint !== BLANK_MINT_PREFIX) {
-            log.echo(`bots_curve_id: ${this.bots_curve_id}`)
-            log.echo(`full_curve_id: ${this.full_curve_id}`)
-            this.botDrivenCurve = BotDrivenCurve.loadFromFile(this.owner, this.bots_curve_id)
-            this.fullCurve = BotDrivenCurve.loadFromFile(this.owner, this.bots_curve_id)
-        } else {
-            this.botDrivenCurve = new BotDrivenCurve(this.owner)
-            this.fullCurve = new BotDrivenCurve(this.owner)
+        const stringToBigInt = (t: ExCurveTradeSave&{time:number}) => ({
+            ...t,
+            price: BigInt(t.price),
+            quantity: BigInt(t.quantity)
+        })
+        this.botDrivenCurve = new BotDrivenCurve(
+            this.bots_curve_id,
+            curveSaves?.bots.map(stringToBigInt)
+        )
+        this.fullCurve = new BotDrivenCurve(
+            this.full_curve_id,
+            curveSaves?.full.map(stringToBigInt)
+        )
+
+
+        if (MasterTraderCtrl.slaveOrdinaryNumber >= BigInt(Number.MAX_VALUE-1)) {
+            log.warn(`MasterTraderCtrl.slaveOrdinaryNumber overflowed. Resetting to 0`)
+            MasterTraderCtrl.slaveOrdinaryNumber = 0n
+        }
+    }
+
+    abstract clone(newId: string, curveSaves: {full: ExCurveSaveTradePoints, bots: ExCurveSaveTradePoints}|null, newAsset: AssetType, newSlaves?: SlaveTraderCtrl<TradeApi, AssetType>[]): MasterTraderCtrl<TradeApi, AssetType, WMType>
+    abstract onTrade<TxData>(ev: string, trade: TxData): Promise<void>
+
+    toSave(): IMTCStateSave<AssetType> {
+        return {
+            id: this.id,
+            tradeAsset: this.tradeAsset,
+            slaves: this.slaves.map(s => s.toSave()),
+            curve: {
+                full: this.fullCurve.toSave(),
+                bots: this.botDrivenCurve.toSave()
+            }
         }
     }
 
     public isRunning(): boolean {
         return this._isRunning
     }
-
-    abstract clone(newId: string, newOwner: string, newAsset: AssetType, newSlaves?: SlaveTraderCtrl<TradeApi, AssetType>[]): MasterTraderCtrl<TradeApi, AssetType, WMType>
-
-    abstract onTrade<TxData>(ev: string, trade: TxData): Promise<void>
 
     private onSlaveSell(awaited_id: string, trade: ITradeCommit<AssetType>) {
         awaited_id
@@ -230,7 +265,7 @@ export abstract class MasterTraderCtrl<
     }
 
     private createSlaveId(sign: string) {
-        return `master_${this.id}_owner_${this.owner}_${sign}_slave_id`
+        return `${Date.now()}_${sign}_slave_id_${MasterTraderCtrl.slaveOrdinaryNumber}`
     }
 
     private applySlave(slave: SlaveTraderCtrl<TradeApi, AssetType>) {
@@ -239,10 +274,10 @@ export abstract class MasterTraderCtrl<
         slave.setSequalizer(this.sharedSequalizer)
     }
 
-    createAndApplySlave(clonable: SlaveTraderCtrl<TradeApi, AssetType>, sign: string, wallet: IDEXWallet) {
+    createAndApplySlave(clonable: SlaveTraderCtrl<TradeApi, AssetType>, sign: string, wallet: IDEXWallet, history: ISTCMetricsSave<AssetType>|null = null) {
         this.throwIfDupsNotAllowed(wallet)
         const newId = this.createSlaveId(sign)
-        const slave = clonable.clone(newId, this.owner, {wallet}, this.sharedSequalizer)
+        const slave = clonable.clone(newId, history, {wallet}, this.sharedSequalizer)
         this.applySlave(slave)
         this.addSlave(slave)
         return slave
@@ -252,13 +287,13 @@ export abstract class MasterTraderCtrl<
     * TODO: create more opts to slave addiction to master
     * @argument replaceIdWithSign - if not empty, will replace slave id with this sign and current master id-creation logic. BUT SKIP ALL METRICS!
     */
-    addSlave(__slave: SlaveTraderCtrl<TradeApi, AssetType>, replaceIdWithSign: string = "") {
-        this.throwIfDupsNotAllowed(__slave.Wallet)
+    addSlave(clonable: SlaveTraderCtrl<TradeApi, AssetType>, replaceIdWithSign: string|null = null, history: ISTCMetricsSave<AssetType>|null = null) {
+        this.throwIfDupsNotAllowed(clonable.Wallet)
 
-        let slaveReplicant = __slave
-        if (replaceIdWithSign != "") {
+        let slaveReplicant = clonable
+        if (replaceIdWithSign != null) {
             // NOTE: metrics will be lost
-            slaveReplicant = __slave.clone(this.createSlaveId(replaceIdWithSign), this.owner, {wallet: __slave.Wallet}, this.sharedSequalizer)
+            slaveReplicant = clonable.clone(this.createSlaveId(replaceIdWithSign), history, {wallet: clonable.Wallet}, this.sharedSequalizer)
         }
 
 
@@ -393,8 +428,6 @@ export abstract class MasterTraderCtrl<
     async terminate() {
         console.log("MTC DONE")
         this._isRunning = false
-        this.botDrivenCurve.saveToFile(this.bots_curve_id)
-        this.fullCurve.saveToFile(this.full_curve_id)
         await this.sharedSequalizer.waitAll()
         await this.sharedSequalizer.terminate()
         for (const slave of this.slaves) {

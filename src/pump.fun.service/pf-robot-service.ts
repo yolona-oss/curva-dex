@@ -4,6 +4,9 @@ import { IBCPS_Config, defaultCfg } from "./pf-config";
 
 import { defaultServiceParamsMap, IDefaultServiceParams, IDefaultServiceSessionData } from "@core/command-handler/command-service";
 import { PumpFunRobot } from "./pf-robot";
+import { BLANK_USER_ID } from "@core/command-handler/command-handler";
+import { IMTCStateSave } from "@bots/traider/mtc";
+import { PumpFunAssetType } from "@bots/traider/impl/pump.fun";
 
 export const serviceName = 'pump_fun'
 export const serviceDescription = `Customizable servie for the pump.fun dex simulation activity and automated trading by setting a strategy schema.`
@@ -18,28 +21,42 @@ const pumpFunParamsMap: IPumpFunRobotParams = {
 }
 
 interface IServiceSessionData extends IDefaultServiceSessionData {
-    slaves_id: string[],
+    master_state_save: IMTCStateSave<PumpFunAssetType>
 }
+
+/**
+ * From up to down order 
+ *          |
+ *          V
+ *
+ * 1. inited - input parsed and config loaded
+ * 2. distribute - all slaves distributed
+ * 3. initial_buy - all initial buys done
+ * 4. ready - all preparing ops done and 
+ * 5. run - main loop
+ * 6. collect - all collecting ops done
+ * 7. end - nothing to do
+ */
+export type IPumpFunRobotSessionState = "ready" | "inited" | "distribute" | "initial_buy" | "collect" | "end" | "run"
 
 export class PumpFunRobot_service extends BaseCommandService<IBCPS_Config, IPumpFunRobotParams, IServiceSessionData> {
     protected __serviceParamMap: IPumpFunRobotParams = pumpFunParamsMap;
 
+    // @ts-ignore
     private robot: PumpFunRobot
 
-    constructor(userId: string, inputParam: string[] = [], config: Partial<IBCPS_Config> = defaultCfg, name: string = serviceName) {
+    constructor(
+        userId: string = BLANK_USER_ID,
+        inputParam: string[] = [],
+        config: Partial<IBCPS_Config> = defaultCfg,
+        name: string = serviceName
+    ) {
         const _config = {...defaultCfg, ...config}
         super(
             userId,
             _config,
             inputParam,
             name,
-        )
-
-        this.robot = new PumpFunRobot(
-            this.createServicePrefix(),
-            this.userId,
-            this.config.targetAsset,
-            this.config
         )
     }
 
@@ -52,18 +69,23 @@ export class PumpFunRobot_service extends BaseCommandService<IBCPS_Config, IPump
     }
 
     protected async runWrapper() {
+        this.isBlankSession()
 
-        //await this.createSlaves(this.config.traiders.count, slaveTraider_Signature)
-        //await this.createSlaves(this.config.holders.count, slaveHolder_Signature)
-        //await this.createSlaves(this.config.volatile.count, slaveVolatile_Signature)
-        //await this.distribute()
-        //await this.initialBuy()
-        //
-        //await this.imitateTxs()
+        const master_state_save = this.session_data.master_state_save
+        this.robot = new PumpFunRobot(
+            this.createServicePrefix(),
+            this.config.targetAsset,
+            this.config,
+            this.isBlankSession() ? null : master_state_save
+        )
+
+        await this.robot.Initialize()
     }
 
     async terminateWrapper() {
-        //await this.terminateImitateTxs()
+        await this.robot.terminateImitateTxs()
+        const session_data = this.robot.toSave()
+        this.setSessionDataValue('master_state_save', session_data)
     }
 
 }

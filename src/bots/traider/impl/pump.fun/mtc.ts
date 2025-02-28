@@ -8,21 +8,25 @@ import { BLANK_MINT_PREFIX } from "./../built-in";
 
 import log from '@utils/logger'
 import { SolanaWalletManager } from "@bots/traider/wallet-manager";
+import { ExCurveSaveTradePoints } from "@bots/traider/curve";
 
 export class PumpFunMaster extends MasterTraderCtrl<PumpFunApi, PumpFunAssetType, SolanaWalletManager> {
     constructor(
         id: string,
-        owner: string,
+        curveSaves: ({
+            full: ExCurveSaveTradePoints,
+            bots: ExCurveSaveTradePoints,
+        })|null,
         asset: PumpFunAssetType,
         slaves?: SlaveTraderCtrl<PumpFunApi, PumpFunAssetType>[]
     ) {
         super(
+            id,
             asset,
+            curveSaves,
             slaves ?? [],
             PumpFunApiProvider as PumpFunApi,
-            owner,
             new SolanaWalletManager(),
-            id
         )
 
         if (asset.mint != BLANK_MINT_PREFIX) {
@@ -48,7 +52,7 @@ export class PumpFunMaster extends MasterTraderCtrl<PumpFunApi, PumpFunAssetType
         })
     }
 
-    clone(newId: string, newOwner: string, newAsset: PumpFunAssetType, newSlaves?: SlaveTraderCtrl<PumpFunApi, PumpFunAssetType>[]) {
-        return new PumpFunMaster(newId, newOwner, newAsset, newSlaves ?? [])
+    clone(newId: string, curveSaves: ({ full: ExCurveSaveTradePoints, bots: ExCurveSaveTradePoints })|null, newAsset: PumpFunAssetType, newSlaves?: SlaveTraderCtrl<PumpFunApi, PumpFunAssetType>[]) {
+        return new PumpFunMaster(newId, curveSaves, newAsset, newSlaves ?? [])
     }
 }

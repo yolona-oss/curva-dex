@@ -1,5 +1,5 @@
 import { BaseUIContext } from "@core/ui"
-import { BLANK_USER_ID, ICmdRegisterMany } from "@core/command-handler/command-handler"
+import { ICmdRegisterMany } from "@core/command-handler/command-handler"
 
 import { TestService } from "./user-services"
 import { PumpFunRobot,
@@ -36,7 +36,7 @@ export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegiste
                 command: "test_service",
                 description: "Test service",
             },
-            handler: new TestService(BLANK_USER_ID)
+            handler: new TestService()
         },
         {
             command: {
@@ -53,7 +53,7 @@ export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegiste
                 description: pumpServiceDescription,
                 args: pumpServiceArgs
             },
-            handler: new PumpFunRobot("")
+            handler: new PumpFunRobot()
         }
 
     ]

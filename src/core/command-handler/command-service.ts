@@ -168,14 +168,24 @@ export abstract class BaseCommandService<
         }
     }
 
-    protected async setConfigValue(forUserId: number, path: string, value: any) {
+    protected async setConfigValue(path: keyof CfgType, value: any) {
         const module_name = `${this.name}_${this.session_id}`
 
-        const user = (await Manager.findOne({userId: forUserId}))!;
+        const user = (await Manager.findOne({userId: this.userId}))!;
         const account = (await Account.findById(user.account))!;
 
-        account.setModuleData(module_name, path, value)
-        this.config = assignToCustomPath(this.config, path, value)
+        account.setModuleData(module_name, path as string, value)
+        this.config = assignToCustomPath(this.config, path as string, value)
+    }
+
+    protected async setSessionDataValue(path: keyof TServiceSessionData, value: any) {
+        const module_name = `${this.name}_${this.session_id}_session`
+
+        const user = (await Manager.findOne({userId: this.userId}))!;
+        const account = (await Account.findById(user.account))!;
+
+        account.setModuleData(module_name, path as string, value)
+        this.session_data = assignToCustomPath(this.session_data, path as string, value)
     }
 
     isBlankSession() {

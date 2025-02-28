@@ -1,13 +1,14 @@
 import { LinkedList } from "@utils/struct/linked-list";
 import { TimeRange } from "@utils/time";
 
-import { ExCurveNodeList, ExCurveTrade } from "./types/ex-curve";
+import { ExCurveNodeList, ExCurveTrade, ExCurveTradeSave } from "./types/ex-curve";
 import { ExTimeRangeType, isExDateInRange } from "./types/time-range";
 
 import { BigIntMath } from '@utils/math/bigint'
 
 export type ExCurveTradePoint = ExCurveTrade&{time:number}
 export type ExCurveTradePoints = ExCurveTradePoint[]
+export type ExCurveSaveTradePoints = (ExCurveTradeSave&{time:number})[]
 
 export enum CurveTrend {
     UP,
@@ -82,6 +83,14 @@ export class ExCurve {
 
     constructor(initial?: ExCurveTradePoints) {
         this.trades = initial ? ExCurve.sortTrades(initial) : []
+    }
+
+    toSave(): ExCurveSaveTradePoints {
+        return this.trades.map(t => ({
+            ...t,
+            price: t.price.toString(),
+            quantity: t.quantity.toString()
+        }))
     }
 
     public getTrendsByLastTx(lastTx: number = 0): CurveTrendPoint[] {

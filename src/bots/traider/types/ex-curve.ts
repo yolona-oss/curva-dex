@@ -22,6 +22,13 @@ export interface ExCurveTrade {
     side: typeof TradeSideConst[keyof typeof TradeSideConst];
 }
 
+export interface ExCurveTradeSave {
+    sign: string
+    price: string,
+    quantity: string,
+    side: typeof TradeSideConst[keyof typeof TradeSideConst];
+}
+
 export type ExCurveNodeList<T extends "simple" | "full"> = LinkedList<T extends "simple" ? ExCurveSimpleNode : ExCurveFullNode>
 
 export type isExCurveSimpleNode = (obj: any) => obj is ExCurveSimpleNode

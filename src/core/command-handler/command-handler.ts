@@ -252,6 +252,11 @@ export class CommandHandler<TContext extends BaseUIContext> extends WithInit {
                 command: DefaultServiceCommandsEnum.STOP_COMMAND,
                 description: "Stop service with passed name <service-name>.",
                 args: ["service-name"]
+            },
+            {
+                command: DefaultServiceCommandsEnum.SEND_MSG_COMMAND,
+                description: "Send message to service with passed name <service-name> and <message> with optional args.",
+                args: ["service-name", "message", "?args"]
             }
         ])
         .concat([

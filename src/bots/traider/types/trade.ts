@@ -1,7 +1,7 @@
 import { IBaseTradeAsset } from "./asset";
 import { ITraider } from "./traider";
 
-export const TradeSideConst = {
+export const TradeSideConst: Record<string, TradeSideType> = {
     Buy: "BUY",
     Sell: "SELL"
 }

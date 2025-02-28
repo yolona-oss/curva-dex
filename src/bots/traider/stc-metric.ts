@@ -2,6 +2,9 @@ import { WithExecTime } from "@core/types/with-exec-time"
 
 import { ITradeCommit, TradeSideConst } from "./types/trade"
 import { IBaseTradeAsset } from "./types/asset"
+import { loadFromJson, writeJsonData } from "@core/utils/fs"
+
+import path from 'path'
 
 type CommitWithExecTime<TradeAsset extends IBaseTradeAsset = IBaseTradeAsset> = ITradeCommit<TradeAsset>&WithExecTime
 
@@ -22,10 +25,27 @@ export interface ISTCMetrics<TradeAsset extends IBaseTradeAsset = IBaseTradeAsse
     DropedTradesCount: number,
 }
 
+export interface ISTCMetricsSave<AssetType extends IBaseTradeAsset> {
+    trades: Array<CommitWithExecTime<AssetType>>,
+    droped: number
+}
+
 // TODO: remove trades array and save data exacly in the metrics
 export class STCMetrics<TradeAsset extends IBaseTradeAsset = IBaseTradeAsset> {
-    protected trades: Array<ITradeCommit<TradeAsset>&WithExecTime> = []
-    protected droped = 0
+    protected trades: Array<ITradeCommit<TradeAsset>&WithExecTime>
+    protected droped
+
+    constructor(history: ISTCMetricsSave<TradeAsset>|null = null) {
+        this.trades = history?.trades || []
+        this.droped = history?.droped || 0
+    }
+
+    public toSave(): ISTCMetricsSave<TradeAsset> {
+        return {
+            trades: this.trades,
+            droped: this.droped
+        }
+    }
 
     public reset() {
         this.trades = []

@@ -1,4 +1,5 @@
 import { BaseCommandService } from '@core/command-handler'
+import { BLANK_USER_ID } from '@core/command-handler/command-handler'
 import { defaultServiceParamsMap } from '@core/command-handler/command-service'
 import { genRandomNumberBetweenWithScatter } from '@utils/random'
 import { sleep } from '@utils/time'
@@ -9,7 +10,7 @@ export class TestService extends BaseCommandService {
 
     protected __serviceParamMap = defaultServiceParamsMap
 
-    constructor(userId: string, input: string[], name: string = 'blob') {
+    constructor(userId: string = BLANK_USER_ID, input: string[] = [], name: string = 'blob') {
         super(userId, {}, input, name)
     }
 

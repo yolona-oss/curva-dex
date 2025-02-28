@@ -10,30 +10,30 @@ import { ITraider } from "./types/traider";
 import { IBaseTradeAsset } from "./types/asset";
 
 import { BaseTradeApi } from "./base-trade-api";
-import { STCMetrics, ISTCMetrics } from "./stc-metric";
+import { STCMetrics, ISTCMetrics, ISTCMetricsSave } from "./stc-metric";
 
 import { OfferCmd, ICmdPushOfferOpts } from "./offer-cmd"
 import { BaseWalletManager } from "./wallet-manager";
 
-import { writeJsonData } from "@utils/fs";
-
 import { BLANK_WALLET_OBJ } from './impl/built-in'
 import { EventEmitter } from "events";
 import { WithExecTime } from "@core/types/with-exec-time";
+import { MasterTraderCtrl } from "./mtc";
 
 export type CheckPerformErrorType = "balance" | "asset"
 
-const session_id_g = new Date().toLocaleString('ru').replace(/:/g, "-").replace(', ', '_')
+export interface ISTCStateSave<AT extends IBaseTradeAsset> {
+    id: string
+    metrics: ISTCMetricsSave<AT>
+    wallet: IDEXWallet
+}
 
 export abstract class SlaveTraderCtrl<
             TradeAPI extends BaseTradeApi<TradeAsset> = BaseTradeApi<any>,
             TradeAsset extends IBaseTradeAsset = IBaseTradeAsset>
         extends EventEmitter
         implements Identificable<string> {
-    static slaveOrdinaryNumber = 0
 
-    protected tradeApi: TradeAPI
-    protected sequalizer?: Sequalizer
     protected _metrics: STCMetrics<TradeAsset>
 
     protected traider: ITraider
@@ -42,40 +42,27 @@ export abstract class SlaveTraderCtrl<
 
     constructor(
         public readonly id: string,
-        protected owner: string,
-        tradeApi: TradeAPI,
+        protected tradeApi: TradeAPI,
+        metricsHistory: ISTCMetricsSave<TradeAsset>|null = null,
         wallet: IDEXWallet,
-        sharedSequalizer?: Sequalizer
+        protected sequalizer: Sequalizer|null = null
     ) {
         super()
-        this.tradeApi = tradeApi.clone()
-        this.sequalizer = sharedSequalizer
-        this._metrics = new STCMetrics()
+        this._metrics = new STCMetrics(metricsHistory)
         this.traider = {
             wallet: Object.assign({}, wallet)
         }
+    }
 
-        if (SlaveTraderCtrl.slaveOrdinaryNumber >= Number.MAX_VALUE-1) {
-            log.warn(`SlaveTraderCtrl.slaveOrdinaryNumber overflowed. Resetting to 0`)
-            SlaveTraderCtrl.slaveOrdinaryNumber = 0
+    abstract clone(newId: string, metricsHistory: ISTCMetricsSave<TradeAsset>|null, newTraider: ITraider, newSequalizer?: Sequalizer): SlaveTraderCtrl<TradeAPI, TradeAsset>
+
+    toSave(): ISTCStateSave<TradeAsset> {
+        return {
+            id: this.id,
+            wallet: this.traider.wallet,
+            metrics: this._metrics.toSave(),
         }
-
-        if (!BaseWalletManager.cmpWallets(this.traider.wallet, BLANK_WALLET_OBJ)) {
-            this.saveUsedWallet()
-        }
     }
-
-    private saveUsedWallet() {
-        if (BaseWalletManager.cmpWallets(this.traider.wallet, BLANK_WALLET_OBJ)) return
-        writeJsonData([this.owner, "slave-wallets", `owner-${this.owner}-session-` + session_id_g], this.id, this.traider.wallet)
-    }
-
-    private saveMetrics() {
-        if (BaseWalletManager.cmpWallets(this.traider.wallet, BLANK_WALLET_OBJ)) return
-        writeJsonData([this.owner, "slave-metrics", `owner-${this.owner}-session-` + session_id_g], this.id, this.metrics())
-    }
-
-    abstract clone(newId: string, newOwner: string, newTraider: ITraider, newSequalizer?: Sequalizer): SlaveTraderCtrl<TradeAPI, TradeAsset>
 
     public setSequalizer(sequalizer: Sequalizer) {
         this.sequalizer = sequalizer
@@ -192,7 +179,7 @@ export abstract class SlaveTraderCtrl<
         }
 
         const delay = opt.setup.delay
-        const wait_id = `${this.id}-${SlaveTraderCtrl.slaveOrdinaryNumber}-${side}-${opt.offer.asset.mint}-${this.sequalizer.genId()}`
+        const wait_id = `${this.id}-${MasterTraderCtrl.slaveOrdinaryNumber.toString()}-${side}-${opt.offer.asset.mint}-${this.sequalizer.genId()}`
 
         const cmd = new OfferCmd<TradeAsset>({
             id: wait_id,
@@ -225,11 +212,13 @@ export abstract class SlaveTraderCtrl<
                 t => t.id.includes(this.id))
             log.echo(`SlaveTraderCtrl::shutdown() removed ${removed.length} tasks for ${this.id}`)
             log.echo(`SlaveTraderCtrl::shutdown() kept ${kept.length} tasks for ${this.id}`)
+
             const success = await this.sequalizer.waitTasksWithIdMatch(this.id)
+
             log.echo(`SlaveTraderCtrl::shutdown() awaited all tasks for ${this.id}. Await success: ${success}`)
         }
         log.echo(`SlaveTraderCtrl::shutdown() saving metrics with trades count: ${this._metrics.Trades.length} for ${this.id}`)
-        this.saveMetrics()
+        //this.saveMetrics()
     }
 
     ////////////////////////

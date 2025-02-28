@@ -1,64 +1,79 @@
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { TradeArchImplRegistry, ITradeArchImpl, BuiltInNames, SolanaWalletManager, TradeSideType } from "@bots/traider";
+import { TradeArchImplRegistry, ITradeArchImpl, BuiltInNames, SolanaWalletManager, TradeSideType, BaseWalletManager } from "@bots/traider";
 import { IPumpFun_TxEventName, IPumpFun_TxEventPayload } from "@bots/traider/impl/pump.fun";
 import { PumpFunApi, PumpFunAssetType, PumpFunMaster, PumpFunSlave } from "@bots/traider/impl/pump.fun"
 import { MTC_OfferBuilder } from "@bots/traider/mtc-offer-builder";
 
 import { randomizeWithScatter } from "@core/utils/random";
 import log from '@utils/logger'
-import { IBCPS_Config } from "./pf-config";
+import { IBCPS_Config } from "./../pf-config";
 import EventEmitter from "events";
+import { IMTCStateSave } from "@bots/traider/mtc";
+import { IPumpFunRobotSessionState } from "../pf-robot-service";
 
-const slaveHolder_Signature = "_holder_"
-const slaveVolatile_Signature = "_volatile_"
-const slaveTraider_Signature = "_traider_"
+import { SlaveDictionary } from "./slave-dict";
 
 export class PumpFunRobot extends EventEmitter {
     private impl: ITradeArchImpl<PumpFunApi, PumpFunAssetType, SolanaWalletManager>
     private master: PumpFunMaster
+    private slavesDict: SlaveDictionary
+
+    private state: IPumpFunRobotSessionState
 
     constructor(
-        private prefix: string,
-        private user_id: string,
-        private asset: PumpFunAssetType,
+        prefix: string,
+        asset: PumpFunAssetType,
         private config: IBCPS_Config,
-        traiders: PumpFunSlave[] = [],
-        holders: PumpFunSlave[] = [],
-        volatile: PumpFunSlave[] = [],
+        sessionSave?: IMTCStateSave<PumpFunAssetType>|null
     ) {
         super()
 
         this.impl = TradeArchImplRegistry.Instance.get(BuiltInNames.PumpDotFun)!
-        this.master = this.impl.mtc.clone(
-            `${prefix}_master`,
-            user_id,
-            asset, traiders.concat(holders).concat(volatile))
-    }
 
-    private getSlavesHolders() {
-        return this.master!.Slaves.filter(s => s.id.includes(slaveHolder_Signature))
-    }
+        if (sessionSave) {
+            const { id, tradeAsset, slaves, curve } = sessionSave
 
-    private getSlavesTraiders() {
-        return this.master!.Slaves.filter(s => !s.id.includes(slaveHolder_Signature)) as PumpFunSlave[]
-    }
+            const slaves_count = slaves.length
+            const must_be_slaves = this.config.holders.count + this.config.traiders.count + this.config.volatile.count
 
-    private getSlavesVolatile() {
-        return this.master!.Slaves.filter(s => s.id.includes(slaveVolatile_Signature))
-    }
+            if (slaves_count !== must_be_slaves) {
+                throw new Error(`Session currapted. Expected ${must_be_slaves} slaves by config, but got ${slaves_count} in session dump`)
+            }
 
-    private async createSlaves(count: number, install_token: string) {
-        for (let i = 0; i < count; i++) {
-            const wallet = await this.impl.walletManager.createWallet()
-            this.master.createAndApplySlave(
-                this.impl.stc,
-                install_token,
-                wallet
+            const _slaves = slaves.map(s => {
+                return this.impl.stc.clone(
+                    s.id, s.metrics, {wallet: s.wallet}
+                )
+            })
+
+            this.master = this.impl.mtc.clone(
+                id, curve, tradeAsset, _slaves
+            )
+        } else {
+            this.master = this.impl.mtc.clone(
+                `${prefix}_master`,
+                null,
+                asset
             )
         }
+
+        this.slavesDict = new SlaveDictionary(this.master)
+
+        this.state = "inited"
     }
 
-    private async distribute() {
+    async Initialize() {
+        // if there are already slaves, do nothing(load in constructor from session dump)
+        if (this.master.slavesCount() > 0) {
+            return
+        }
+
+        await this.slavesDict.create(this.config.holders.count, "holder", this.impl.walletManager, this.impl.stc)
+        await this.slavesDict.create(this.config.traiders.count, "traider", this.impl.walletManager, this.impl.stc)
+        await this.slavesDict.create(this.config.volatile.count, "volatile", this.impl.walletManager, this.impl.stc)
+    }
+
+    async distribute() {
         const createDistributeMap = (sols: number, count: number) => {
             const n = count
             const S = sols * LAMPORTS_PER_SOL
@@ -88,8 +103,8 @@ export class PumpFunRobot extends EventEmitter {
         const holderDistribMap = createDistributeMap(holdersDistributeSol, this.config.holders.count)
         const traiderDistribMap = createDistributeMap(traidersDistributeSol, this.config.traiders.count)
 
-        const holdersWallets = this.getSlavesHolders().map(s => s.Wallet)
-        const traidersWallets = this.getSlavesTraiders().map(s => s.Wallet)
+        const holdersWallets = this.slavesDict.hodlers.map(s => s.Wallet)
+        const traidersWallets = this.slavesDict.traiders.map(s => s.Wallet)
 
         this.master.distributeNativeCoins(this.config.motherShip, holdersWallets.map((w, i) => ({
             wallet: w,
@@ -101,11 +116,11 @@ export class PumpFunRobot extends EventEmitter {
         })))
     }
 
-    private async collect() {
+    async collectFromAll() {
         await this.master.collectSlavesNativeCoins(this.config.motherShip)
     }
 
-    private async initialBuy() {
+    async initialBuy() {
         const __initBuy = async (slaves: PumpFunSlave[], balanceRestSol: number) => {
             const wait_ids: string[] = []
             for (const slave of slaves) {
@@ -129,8 +144,8 @@ export class PumpFunRobot extends EventEmitter {
             return wait_ids
         }
 
-        const holders = this.getSlavesHolders()
-        const traiders = this.getSlavesTraiders()
+        const holders = this.slavesDict.hodlers
+        const traiders = this.slavesDict.traiders
 
         log.echo(`Initial buy for ${holders.length} holders and ${traiders.length} traiders`)
         const holders_wait_ids = await __initBuy(holders,
@@ -182,7 +197,7 @@ export class PumpFunRobot extends EventEmitter {
     //  Price:
     //      
 
-    private async terminateImitateTxs() {
+    async terminateImitateTxs() {
         if (this.other_traides_listner_id >= 0) {
             this.impl.api.unsubscribeFromAssetTrades(this.config.targetAsset.mint, this.other_traides_listner_id)
         }
@@ -194,7 +209,7 @@ export class PumpFunRobot extends EventEmitter {
 
     private volatileTickTimer?: NodeJS.Timeout
 
-    private async imitateTxs() {
+    async imitateTxs() {
         //const now = Date.now()
         //this.master.FullCurve.getTrends({timeCut: { offset: now - 1000*60, limit: now }})
 
@@ -296,7 +311,7 @@ export class PumpFunRobot extends EventEmitter {
     }
 
     private async volatileTick() {
-        for (const slave of this.getSlavesVolatile()) {
+        for (const slave of this.slavesDict.volatile) {
             const lastTradeTime = slave.metrics().lastTrade?.time ?? 0
             const interval = randomizeWithScatter<number>(this.config.volatile.period, this.config.volatile.periodScatter, 0)
             if (Date.now() - lastTradeTime > interval) {
@@ -304,11 +319,15 @@ export class PumpFunRobot extends EventEmitter {
                 if (done) {
                     await this.handleVolatileDone(slave)
                     setTimeout(
-                        () => this.createSlaves(1, slaveVolatile_Signature),
+                        () => this.slavesDict.create(1, "volatile", this.impl.walletManager, slave),
                         this.config.volatile.rechargeTime
                     )
                 }
             }
         }
+    }
+
+    toSave() {
+        return this.master.toSave()
     }
 }

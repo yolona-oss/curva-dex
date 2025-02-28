@@ -2,16 +2,16 @@ import { IRunnable } from "@core/types/runnable";
 import { AbstractState } from "@core/types/state";
 import { sleep } from "@utils/time";
 
-export abstract class BaseTTikerState extends AbstractState<AbstractTTikerCtx> { }
+export abstract class BaseTTickerState extends AbstractState<AbstractTTickerCtx> { }
 
-export abstract class AbstractTTikerCtx {
+export abstract class AbstractTTickerCtx {
     constructor(
-        private state: BaseTTikerState
+        private state: BaseTTickerState
     ) {
         this.transitionTo(state)
     }
 
-    public transitionTo(state: BaseTTikerState) {
+    public transitionTo(state: BaseTTickerState) {
         this.state = state
         this.state.setContext(this)
     }
@@ -22,14 +22,14 @@ export abstract class AbstractTTikerCtx {
 
 export class TTicker implements IRunnable {
     private _isRunning: boolean = false
-    private ctx: AbstractTTikerCtx
+    private ctx: AbstractTTickerCtx
     private interval = 100
 
-    constructor(ctx: AbstractTTikerCtx) {
+    constructor(ctx: AbstractTTickerCtx) {
         this.ctx = ctx
     }
 
-    setState(state: BaseTTikerState) {
+    setState(state: BaseTTickerState) {
         this.ctx.transitionTo(state)
     }
 
