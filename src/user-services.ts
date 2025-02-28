@@ -1,12 +1,15 @@
 import { BaseCommandService } from '@core/command-handler'
+import { defaultServiceParamsMap } from '@core/command-handler/command-service'
 import { genRandomNumberBetweenWithScatter } from '@utils/random'
 import { sleep } from '@utils/time'
 
-export class TestService extends BaseCommandService<{}, string> {
+export class TestService extends BaseCommandService {
     private max: number = 1000
 
-    constructor(userId: string, name: string = 'blob') {
-        super(userId, {}, name)
+    protected __serviceParamMap = defaultServiceParamsMap
+
+    constructor(userId: string, input: string[], name: string = 'blob') {
+        super(userId, {}, input, name)
     }
 
     parseInputParams(...args: string[]): string | void {
@@ -16,13 +19,11 @@ export class TestService extends BaseCommandService<{}, string> {
         }
     }
 
-    clone(userId: string, newName?: string): BaseCommandService<{}, string> {
-        return new TestService(userId, newName)
+    clone(userId: string, input: string[], newName?: string): BaseCommandService {
+        return new TestService(userId, input, newName)
     }
 
-    async run() {
-        await super.run()
-
+    async runWrapper() {
         let i = 3n
         while (true) {
             if (!super.isRunning()) {

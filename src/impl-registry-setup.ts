@@ -4,7 +4,7 @@ import { BuiltInNames, TradeArchImplRegistry } from '@bots/traider'
 import { PumpFunApiProvider, PumpFunMaster, PumpFunSlave } from '@bots/traider/impl/pump.fun'
 import { SolanaWalletManager } from '@bots/traider/wallet-manager'
 
-import { BLANK_ASSET_OBJ, BLANK_INSTANCE_ID_PREFIX, BLANK_WALLET_OBJ } from '@bots/traider/impl/built-in'
+import { BLANK_ASSET_OBJ, BLANK_CTRL_ID, BLANK_INSTANCE_ID_PREFIX, BLANK_WALLET_OBJ } from '@bots/traider/impl/built-in'
 
 export function ImplRegistrySetup() {
     TradeArchImplRegistry.Instance.register(

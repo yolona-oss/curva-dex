@@ -1,99 +1,38 @@
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { TradeArchImplRegistry, ITradeArchImpl, BuiltInNames, SolanaWalletManager, TradeSideType } from "@bots/traider";
 import { IPumpFun_TxEventName, IPumpFun_TxEventPayload } from "@bots/traider/impl/pump.fun";
-import { BaseCommandService } from "@core/command-handler";
-
-import { IBCPS_Config, defaultCfg } from "./pump.fun.config";
-
 import { PumpFunApi, PumpFunAssetType, PumpFunMaster, PumpFunSlave } from "@bots/traider/impl/pump.fun"
-
-import log from '@utils/logger'
-import { Stack } from "@core/utils/struct/stack";
-import { CmdOfferBuilder } from "@bots/traider/offer-cmd";
 import { MTC_OfferBuilder } from "@bots/traider/mtc-offer-builder";
 
 import { randomizeWithScatter } from "@core/utils/random";
+import log from '@utils/logger'
+import { IBCPS_Config } from "./pf-config";
+import EventEmitter from "events";
 
-export const serviceName = 'bond_curv_pump'
 const slaveHolder_Signature = "_holder_"
 const slaveVolatile_Signature = "_volatile_"
 const slaveTraider_Signature = "_traider_"
 
-export const serviceDescription = `Customizable servie for the pump.fun dex simulation activity and automated trading by setting a strategy schema.`
-const serviceOpts = {
-    "-s": String,
-    "--session-id": String,
-    '-dry-run': String
-}
-export const serviceArgs = ["-s <session-id>", "--session-id <session-id>", '-dry-run']
-
-///////////////////
-
-interface IRobotState {
-    onwer: string,
-    session_id: string,
-
-    slaves_id: string[],
-}
-
-class RobotStateMngr {
-    constructor() {
-
-    }
-}
-
-///////////////////
-
-// TODO split to service and robot than split robot
-
-// [!!!] VVV THIS IS OLD DESCRIPTION VVV [!!!]
-// #######################################################################################################
-// "Trade strategy based on pumping token with a lot of buy swap txs on start of bonding curve creation.\
-// Profit will be gained after 100% progress of the bonding curve reached.\
-// Also bots will be hold tokens until their token volume bigger than volume in others wallets.",
-// #######################################################################################################
-// [!!!] ^^^ THIS IS OLD DESCRIPTION ^^^ [!!!]
-export class PumpFunRobot_service extends BaseCommandService<IBCPS_Config> {
+export class PumpFunRobot extends EventEmitter {
     private impl: ITradeArchImpl<PumpFunApi, PumpFunAssetType, SolanaWalletManager>
     private master: PumpFunMaster
 
-    private sessionState: RobotStateMngr
+    constructor(
+        private prefix: string,
+        private user_id: string,
+        private asset: PumpFunAssetType,
+        private config: IBCPS_Config,
+        traiders: PumpFunSlave[] = [],
+        holders: PumpFunSlave[] = [],
+        volatile: PumpFunSlave[] = [],
+    ) {
+        super()
 
-    constructor(userId: string, config: Partial<IBCPS_Config> = defaultCfg, name: string = serviceName) {
-        const _config = {...defaultCfg, ...config}
-        super(
-            userId,
-            _config,
-            name,
-        )
-
-        this.sessionState = new RobotStateMngr()
         this.impl = TradeArchImplRegistry.Instance.get(BuiltInNames.PumpDotFun)!
         this.master = this.impl.mtc.clone(
-            `${this.createServicePrefix()}_master_0_id`,
-            this.userId,
-            this.config.targetAsset)
-    }
-
-    clone(userId: string, newName: string = serviceName) {
-        return new PumpFunRobot_service(userId, Object.assign({}, this.config), newName)
-    }
-
-    parseInputParams(...args: string[]): string|void {
-        const opts = new Stack<string>(args.length)
-        opts.push(...args)
-        opts.reverse()
-        while (opts.size()) {
-            const opt = opts.pop()
-            if (opt === '-s' || opt === '--session-id') {
-                const param = opts.pop()
-                if (param && param.length > 0) {
-                    //this.sessionState.session_id = param
-                }
-            } else if (opt === '-dry-run') {
-                //this.config.dryRun = true
-            }
-        }
+            `${prefix}_master`,
+            user_id,
+            asset, traiders.concat(holders).concat(volatile))
     }
 
     private getSlavesHolders() {
@@ -230,30 +169,6 @@ export class PumpFunRobot_service extends BaseCommandService<IBCPS_Config> {
 
             fn(event, tx)
         })
-    }
-
-    async run() {
-        if (this.isRunning()) {
-            throw new Error(`PumpFunTradeService.run() called when already running`)
-        }
-
-        await this.initConfig(this.userId)
-
-        await this.createSlaves(this.config.traiders.count, slaveTraider_Signature)
-        await this.createSlaves(this.config.holders.count, slaveHolder_Signature)
-        await this.createSlaves(this.config.volatile.count, slaveVolatile_Signature)
-        await this.distribute()
-        await this.initialBuy()
-
-        this.imitateTxs()
-
-        super.run()
-    }
-
-    async terminate() {
-        await this.terminateImitateTxs()
-
-        super.terminate()
     }
 
     // TRIGERS:

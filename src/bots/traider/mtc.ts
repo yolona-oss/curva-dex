@@ -48,7 +48,7 @@ export abstract class MasterTraderCtrl<
         this.sharedSequalizer = new Sequalizer()
 
         for (const slave of this.slaves) {
-            this.applySlaveToMaster(slave)
+            this.applySlave(slave)
         }
 
         this.bots_curve_id = `${owner}_${this.id}_${this.tradeApi.id}_${this.tradeAsset.symbol}_bots_curve`
@@ -233,7 +233,7 @@ export abstract class MasterTraderCtrl<
         return `master_${this.id}_owner_${this.owner}_${sign}_slave_id`
     }
 
-    private applySlaveToMaster(slave: SlaveTraderCtrl<TradeApi, AssetType>) {
+    private applySlave(slave: SlaveTraderCtrl<TradeApi, AssetType>) {
         slave.on('sell', this.onSlaveSell.bind(this))
         slave.on('buy', this.onSlaveBuy.bind(this))
         slave.setSequalizer(this.sharedSequalizer)
@@ -243,7 +243,7 @@ export abstract class MasterTraderCtrl<
         this.throwIfDupsNotAllowed(wallet)
         const newId = this.createSlaveId(sign)
         const slave = clonable.clone(newId, this.owner, {wallet}, this.sharedSequalizer)
-        this.applySlaveToMaster(slave)
+        this.applySlave(slave)
         this.addSlave(slave)
         return slave
     }
@@ -262,7 +262,7 @@ export abstract class MasterTraderCtrl<
         }
 
 
-        this.applySlaveToMaster(slaveReplicant)
+        this.applySlave(slaveReplicant)
         this.slaves.push(slaveReplicant)
         return this
     }

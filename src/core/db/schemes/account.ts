@@ -14,7 +14,7 @@ export interface IAccount extends Document {
 interface IAccountMethods {
     setModuleData(module_name: string, path: string, payload: any, comment?: string): Promise<IAccount>
     unsetModuleData(module_name: string, path?: string): Promise<IAccount>
-    getModuleData<T>(module_name: string, path: string): Promise<T|null>
+    getModuleData<T>(module_name: string, path?: string): Promise<T|null>
 }
 
 export type AccountModelType = Model<IAccount, {}, IAccountMethods>

@@ -9,7 +9,6 @@ import { WithInit } from "@core/types/with-init";
 import { WithNeighbors, validateWithNeighborsMap } from "@core/types/with-neighbors";
 import { BaseUIContext, IUICommandSimple } from "@core/ui/types";
 
-import { Node, Graph, printGraph } from "@utils/graf";
 import log from '@utils/logger'
 
 import { SequenceHandler } from "./sequence-handler";
@@ -18,7 +17,7 @@ import { BaseCommandService } from "./command-service";
 // NOTE: add ctx extension from base ui ctx
 
 export type IHandlerFunction<Ctx> = (ctx: Ctx) => Promise<string|void>
-export type IHandlerService = BaseCommandService<any>
+export type IHandlerService = BaseCommandService<any, any, any>
 
 export type IHandler<Ctx> = IHandlerFunction<Ctx> | IHandlerService
 
@@ -50,7 +49,7 @@ export class CommandHandler<TContext extends BaseUIContext> extends WithInit {
     private callbacks: Map<string, IHandleCallback<TContext>> // name -> callback
     private sequenceHandler?: SequenceHandler
 
-    private activeServices: Map<string, Array<BaseCommandService<any>>> = new Map() // userId -> services
+    private activeServices: Map<string, Array<BaseCommandService<any, any, any>>> = new Map() // userId -> services
 
     constructor() {
         super()
@@ -174,7 +173,7 @@ export class CommandHandler<TContext extends BaseUIContext> extends WithInit {
                     return `Service ${serviceName} already active.`
                 }
 
-                const serviceInstance = cb.fn.clone(userId, serviceName)
+                const serviceInstance = cb.fn.clone(userId, args, serviceName)
 
                 serviceInstance.on("message", async (message: string) => {
                     await this.sendMessageToContext(ctx, message)
@@ -184,10 +183,7 @@ export class CommandHandler<TContext extends BaseUIContext> extends WithInit {
                     await this.handleServiceDone(userId, serviceInstance.name, ctx, msg)
                 })
                 log.echo("-- Starting service: " + serviceInstance.name)
-                const err = serviceInstance.parseInputParams(...args)
-                if (err) {
-                    throw `Cannot init service ${serviceName}: ${err}`
-                }
+                await serviceInstance.Initialize()
                 this.activeServices.get(userId)!.push(serviceInstance)
                 serviceInstance.run()
             }
@@ -320,6 +316,7 @@ Prev: ${cmd.prev ?? "None"}\
                 } else {
                     return `Service ${arg[0]},\n
 Description: ${cmd.description},\n
+Params: ${JSON.stringify(cmd.fn.paramsEntries(), null, 4)},\n
 Config: ${JSON.stringify(cmd.fn.configEntries(), null, 4)},\n
 Next: ${cmd.next?.join(", ") ?? "None"}\n\
 Prev: ${cmd.prev ?? "None"}\n\
