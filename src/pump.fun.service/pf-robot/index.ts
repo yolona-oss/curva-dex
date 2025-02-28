@@ -5,7 +5,7 @@ import { PumpFunApi, PumpFunAssetType, PumpFunMaster, PumpFunSlave } from "@bots
 import { IPumpFunRobotConfig } from "./../pf-config";
 import EventEmitter from "events";
 import { IMTCStateSave } from "@bots/traider/mtc";
-import { IPumpFunRobotSessionState } from "../pf-robot-service";
+import { IPumpFunRobotSessionState, stateTransiteMap } from "../pf-robot-service";
 
 import { SlaveDictionary } from "./slave-dict";
 import { PFTicker, PFTickerCtx } from "./ticker";
@@ -24,11 +24,22 @@ export class PumpFunRobot extends EventEmitter {
     private ticker: PFTicker
     private tickerCtx: PFTickerCtx
 
+    private transiteState(to: IPumpFunRobotSessionState) {
+        if (this.state !== to) {
+            if (stateTransiteMap[this.state].includes(to)) {
+                this.state = to
+                return
+            }
+        }
+        throw new Error(`Can't transite from ${this.state} to ${to}. Invalid state transition`)
+    }
+
     constructor(
         prefix: string,
         asset: PumpFunAssetType,
         private config: IPumpFunRobotConfig,
-        sessionSave?: IMTCStateSave<PumpFunAssetType>|null
+        sessionSave: IMTCStateSave<PumpFunAssetType>|null = null,
+        private dryRun: boolean = false
     ) {
         super()
 
@@ -89,57 +100,56 @@ export class PumpFunRobot extends EventEmitter {
         await this.slavesDict.create(this.config.holders.count, "holder", this.impl.walletManager, this.impl.stc)
         await this.slavesDict.create(this.config.traiders.count, "traider", this.impl.walletManager, this.impl.stc)
         await this.slavesDict.create(this.config.volatile.count, "volatile", this.impl.walletManager, this.impl.stc)
-        this.state = 'inited'
-    }
 
-    private other_traides_listner_id = -1
-
-    private async subToNotBotTrades(fn: (e: IPumpFun_TxEventName, tx: IPumpFun_TxEventPayload) => void) {
-        if (this.other_traides_listner_id >= 0) {
-            throw new Error("PumpFunTradeService.subToNotBotTrades() called when already subscribed")
+        if (!this.dryRun) {
+            await this.distribute()
+            await this.initialBuy()
         }
 
-        const filterNotBotTrades = (sign: string) => {
-            return !this.master.slavesMetrics().Trades.map(t => t.signature).includes(sign)
-        }
-        
-        // @since: 0.0.1v. if use pumpfun_streaming_api need to save pass function link to remove listner :)
-        this.other_traides_listner_id = await this.api.subscribeToAssetTrades(this.config.targetAsset.mint, async (event, tx: IPumpFun_TxEventPayload) => {
-            if (!filterNotBotTrades(tx.mint.toString())) {
-                return
-            }
-
-            fn(event, tx)
-        })
+        this.transiteState('inited')
     }
 
     async start() {
-        this.state = 'run'
+        this.transiteState('run')
+        if (this.dryRun) {
+            return
+        }
         await this.subToNotBotTrades((_, tx) => this.tickerCtx.handleOtherTx.bind(this.tickerCtx)(tx))
-
         this.ticker.run()
     }
 
     async stop() {
-        this.state = 'end'
+        this.transiteState('end')
+        if (this.dryRun) {
+            return
+        }
         this.ticker.terminate()
         this.api.unsubscribeFromAssetTrades(this.config.targetAsset.mint, this.other_traides_listner_id)
     }
 
     async pause() {
-        this.state = 'pause'
+        this.transiteState('pause')
+        if (this.dryRun) {
+            return
+        }
         this.ticker.pause()
         this.api.unsubscribeFromAssetTrades(this.config.targetAsset.mint, this.other_traides_listner_id)
     }
 
     async resume() {
-        this.state = 'run'
+        this.transiteState('run')
+        if (this.dryRun) {
+            return
+        }
         await this.subToNotBotTrades((_, tx) => this.tickerCtx.handleOtherTx.bind(this.tickerCtx)(tx))
         this.ticker.resume()
     }
 
     async sellAll() {
-        this.state = 'end'
+        this.transiteState('end')
+        if (this.dryRun) {
+            return
+        }
         this.ticker.terminate()
         this.api.unsubscribeFromAssetTrades(this.config.targetAsset.mint, this.other_traides_listner_id)
 
@@ -168,7 +178,7 @@ export class PumpFunRobot extends EventEmitter {
         }
     }
 
-    async distribute() {
+    private async distribute() {
         const createDistributeMap = (sols: number, count: number) => {
             const n = count
             const S = sols * LAMPORTS_PER_SOL
@@ -209,13 +219,10 @@ export class PumpFunRobot extends EventEmitter {
             wallet: w,
             amount: traiderDistribMap[i]
         })))
+        this.transiteState('distribute')
     }
 
-    async collectFromAll() {
-        await this.master.collectSlavesNativeCoins(this.config.motherShip)
-    }
-
-    async initialBuy() {
+    private async initialBuy() {
         const __initBuy = async (slaves: PumpFunSlave[], balanceRestSol: number) => {
             const wait_ids: string[] = []
             for (const slave of slaves) {
@@ -258,5 +265,28 @@ export class PumpFunRobot extends EventEmitter {
             })
         })
         await Promise.all(promises)
+        this.transiteState('initial_buy')
     }
+
+    private other_traides_listner_id = -1
+
+    private async subToNotBotTrades(fn: (e: IPumpFun_TxEventName, tx: IPumpFun_TxEventPayload) => void) {
+        if (this.other_traides_listner_id >= 0) {
+            throw new Error("PumpFunTradeService.subToNotBotTrades() called when already subscribed")
+        }
+
+        const filterNotBotTrades = (sign: string) => {
+            return !this.master.slavesMetrics().Trades.map(t => t.signature).includes(sign)
+        }
+        
+        // @since: 0.0.1v. if use pumpfun_streaming_api need to save pass function link to remove listner :)
+        this.other_traides_listner_id = await this.api.subscribeToAssetTrades(this.config.targetAsset.mint, async (event, tx: IPumpFun_TxEventPayload) => {
+            if (!filterNotBotTrades(tx.mint.toString())) {
+                return
+            }
+
+            fn(event, tx)
+        })
+    }
+
 }

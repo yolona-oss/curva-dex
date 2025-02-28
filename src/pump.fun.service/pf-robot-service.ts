@@ -35,14 +35,24 @@ interface IServiceSessionData extends IDefaultServiceSessionData {
  * 3. initial_buy - all initial buys done
  * 4. ready - all preparing ops done and 
  * 5. run - main loop
- * 6. collect - all collecting ops done
- * 7. end - nothing to do
+ * 6. end - nothing to do
  *
  * ...
  *
  * pause - pause the robot
  */
-export type IPumpFunRobotSessionState = "ready" | "inited" | "distribute" | "initial_buy" | "collect" | "end" | "run" | "pause"
+export type IPumpFunRobotSessionState = "ready" | "inited" | "distribute" | "initial_buy" | "end" | "run" | "pause"
+
+export const stateTransiteMap: Record<IPumpFunRobotSessionState, IPumpFunRobotSessionState[]> = {
+    'inited': ['distribute', 'end'],
+    'distribute': ['initial_buy', 'end'],
+    'initial_buy': ['run', 'end'],
+    'ready': ['run', 'end'],
+    'run': ['pause', 'end'],
+    'end': ['inited'],
+    'pause': ['run', 'end'],
+}
+stateTransiteMap
 
 export type IPumpFunRobotMessageReceiveType = "pause" | "resume" | "stop" | "sell-all"
 
@@ -73,31 +83,39 @@ export class PumpFunRobot_service extends BaseCommandService<IPumpFunRobotConfig
     }
 
     async receiveMsg(msg: string, __: string[]): Promise<void> {
-        switch (msg) {
-            case 'pause':
-                await this.robot.pause()
-                break
-            case 'resume':
-                await this.robot.resume()
-                break
-            case 'stop':
-                await this.robot.stop()
-                break
-            case 'sell-all':
-                await this.robot.sellAll()
-                break
+        try {
+            switch (msg) {
+                case 'pause':
+                    await this.robot.pause()
+                    this.emit("message", "Paused")
+                    break
+                case 'resume':
+                    await this.robot.resume()
+                    this.emit("message", "Resumed")
+                    break
+                case 'stop':
+                    await this.robot.stop()
+                    this.emit("message", "Stopped")
+                    break
+                case 'sell-all':
+                    await this.robot.sellAll()
+                    this.emit("message", "Sold all")
+                    break
+            }
+        } catch (e: any) {
+            const msg = e instanceof Error ? e.message : e
+            this.emit("message", msg)
         }
     }
 
     protected async runWrapper() {
-        this.isBlankSession()
-
         const master_state_save = this.session_data.master_state_save
         this.robot = new PumpFunRobot(
             this.createServicePrefix(),
             this.config.targetAsset,
             this.config,
-            this.isBlankSession() ? null : master_state_save
+            this.isBlankSession() ? null : master_state_save,
+            this.params["--dry-run"]
         )
 
         await this.robot.Initialize()
