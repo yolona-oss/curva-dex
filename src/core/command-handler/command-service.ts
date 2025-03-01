@@ -1,8 +1,10 @@
 import { Account, Manager } from "@core/db";
 import { IRunnable } from "@core/types/runnable";
-import { InferParsedOpts, Opt, OptsMap, optsParser } from "@core/utils/opts-parser";
+import { InferParsedOpts, optsParser } from "@core/utils/opts-parser";
 import { EventEmitter, EventMap } from "@utils/EventEmitter";
 import { assignToCustomPath, getInterfacePathsWithTypes, isEmpty } from "@utils/object";
+import { IDefaultServiceParams, IDefaultServiceSessionData, IReceiveMsgArgs } from "./types";
+import { BLANK_SERVICE_NAME, BLANK_SERVICE_SESSION_ID, DEFAULT_INCREMENTAL_EXPIRITY_OPT, DEFAULT_SERVICE_SESSION_EXPIRITY, NOT_ALLOWABLE_SESSION_NAMES } from "./constants";
 
 interface bcs_em<T = string> extends EventMap {
     message: T,
@@ -11,37 +13,7 @@ interface bcs_em<T = string> extends EventMap {
     liveLog: string
 }
 
-export const BLANK_SERVICE_NAME = "_blank_service_name_"
-export const BLANK_SERVICE_SESSION_ID = "_blank_session_id_"
-export const DEFAULT_INCREMENTAL_EXPIRITY_OPT = true
-export const DEFAULT_SERVICE_SESSION_EXPIRITY = 1000 * 60 * 60 * 24 * 2 // 2 days
-
 // TODO: create corn job for session expirity
-
-export interface IDefaultServiceSessionData {
-    createTime: number
-    expirity: number // end on createTime+expirity
-    initialExpirity: number // intial expirity that value will be added to expirity if incrementalExpirity is true
-    incrementalExpirity: boolean // if true - every time when service run with new expirity
-}
-
-export const defaultServiceParamsMap: IDefaultServiceParams = {
-    '--session-id': Opt.String,
-    '-s': Opt.String
-}
-
-export interface IDefaultServiceParams extends OptsMap {
-    '--session-id': String
-    '-s': String
-}
-
-/**
- * key - msg-name
- * value - args one-word description
- */
-export type IReceiveMsgArgs = Record<string, string[]|null>
-
-const NOT_ALLOWABLE_SESSION_NAMES = ['service']
 
 // TODO: create opts validator and eval() injection finder
 

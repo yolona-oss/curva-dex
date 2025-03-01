@@ -1,86 +1,6 @@
 import { unique } from "@core/utils/array"
-
-export interface IBuilderMarkupOption {
-    text: string,
-    callback_data: string
-}
-
-/**
- * @param text - text to describe current action
- * @param options - list of options to choose from
- */
-export interface IBuilderMarkup {
-    text: string
-    options?: IBuilderMarkupOption[]
-}
-
-export interface ICommandDescriptorArg {
-    ctx: ReadingCtxType,
-    name: string,
-    type?: string, // defaulted to string
-    options?: string[], // undefined means no options, zero arr len means user self input
-    validator?: (arg: string) => boolean
-}
-
-export interface ICommandDescriptor {
-    args: ICommandDescriptorArg[]
-}
-
-type ReadingValueType = "name" | "value" | "ctx"
-export type ReadingCtxType = "args" | "config" | "params" | "message"
-
-interface IArgReadResult {
-    ctx: ReadingCtxType
-    name: string
-    value: string|null
-}
-
-interface IBuildingState {
-    command: string
-    avalibleCtxs: ReadingCtxType[]
-    descriptor: ICommandDescriptor
-    state: {
-        readingCtx: ReadingCtxType
-        readingValue: ReadingValueType
-        read: IArgReadResult[]
-    }
-
-    //defaultOptions?: IBuilderMarkupOption[]
-    //defaultOptionHandler?: (input: string) => IHandleResult
-}
-
-interface IBuildResult {
-    command: string
-    args: IArgReadResult[]
-}
-
-interface IHandleResult {
-    done: boolean
-    built?: IBuildResult
-    error?: string
-    markup: IBuilderMarkup
-}
-
-const DefaultCallbacks = {
-    execute: "__execute",
-    cancel: "__cancel",
-    switchCtx: "__switchCtx"
-}
-
-const defaultOptions: IBuilderMarkupOption[] = [
-    {
-        text: "Execute",
-        callback_data: DefaultCallbacks.execute
-    },
-    {
-        text: "Cancel",
-        callback_data: DefaultCallbacks.cancel
-    },
-    {
-        text: "Select reading context",
-        callback_data: DefaultCallbacks.cancel
-    }
-]
+import { ICommandBuilderMarkup, IBuilderMarkupOption, ICmdBuildingState, ICmdBuildResult, ICmdBuilderHandleResult, ICommandDescriptor, ReadingCtxType } from "./types"
+import { DefaultBuilderCallbacks, defaultBuilderMarkupOptions } from "./constants"
 
 function toMarkup(opt: string): IBuilderMarkupOption {
     return {
@@ -98,7 +18,7 @@ function toSwitchCtxMarkup(ctxs: ReadingCtxType[]) {
 
 // TODO mark readed args with * start line marker to make it easier to read
 export class CommandBuilder {
-    private usersBuildingQueue: Map<string, IBuildingState> = new Map()
+    private usersBuildingQueue: Map<string, ICmdBuildingState> = new Map()
 
     constructor() {
 
@@ -115,7 +35,7 @@ export class CommandBuilder {
         this.usersBuildingQueue.delete(userId)
     }
 
-    private build(userId: string): IBuildResult|null {
+    private build(userId: string): ICmdBuildResult|null {
         const curr = this.usersBuildingQueue.get(userId)
         if (!curr) {
             return null
@@ -127,7 +47,7 @@ export class CommandBuilder {
         }
     }
 
-    startBuild(userId: string, command: string, desc: ICommandDescriptor, contexts: ReadingCtxType[] = ['args']): IBuilderMarkup {
+    startBuild(userId: string, command: string, desc: ICommandDescriptor, contexts: ReadingCtxType[] = ['args']): ICommandBuilderMarkup {
         if (this.usersBuildingQueue.has(userId)) {
             throw "User already has active build."
         }
@@ -159,14 +79,14 @@ export class CommandBuilder {
         return {
             text: `Start building for: "${command}", inital ctx: ${initialCtx}. Select argument name:`,
             options: [
-                ...defaultOptions,
+                ...defaultBuilderMarkupOptions,
                 ...initialCtxOptions.map(arg => toMarkup(arg.name))
             ]
         }
     }
 
     // ridiculous logic implementation of state machine :((
-    private handleInner(userId: string, _input: string): IHandleResult {
+    private handleInner(userId: string, _input: string): ICmdBuilderHandleResult {
         const input = _input.toLowerCase().trim()
         const cur = this.usersBuildingQueue.get(userId)
         if (!cur) {
@@ -188,7 +108,7 @@ export class CommandBuilder {
                     markup: {
                         text: "Ctx switched to: " + input + ". Select argument name:",
                         options: [
-                            ...defaultOptions,
+                            ...defaultBuilderMarkupOptions,
                             ...cur.descriptor.args.filter(arg => arg.ctx === input).map(arg => toMarkup(arg.name))
                         ]
                     }
@@ -203,7 +123,7 @@ export class CommandBuilder {
             }
         }
 
-        if (input === DefaultCallbacks.cancel) {
+        if (input === DefaultBuilderCallbacks.cancel) {
             this.stopBuild(userId)
             return {
                 done: true,
@@ -213,7 +133,7 @@ export class CommandBuilder {
             }
         }
 
-        if (input === DefaultCallbacks.execute) {
+        if (input === DefaultBuilderCallbacks.execute) {
             const res = this.build(userId)
             return {
                 done: true,
@@ -224,7 +144,7 @@ export class CommandBuilder {
             }
         }
 
-        if (input === DefaultCallbacks.switchCtx) {
+        if (input === DefaultBuilderCallbacks.switchCtx) {
             return {
                 done: true,
                 markup: toSwitchCtxMarkup(cur.avalibleCtxs)
@@ -244,7 +164,7 @@ export class CommandBuilder {
                 }
             }
 
-            let markup: IBuilderMarkup = {
+            let markup: ICommandBuilderMarkup = {
                 text: "",
             }
             if (!argDesc.options) { // no input
@@ -252,7 +172,7 @@ export class CommandBuilder {
                 markup = {
                     text: "Select next:",
                     options: [
-                        ...defaultOptions,
+                        ...defaultBuilderMarkupOptions,
                         ...cur.descriptor.args.filter(arg => arg.ctx === ctx).map(arg => toMarkup(arg.name))
                     ]
                 }
@@ -261,7 +181,7 @@ export class CommandBuilder {
                 markup = {
                     text: "Select argument value or type own:",
                     options: [
-                        ...defaultOptions,
+                        ...defaultBuilderMarkupOptions,
                         ...argDesc.options.map(opt => toMarkup(opt))
                     ]
                 }
@@ -292,7 +212,7 @@ export class CommandBuilder {
                 markup: {
                     text: "Select argument name:",
                     options: [
-                        ...defaultOptions,
+                        ...defaultBuilderMarkupOptions,
                         ...cur.descriptor.args.filter(arg => arg.ctx === ctx).map(arg => toMarkup(arg.name))
                     ]
                 }
@@ -307,7 +227,7 @@ export class CommandBuilder {
         }
     }
 
-    handle(userId: string, _input: string): IHandleResult {
+    handle(userId: string, _input: string): ICmdBuilderHandleResult {
         const res = this.handleInner(userId, _input)
         if (res.done) {
             this.stopBuild(userId)

@@ -1,12 +1,11 @@
 import {
-    DefaultSeqCommandsEnum,
     DefaultServiceCommandsEnum,
     DefaultAccountCommandsEnum,
     DefaultHelpCommandsEnum,
 } from "@core/constants/command";
 import { Account } from "@core/db";
 import { WithInit } from "@core/types/with-init";
-import { WithNeighbors, validateWithNeighborsMap } from "@core/types/with-neighbors";
+import { validateWithNeighborsMap } from "@core/types/with-neighbors";
 import { BaseUIContext, IUICommandSimple } from "@core/ui/types";
 
 import log from '@utils/logger'
@@ -15,54 +14,24 @@ import { SequenceHandler } from "./sequence-handler";
 import { BaseCommandService } from "./command-service";
 
 import { DefaultCommandsMap } from './defaults-command-map'
-import { CommandBuilder, IBuilderMarkup, IBuilderMarkupOption, ICommandDescriptor, ICommandDescriptorArg, ReadingCtxType } from "./command-builder";
 import { DefaultTgUICommands } from "@core/ui/telegram/constants";
 
-// NOTE: add ctx extension from base ui ctx
-
-export type IHandlerFunction<Ctx> = (ctx: Ctx) => Promise<string|void>
-export type IHandlerService = BaseCommandService<any, any, any>
-
-export type IHandler<Ctx> = IHandlerFunction<Ctx> | IHandlerService
-
-interface IHandleCallback<Ctx> extends Partial<WithNeighbors> {
-    fn: IHandler<Ctx>
-    description: string
-    args?: string[]
-}
-
-type IHandlerCommand = IUICommandSimple & Partial<WithNeighbors>
-
-export interface ICmdRegister<Ctx> {
-    command: IHandlerCommand,
-    handler: IHandler<Ctx>
-}
-
-export type ICmdRegisterMany<Ctx> = Array<ICmdRegister<Ctx>>
-
-export interface IHandleResult {
-    isError: boolean
-    text?: string
-    markup?: IBuilderMarkupOption[]
-}
-
-export const BLANK_USER_ID = "__pussy-killer__"
-
-const DefaultCommands = [
-    ...Object.values(DefaultSeqCommandsEnum),
-    ...Object.values(DefaultServiceCommandsEnum),
-    ...Object.values(DefaultAccountCommandsEnum),
-    ...Object.values(DefaultHelpCommandsEnum)
-]
+import { Chain } from "@core/utils/chain";
+import { ICommandDescriptor, ICommandDescriptorArg, ICommandHandlerChain, ICmdCallback, ICmdHandler, ICmdHandlerCommand, ICmdHandlerExecResult, ReadingCtxType } from "./types";
+import { CommandBuilder } from "./command-builder";
+import { DefaultCommands } from "./constants";
 
 export class CommandHandler<TContext extends BaseUIContext> extends WithInit {
-    private callbacks: Map<string, IHandleCallback<TContext>> // name -> callback
+    private callbacks: Map<string, ICmdCallback<TContext>> // name -> callback
     private sequenceHandler?: SequenceHandler
     private activeServices: Map<string, Array<BaseCommandService<any, any, any>>> // userId -> services
     private cmdBuilder: CommandBuilder
 
+    private chain: ICommandHandlerChain<TContext>
+
     constructor() {
         super()
+        this.chain = new Chain()
         this.callbacks = new Map()
         this.activeServices = new Map()
         this.cmdBuilder = new CommandBuilder()
@@ -78,7 +47,7 @@ export class CommandHandler<TContext extends BaseUIContext> extends WithInit {
         }
 
         const targets: string[] = Array.from(this.callbacks.keys())
-        const naighbors: IHandleCallback<TContext>[] = Array.from(this.callbacks.values())
+        const naighbors: ICmdCallback<TContext>[] = Array.from(this.callbacks.values())
         this.sequenceHandler = new SequenceHandler(
             Array.from(
                 targets.map((v, i) =>
@@ -112,13 +81,13 @@ export class CommandHandler<TContext extends BaseUIContext> extends WithInit {
     }
 
     public registerMany(commands: Array<{
-        command: IHandlerCommand,
-        handler: IHandler<TContext>
+        command: ICmdHandlerCommand,
+        handler: ICmdHandler<TContext>
     }>) {
         commands.forEach(cmd => this.register(cmd.command, cmd.handler))
     }
 
-    public register(command: IHandlerCommand, handler: IHandler<TContext>) {
+    public register(command: ICmdHandlerCommand, handler: ICmdHandler<TContext>) {
         if (command.command in this.callbacks) {
             throw new Error("CommandHandler.register() command already registered: " + command.command);
         }
@@ -180,7 +149,7 @@ export class CommandHandler<TContext extends BaseUIContext> extends WithInit {
     /**
      * TODO: refactor with chaining of handlers
      */
-    public async handleCommand(input: string, ctx: TContext): Promise<IHandleResult> {
+    public async handleCommand(input: string, ctx: TContext): Promise<ICmdHandlerExecResult> {
         const cb = this.callbacks.get(input);
         const args = this.getArgs(ctx.text!)
         const _userId = ctx.manager?.userId
@@ -235,7 +204,7 @@ export class CommandHandler<TContext extends BaseUIContext> extends WithInit {
             let desc: ICommandDescriptor = { args: [] }
 
             if (isService && !isBuiltIn) {
-                const service = (cb as IHandleCallback<TContext>).fn as BaseCommandService
+                const service = (cb as ICmdCallback<TContext>).fn as BaseCommandService
 
                 const cfg_args: ICommandDescriptorArg[] = service.configEntries().map(c => ({
                     ctx: 'config',
@@ -252,7 +221,7 @@ export class CommandHandler<TContext extends BaseUIContext> extends WithInit {
 
                 desc.args = isActive ? msg_args : params_args.concat(cfg_args)
             } else if (!isService && !isBuiltIn) {
-                const args_args: ICommandDescriptorArg[] = (cb as IHandleCallback<TContext>).args?.map(a => ({
+                const args_args: ICommandDescriptorArg[] = (cb as ICmdCallback<TContext>).args?.map(a => ({
                     ctx: 'args',
                     name: a
                 })) ?? []

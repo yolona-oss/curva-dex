@@ -18,9 +18,6 @@ async function bootstrap() {
 
     let handler = new CommandHandler<Ctx>()
     const cmds = InitializeUserCommands<Ctx>()
-    log.echo("!!!!!!!!!!!1")
-    log.echo(cmds)
-    log.echo("!!!!!!!!!!!1")
     handler.registerMany(cmds)
     handler.done()
 
