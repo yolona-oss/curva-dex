@@ -14,6 +14,8 @@ import log from '@utils/logger'
 import { SequenceHandler } from "./sequence-handler";
 import { BaseCommandService } from "./command-service";
 
+import { DefaultCommandsMap } from './defaults-command-map'
+
 // NOTE: add ctx extension from base ui ctx
 
 export type IHandlerFunction<Ctx> = (ctx: Ctx) => Promise<string|void>
@@ -229,65 +231,13 @@ export class CommandHandler<TContext extends BaseUIContext> extends WithInit {
 
         const mapped = new Array(cmd.length)
         .fill(0)
-        .map((_, i) => ({command: cmd[i], description: desc[i], args: args[i]}))
-        .concat([
-            {
-                command: DefaultSeqCommandsEnum.NEXT_COMMAND,
-                description: "Proceed in current command sequnce.",
-                args: []
-            },
-            {
-                command: DefaultSeqCommandsEnum.BACK_COMMAND,
-                description: "Go back in current command sequnce.",
-                args: []
-            },
-            {
-                command: DefaultSeqCommandsEnum.CANCEL_COMMAND,
-                description: "Cancel current command sequnce.",
-                args: []
-            }
-        ])
-        .concat([
-            {
-                command: DefaultServiceCommandsEnum.STOP_COMMAND,
-                description: "Stop service with passed name <service-name>.",
-                args: ["service-name"]
-            },
-            {
-                command: DefaultServiceCommandsEnum.SEND_MSG_COMMAND,
-                description: "Send message to service with passed name <service-name> and <message> with optional args.",
-                args: ["service-name", "message", "?args"]
-            }
-        ])
-        .concat([
-            {
-                command: DefaultAccountCommandsEnum.SET_VARIABLE,
-                description: "Create or update variable for user execution context",
-                args: ["service", "path", "value"]
-            },
-            {
-                command: DefaultAccountCommandsEnum.REMOVE_VARIABLE,
-                description: "Remove variable for user execution context",
-                args: ["service", "path"]
-            },
-            {
-                command: DefaultAccountCommandsEnum.GET_VARIABLE,
-                description: "Get variable for user execution context",
-                args: ["service", "path"]
-            }
-        ])
-        .concat([
-            {
-                command: DefaultHelpCommandsEnum.HELP_COMMAND,
-                description: "List all available commands.",
-                args: []
-            },
-            {
-                command: DefaultHelpCommandsEnum.CHELP_COMMAND,
-                description: "Print help for concreet command",
-                args: ["command"]
-            }
-        ])
+        .map(
+            (_, i) => ({
+                command: cmd[i],
+                description: desc[i],
+                args: args[i]}
+            )
+        ).concat(DefaultCommandsMap)
 
         return mapped
     }
