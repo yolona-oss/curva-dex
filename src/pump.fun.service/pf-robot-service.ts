@@ -58,10 +58,14 @@ export type IPumpFunRobotMessageReceiveType = "pause" | "resume" | "stop" | "sel
 
 export class PumpFunRobot_service extends BaseCommandService<IPumpFunRobotConfig, IPumpFunRobotParams, IServiceSessionData> {
     protected __serviceParamMap: IPumpFunRobotParams = pumpFunParamsMap;
-    //protected __serviceMessages: IPumpFunRobotMessageReceiveType = ['pause', 'resume', 'stop', 'sell-all']
+    protected __serviceReceiveMsgArgs = {
+        'pause': null,
+        'resume': null,
+        'stop': null,
+        'sell-all': null,
+    }
 
-    // @ts-ignore
-    private robot: PumpFunRobot
+    private robot?: PumpFunRobot
 
     constructor(
         userId: string = BLANK_USER_ID,
@@ -82,7 +86,11 @@ export class PumpFunRobot_service extends BaseCommandService<IPumpFunRobotConfig
         return new PumpFunRobot_service(userId, inputParam, Object.assign({}, this.config), newName)
     }
 
-    async receiveMsg(msg: string, __: string[]): Promise<void> {
+    async receiveMsg(msg: keyof typeof this.__serviceReceiveMsgArgs, __: string[]): Promise<void> {
+        if (!this.robot) {
+            this.emit("message", "Not initialized")
+            return
+        }
         try {
             switch (msg) {
                 case 'pause':
@@ -123,6 +131,10 @@ export class PumpFunRobot_service extends BaseCommandService<IPumpFunRobotConfig
     }
 
     async terminateWrapper() {
+        if (!this.robot) {
+            this.emit("message", "Not initialized")
+            return
+        }
         await this.robot.stop()
         const session_data = this.robot.toSave()
         await this.setSessionDataValue('master_state_save', session_data.master)

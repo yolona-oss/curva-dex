@@ -11,8 +11,8 @@ interface bcs_em<T = string> extends EventMap {
     liveLog: string
 }
 
-export const BLANK_SERVICE_NAME = "__blank_service_name__"
-export const BLANK_SERVICE_SESSION_ID = "__blank_session_id__"
+export const BLANK_SERVICE_NAME = "_blank_service_name_"
+export const BLANK_SERVICE_SESSION_ID = "_blank_session_id_"
 export const DEFAULT_INCREMENTAL_EXPIRITY_OPT = true
 export const DEFAULT_SERVICE_SESSION_EXPIRITY = 1000 * 60 * 60 * 24 * 2 // 2 days
 
@@ -35,6 +35,12 @@ export interface IDefaultServiceParams extends OptsMap {
     '-s': String
 }
 
+/**
+ * key - msg-name
+ * value - args one-word description
+ */
+export type IReceiveMsgArgs = Record<string, string[]|null>
+
 const NOT_ALLOWABLE_SESSION_NAMES = ['service']
 
 // TODO: create opts validator and eval() injection finder
@@ -50,6 +56,7 @@ export abstract class BaseCommandService<
     private _isInited = false
     private _isRunning: boolean = false
 
+    protected abstract __serviceReceiveMsgArgs: IReceiveMsgArgs // msg descriptor
     protected abstract __serviceParamMap: TServiceParams // input param descriptor
     protected params: Partial<InferParsedOpts<TServiceParams>> = {} // real parsed params
 
@@ -85,6 +92,14 @@ export abstract class BaseCommandService<
 
     paramsEntries() {
         return getInterfacePathsWithTypes(this.__serviceParamMap)
+    }
+
+    receiveMsgEntries() {
+        return getInterfacePathsWithTypes(this.__serviceReceiveMsgArgs)
+    }
+
+    toString() {
+        return `${this.name}`
     }
 
     async Initialize(): Promise<void> {

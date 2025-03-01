@@ -14,3 +14,5 @@
 - in mtc / stc ... etc that subscribes to events or will saving files depend on global vars and checks for its id equals to blank to do not save data or subscribe. its need to modification for unified assigning to blank behavior
 
 - deep refactor pump.fun impl api folder
+
+- create command aliasing

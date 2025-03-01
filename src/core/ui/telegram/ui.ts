@@ -16,7 +16,7 @@ import * as telegraf from 'telegraf'
 import chalk from 'chalk';
 
 export class TelegramUI extends WithInit implements IUI<TgContext> {
-    public readonly tgBotInstance: telegraf.Telegraf<TgContext>
+    public readonly bot: telegraf.Telegraf<TgContext>
     private isActive: boolean = false;
 
     constructor(
@@ -24,7 +24,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         public readonly commandHandler: CommandHandler<TgContext>
     ) {
         super();
-        this.tgBotInstance = new telegraf.Telegraf(botApiKey);
+        this.bot = new telegraf.Telegraf(botApiKey);
     }
 
     ContextType(): AvailableUIsType {
@@ -51,7 +51,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
 
     private async setupMiddleware() {
         // Authorization
-        this.tgBotInstance.use(async (ctx, next) => {
+        this.bot.use(async (ctx, next) => {
             const manager = await Manager.findOne({ userId: ctx.from!.id })
             if (manager) {
                 ctx.type = AvailableUIsEnum.Telegram
@@ -72,9 +72,9 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
     }
 
     private async setupActions() {
-        this.tgBotInstance.action(RegExp(cb_data.approveRequest + "*"), (ctx, next) => actions.approverequest.call(this, ctx, next));
-        this.tgBotInstance.action(RegExp(cb_data.approveManager + "*"), (ctx, next) => actions.approvemanager.call(this, ctx, next));
-        this.tgBotInstance.action(RegExp(cb_data.rejectManager + "*"),  (ctx, next) => actions.rejectmanager.call(this, ctx, next));
+        this.bot.action(RegExp(cb_data.approveRequest + "*"), (ctx, next) => actions.approverequest.call(this, ctx, next));
+        this.bot.action(RegExp(cb_data.approveManager + "*"), (ctx, next) => actions.approvemanager.call(this, ctx, next));
+        this.bot.action(RegExp(cb_data.rejectManager + "*"),  (ctx, next) => actions.rejectmanager.call(this, ctx, next));
     }
 
     private async setupCommands() {
@@ -86,22 +86,14 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
             throw new Error("TelegemUI::init() command handler not inited")
         }
 
-        // Assigning to bot default commands
-        DefaultTgUICommands.forEach(cmd => {
-            log.echo(`-- Assigning default command: "${cmd.command}"`)
-            this.tgBotInstance.command(cmd.command, (ctx) => cmd.fn.call(this,ctx))
-        })
-
         const commands = this.commandHandler.mapHandlersToCommands();
 
         commands.forEach(cmd => {
             log.echo(`-- Assigning command: "${chalk.bold(cmd.command)}"`)
-            this.tgBotInstance.command(cmd.command, async (ctx) => {
+            this.bot.command(cmd.command, async (ctx) => {
                 try {
                     const response = await this.commandHandler.handleCommand(cmd.command, ctx);
-                    if (response) {
-                        await ctx.reply(response);
-                    }
+                    await ctx.reply(String(response.text), );
                 } catch (e: any) {
                     await ctx.reply(`Internall error: ${e.message}`);
                     log.error(`Command "${cmd.command}" "${ctx.manager.userId}" error: ${e.message}`, e);
@@ -117,7 +109,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         log.echo(`Commands verified ${chalk.green("successfully")}. Total commands: ${chalk.bold(toAssignCmds.length)}`)
 
         // assign to autocomplete
-        await this.tgBotInstance.telegram.setMyCommands(toAssignCmds)
+        await this.bot.telegram.setMyCommands(toAssignCmds)
 
         this.setInitialized()
     }
@@ -151,6 +143,47 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         await this.setupMiddleware()
         await this.setupCommands()
         await this.setupActions()
+        //this.bot.action(RegExp("builder_*"), async (ctx) => {
+        //    try {
+        //        let data = ctx.match.input.slice('builder_'.length)
+        //        const res = await this.commandHandler.handleCommand(data, ctx as any);
+        //
+        //        const mk = res.markup ?
+        //            res.markup.map(m => ({
+        //                text: m.text,
+        //                callback_data: "builder_"+m.callback_data
+        //            }))
+        //            :
+        //            [];
+        //        let keyboard = telegraf.Markup.inlineKeyboard([ [ ...mk ] ])
+        //        await ctx.reply(String(res.text), keyboard);
+        //    } catch (e: any) {
+        //        log.error(e)
+        //        const msg = e instanceof Error ? e.message : e
+        //        ctx.reply(msg)
+        //    }
+        //})
+        this.bot.on("text", async (ctx) => {
+            try {
+                if (ctx.text && ctx.text.startsWith("/")) {
+                    return
+                }
+                const res = await this.commandHandler.handleCommand(ctx!.text, ctx)
+                const mk = res.markup ?
+                    res.markup.map(m => ({
+                        text: m.text,
+                        callback_data: /*"builder_"+*/m.callback_data
+                    }))
+                    :
+                    [];
+                let keyboard = telegraf.Markup.inlineKeyboard([ [ ...mk ] ])
+                await ctx.reply(String(res.text), keyboard)
+            } catch (e: any) {
+                log.error(e)
+                const msg = e instanceof Error ? e.message : e
+                ctx.reply(msg)
+            }
+        })
     }
 
     async run() {
@@ -186,7 +219,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
                 })
             }
             log.echo("Starting Telegram-bot service...")
-            this.tgBotInstance.launch(() => {
+            this.bot.launch(() => {
                 log.echo("Telegram-bot service launched!")
             });
             if (adminExisted) {
@@ -195,8 +228,8 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
                     if (!manager.useGreeting) {
                         continue
                     }
-                    await this.tgBotInstance.telegram.sendMessage(manager.userId, "Service now online");
-                    this.tgBotInstance.telegram.sendSticker(manager.userId, stickers.happy);
+                    await this.bot.telegram.sendMessage(manager.userId, "Service now online");
+                    this.bot.telegram.sendSticker(manager.userId, stickers.happy);
                 }
             }
             log.echo("** Telegram-bot service started");
@@ -219,14 +252,14 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
             await this.notifyManagers(manager.userId, "Service going offline", stickers.verySad)
         }
         await this.commandHandler.stop()
-        this.tgBotInstance.stop();
+        this.bot.stop();
         log.echo("** Telegram ui stopped");
     }
 
     private async notifyManagers(id: string|number, msg: string, stiker?: string) {
-        await this.tgBotInstance.telegram.sendMessage(id, msg);
+        await this.bot.telegram.sendMessage(id, msg);
         if (stiker) {
-            await this.tgBotInstance.telegram.sendSticker(id, stiker);
+            await this.bot.telegram.sendSticker(id, stiker);
         }
     }
 

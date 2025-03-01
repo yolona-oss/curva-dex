@@ -67,7 +67,7 @@ export abstract class Application<CtxType extends BaseUIContext> extends WithIni
 
     private _prevErrorHandler?: (error: Error) => void
 
-    public setErrorInterceptor(handler: (error: Error) => void) {
+    public setErrorInterceptor(handler: (error: Error, origin?: NodeJS.UncaughtExceptionOrigin) => void) {
         if (this._prevErrorHandler) {
             process.removeListener("uncaughtException", this._prevErrorHandler)
             process.removeListener("rejectionHandled", this._prevErrorHandler)

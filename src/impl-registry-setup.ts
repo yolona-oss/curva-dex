@@ -13,13 +13,15 @@ export function ImplRegistrySetup() {
             api: PumpFunApiProvider,
             mtc: new PumpFunMaster(
                 BLANK_CTRL_ID,
-                BLANK_INSTANCE_ID_PREFIX,
-                BLANK_ASSET_OBJ
+                null,
+                BLANK_ASSET_OBJ,
+                []
             ),
             stc: new PumpFunSlave(
                 BLANK_CTRL_ID,
-                BLANK_INSTANCE_ID_PREFIX,
-                BLANK_WALLET_OBJ
+                null,
+                BLANK_WALLET_OBJ,
+                null
             ),
             walletManager: new SolanaWalletManager()
         }

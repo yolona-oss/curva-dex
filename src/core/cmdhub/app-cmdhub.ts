@@ -48,7 +48,7 @@ export class AppCmdhub extends Application<BaseUIContext> {
                 }
             }
         }
-        clearScreen()
+        //clearScreen()
         printLogo()
         console.log(WELCOME_TEXT)
     }

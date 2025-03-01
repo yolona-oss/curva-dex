@@ -75,11 +75,11 @@ export abstract class MasterTraderCtrl<
         })
         this.botDrivenCurve = new BotDrivenCurve(
             this.bots_curve_id,
-            curveSaves?.bots.map(stringToBigInt)
+            curveSaves ? curveSaves.bots.map(stringToBigInt) : []
         )
         this.fullCurve = new BotDrivenCurve(
             this.full_curve_id,
-            curveSaves?.full.map(stringToBigInt)
+            curveSaves ? curveSaves.full.map(stringToBigInt) : []
         )
 
 

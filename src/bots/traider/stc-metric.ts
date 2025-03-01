@@ -2,9 +2,6 @@ import { WithExecTime } from "@core/types/with-exec-time"
 
 import { ITradeCommit, TradeSideConst } from "./types/trade"
 import { IBaseTradeAsset } from "./types/asset"
-import { loadFromJson, writeJsonData } from "@core/utils/fs"
-
-import path from 'path'
 
 type CommitWithExecTime<TradeAsset extends IBaseTradeAsset = IBaseTradeAsset> = ITradeCommit<TradeAsset>&WithExecTime
 

@@ -1,5 +1,5 @@
 import { CqContext } from "@core/ui/telegram/types";
-import { getConfig } from "@core/config";
+import { getInitialConfig } from "@core/config";
 import { Manager, FilesWrapper } from "@core/db";
 
 import { TelegramUI } from "../ui";
@@ -24,14 +24,14 @@ export let actions = (() => {
             ]
         ])
 
-        await ctx.telegram.sendMessage((await getConfig()).bot.admin_id, "Approve request from @" + ctx.from!.username,
+        await ctx.telegram.sendMessage(getInitialConfig().bot.admin_id, "Approve request from @" + ctx.from!.username,
             keyboard);
         next();
     }
 
     async function approvemanager(this: TelegramUI, ctx: CqContext, next: () => void) {
         let userId = Number(ctx.match.input.slice(cb_data.approveManager.length));
-        let member = await this.tgBotInstance.telegram.getChatMember(userId, userId);
+        let member = await this.bot.telegram.getChatMember(userId, userId);
         await Manager.create({
             userId: userId,
             name: member.user.first_name + " " + member.user.last_name,
@@ -39,13 +39,13 @@ export let actions = (() => {
             useGreeting: true
         })
 
-        await this.tgBotInstance.telegram.sendMessage(userId, "Your request have been accepted. Now you are can use this bot");
+        await this.bot.telegram.sendMessage(userId, "Your request have been accepted. Now you are can use this bot");
         next();
     }
 
     async function rejectmanager(this: TelegramUI, ctx: CqContext, next: () => void) {
         let userId = Number(ctx.match.input.slice(cb_data.rejectManager.length));
-        await this.tgBotInstance.telegram.sendMessage(userId, "Your request have been rejected");
+        await this.bot.telegram.sendMessage(userId, "Your request have been rejected");
         // this.bot.telegram.sendSticker(userId, this.stickers.evil);
         next();
     }

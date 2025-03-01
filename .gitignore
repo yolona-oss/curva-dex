@@ -16,6 +16,7 @@ config.json
 .env.dev
 s
 tmp/
+build/
 .lock/
 [a-z].json
 [a-z][1-9].json

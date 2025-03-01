@@ -97,8 +97,8 @@ export class CLIUI extends WithInit implements IUI<CLIContext> {
             this.context.userSession.data.args = args; // Save args in context
 
             const response = await this.commandHandler!.handleCommand(command, this.context);
-            if (response) {
-                this.context.reply(response);
+            if (response.text) {
+                this.context.reply(String(response.text));
             }
         });
 

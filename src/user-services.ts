@@ -8,6 +8,13 @@ export class TestService extends BaseCommandService {
     private max = 1000n
     private i = 3n
 
+    protected __serviceReceiveMsgArgs = {
+        'pause': [],
+        'resume': [],
+        'stop': [],
+        'reset': [],
+        'setmax': ['value']
+    }
     protected __serviceParamMap = defaultServiceParamsMap
 
     constructor(userId: string = BLANK_USER_ID, input: string[] = [], name: string = 'blob') {
@@ -16,7 +23,7 @@ export class TestService extends BaseCommandService {
 
     private isPaused = false
 
-    async receiveMsg(msg: string, args: string[]): Promise<void> {
+    async receiveMsg(msg: keyof typeof this.__serviceReceiveMsgArgs, args: string[]): Promise<void> {
         if (msg === 'pause') {
             this.isPaused = true
         } else if (msg === 'resume') {

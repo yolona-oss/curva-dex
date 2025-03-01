@@ -15,6 +15,8 @@ import { SequenceHandler } from "./sequence-handler";
 import { BaseCommandService } from "./command-service";
 
 import { DefaultCommandsMap } from './defaults-command-map'
+import { CommandBuilder, IBuilderMarkup, IBuilderMarkupOption, ICommandDescriptor, ICommandDescriptorArg, ReadingCtxType } from "./command-builder";
+import { DefaultTgUICommands } from "@core/ui/telegram/constants";
 
 // NOTE: add ctx extension from base ui ctx
 
@@ -38,6 +40,12 @@ export interface ICmdRegister<Ctx> {
 
 export type ICmdRegisterMany<Ctx> = Array<ICmdRegister<Ctx>>
 
+export interface IHandleResult {
+    isError: boolean
+    text?: string
+    markup?: IBuilderMarkupOption[]
+}
+
 export const BLANK_USER_ID = "__pussy-killer__"
 
 const DefaultCommands = [
@@ -50,12 +58,14 @@ const DefaultCommands = [
 export class CommandHandler<TContext extends BaseUIContext> extends WithInit {
     private callbacks: Map<string, IHandleCallback<TContext>> // name -> callback
     private sequenceHandler?: SequenceHandler
-
-    private activeServices: Map<string, Array<BaseCommandService<any, any, any>>> = new Map() // userId -> services
+    private activeServices: Map<string, Array<BaseCommandService<any, any, any>>> // userId -> services
+    private cmdBuilder: CommandBuilder
 
     constructor() {
         super()
-        this.callbacks = new Map();
+        this.callbacks = new Map()
+        this.activeServices = new Map()
+        this.cmdBuilder = new CommandBuilder()
     }
 
     done() {
@@ -109,6 +119,12 @@ export class CommandHandler<TContext extends BaseUIContext> extends WithInit {
     }
 
     public register(command: IHandlerCommand, handler: IHandler<TContext>) {
+        if (command.command in this.callbacks) {
+            throw new Error("CommandHandler.register() command already registered: " + command.command);
+        }
+        if (DefaultCommandsMap.map(c => c.command).includes(command.command)) {
+            throw new Error("CommandHandler.register() command already registered as default: " + command.command);
+        }
         this.callbacks.set(
             command.command,
             {
@@ -121,21 +137,152 @@ export class CommandHandler<TContext extends BaseUIContext> extends WithInit {
         );
     }
 
+    isServiceActive(userId: string, serviceName: string) {
+        const services = this.activeServices.get(userId)
+        if (!services) {
+            return false
+        }
+        return services.map(s => s.name).includes(serviceName)
+    }
+
+    isCommandHaveAllArgs(command: string, args: string[]) {
+        if (DefaultCommandsMap.map(c => c.command).includes(command)) {
+            const cmdArgs =  DefaultCommandsMap.find(c => c.command === command)?.args
+            if (cmdArgs) {
+                return cmdArgs.every(a => args.includes(a))
+            }
+        }
+
+        const cmd = this.callbacks.get(command)
+        if (!cmd) {
+            throw `Command ${command} not found`
+        }
+        if (cmd.fn instanceof Function) {
+            if (!cmd.args) {
+                return true
+            }
+            const requiredArgs = cmd.args.filter(a => !a.startsWith("?"))
+            for (const arg of requiredArgs) {
+                if (!args.includes(arg)) {
+                    return false
+                }
+            }
+        } else {
+            return false
+        }
+        return true
+    }
+
+    isBuiltInCommand(command: string) {
+        return DefaultCommandsMap.map(c => c.command).includes(command)
+    }
+
     /**
-     * @returns {Promise<string|void>} on success return nothing, otherwise return error message string
+     * TODO: refactor with chaining of handlers
      */
-    public async handleCommand(command: string, ctx: TContext): Promise<string | void> {
-        const cb = this.callbacks.get(command);
-        const arg = this.getArgs(ctx.text!)
+    public async handleCommand(input: string, ctx: TContext): Promise<IHandleResult> {
+        const cb = this.callbacks.get(input);
+        const args = this.getArgs(ctx.text!)
         const _userId = ctx.manager?.userId
         const userId = String(_userId)
 
         if (!_userId) {
-            return "CommandHandler.handleCommand() No user id."
+            return {
+                isError: true,
+                text: "CommandHandler.handleCommand() No user id."
+            }
         }
 
-        if (!cb && !DefaultCommands.includes(command)) {
-            return 'CommandHandler.handleCommand() Unknown command "' + command + '".';
+        // resume builder
+        if (this.cmdBuilder.isUserOnBuild(userId)) {
+            const res = this.cmdBuilder.handle(userId, input)
+
+            return {
+                isError: Boolean(res.error),
+                text: res.markup.text,
+                markup: res.markup.options
+            }
+        }
+
+        let isNeedToStartBuilder
+        try {
+            isNeedToStartBuilder = !this.isCommandHaveAllArgs(input, args)
+        } catch (e) {
+            isNeedToStartBuilder = false
+        }
+        if (isNeedToStartBuilder) {
+            let cb
+            let isBuiltIn = true
+            let isService = false
+            let isActive = false
+
+            if (this.isBuiltInCommand(input)) {
+                cb = DefaultCommandsMap.find(c => c.command === input)
+            } else {
+                cb = this.callbacks.get(input)!
+                isService = cb.fn instanceof BaseCommandService
+                isActive = isService ? this.isServiceActive(userId, cb.fn.name) : false
+                isBuiltIn = false
+            }
+
+            const ctxs: ReadingCtxType[] =
+                isService ?
+                    isActive ?
+                        ['message'] :
+                        ['params', 'config'] :
+                    ['args']
+
+            let desc: ICommandDescriptor = { args: [] }
+
+            if (isService && !isBuiltIn) {
+                const service = (cb as IHandleCallback<TContext>).fn as BaseCommandService
+
+                const cfg_args: ICommandDescriptorArg[] = service.configEntries().map(c => ({
+                    ctx: 'config',
+                    name: c.path
+                }))
+                const params_args: ICommandDescriptorArg[] = service.paramsEntries().map(c => ({
+                    ctx: 'params',
+                    name: c.path
+                }))
+                const msg_args: ICommandDescriptorArg[] = service.receiveMsgEntries().map(c => ({
+                    ctx: 'message',
+                    name: c.path
+                }))
+
+                desc.args = isActive ? msg_args : params_args.concat(cfg_args)
+            } else if (!isService && !isBuiltIn) {
+                const args_args: ICommandDescriptorArg[] = (cb as IHandleCallback<TContext>).args?.map(a => ({
+                    ctx: 'args',
+                    name: a
+                })) ?? []
+
+                desc = {
+                    args: args_args
+                }
+            } else if (isBuiltIn) {
+                desc = {
+                    args: (DefaultCommandsMap.find(c => c.command === input)?.args ?? []).map(a => ({
+                        ctx: 'args',
+                        name: a
+                    }))
+                }
+            }
+
+            const res = this.cmdBuilder.startBuild(userId, input, desc, ctxs)
+
+            return {
+                isError: false,
+                text: res.text,
+                markup: res.options
+            }
+        }
+
+        if (!cb && !DefaultCommands.includes(input)) {
+            return {
+                isError: true,
+                text: 'Unknown command "' + input + '".'
+            }
         }
 
         // ---- Builtin cmd handling START
@@ -148,50 +295,70 @@ export class CommandHandler<TContext extends BaseUIContext> extends WithInit {
         ]
 
         for (const handler of defaultCmdHandlers) {
-            const res = await handler.bind(this)(command, ctx, userId, arg)
-            if (res) {
-                return res
+            const error = await handler.bind(this)(input, ctx, userId, args)
+            if (error) {
+                return {
+                    isError: true,
+                    text: error
+                }
+            }
+            // ---- Builtin cmd handling END
+
+            if (!cb) {
+                return {
+                    isError: true,
+                    text: 'CommandHandler.handleCommand() Unknown command "' + input + '".'
+                }
+            }
+
+            try {
+                if (typeof cb.fn === 'function') { // simple command
+                    const res = await cb.fn(ctx)
+                    return {
+                        isError: Boolean(res),
+                        text: String(res)
+                    }
+                } else if (cb.fn) { // service exe command
+                    //const serviceName = cb.fn.name
+                    const serviceName = input
+                    const args = this.getArgs(String(ctx.text))
+
+                    if (!this.activeServices.has(userId)) {
+                        this.activeServices.set(userId, [])
+                    }
+
+                    if (this.activeServices.get(userId)!.map(serv => serv.name).includes(serviceName)) {
+                        return {
+                            isError: true,
+                            text: `Service ${serviceName} already active.`
+                        }
+                    }
+
+                    const serviceInstance = cb.fn.clone(userId, args, serviceName)
+
+                    serviceInstance.on("message", async (message: string) => {
+                        await this.sendMessageToContext(ctx, message)
+                    })
+                    //cb.fn.on("liveLog")
+                    serviceInstance.on('done', async (msg: string = "") => {
+                        await this.handleServiceDone(userId, serviceInstance.name, ctx, msg)
+                    })
+                    log.echo("-- Starting service: " + serviceInstance.name)
+                    await serviceInstance.Initialize()
+                    this.activeServices.get(userId)!.push(serviceInstance)
+                    serviceInstance.run()
+                }
+            } catch (e: any) {
+                log.error("CommandHandler.handleCommand() Command handling error: " + e)
+                return {
+                    isError: true,
+                    text: String(e)
+                }
             }
         }
-        // ---- Builtin cmd handling END
-
-        if (!cb) {
-            return 'CommandHandler.handleCommand() Unknown command "' + command + '".';
-        }
-
-        try {
-            if (typeof cb.fn === 'function') { // simple command
-                return await cb.fn(ctx);
-            } else if (cb.fn) { // service exe command
-                //const serviceName = cb.fn.name
-                const serviceName = command
-                const args = this.getArgs(String(ctx.text))
-
-                if (!this.activeServices.has(userId)) {
-                    this.activeServices.set(userId, [])
-                }
-
-                if (this.activeServices.get(userId)!.map(serv => serv.name).includes(serviceName)) {
-                    return `Service ${serviceName} already active.`
-                }
-
-                const serviceInstance = cb.fn.clone(userId, args, serviceName)
-
-                serviceInstance.on("message", async (message: string) => {
-                    await this.sendMessageToContext(ctx, message)
-                })
-                //cb.fn.on("liveLog")
-                serviceInstance.on('done', async (msg: string = "") => {
-                    await this.handleServiceDone(userId, serviceInstance.name, ctx, msg)
-                })
-                log.echo("-- Starting service: " + serviceInstance.name)
-                await serviceInstance.Initialize()
-                this.activeServices.get(userId)!.push(serviceInstance)
-                serviceInstance.run()
-            }
-        } catch (e: any) {
-            log.error("CommandHandler.handleCommand() Command handling error: " + e)
-            return String(e)
+        return {
+            isError: false,
+            text: ""
         }
     }
 
@@ -225,21 +392,19 @@ export class CommandHandler<TContext extends BaseUIContext> extends WithInit {
     }
 
     public mapHandlersToCommands(): IUICommandSimple[] {
-        let cmd = Array.from(this.callbacks.keys())
-        const desc = Array.from(Array.from(this.callbacks.values()).map(v => v.description))
-        const args = Array.from(Array.from(this.callbacks.values()).map(v => v.args))
+        let cmd = this.callbacks.keys().toArray()
+        const desc = this.callbacks.values().map(v => v.description).toArray()
+        const args = this.callbacks.values().map(v => v.args).toArray()
 
-        const mapped = new Array(cmd.length)
-        .fill(0)
-        .map(
+        const registredCmds = new Array(cmd.length).fill(0).map(
             (_, i) => ({
                 command: cmd[i],
                 description: desc[i],
                 args: args[i]}
             )
-        ).concat(DefaultCommandsMap)
+        )
 
-        return mapped
+        return DefaultCommandsMap.concat(registredCmds).concat(DefaultTgUICommands)
     }
 
     public createCommandSequenceGraph() {
@@ -286,18 +451,32 @@ Prev: ${cmd.prev ?? "None"}\n\
         if (!account) {
             return "Account not found."
         }
+        const module_name = arg[0]
+        const vname = arg[1]
+        const vvalue = arg[2]
         switch (command) {
             case DefaultAccountCommandsEnum.SET_VARIABLE:
-                await account!.setModuleData(arg[0], arg[1], arg[2])
+                if (arg.length < 3) {
+                    return "No module name or variable name or value passed"
+                }
+
+                await account!.setModuleData(module_name, vname, vvalue)
 
                 return "Variable setted. Current data for context:\n" + JSON.stringify(account.modules.find(m => m.module === arg[0]), null, 4)
             case DefaultAccountCommandsEnum.REMOVE_VARIABLE:
-                await account.unsetModuleData(arg[0], arg[1])
+                if (arg.length < 2) {
+                    return "No module name or variable name passed"
+                }
+
+                await account.unsetModuleData(module_name, vname)
 
                 return "Variable unsetted"
             case DefaultAccountCommandsEnum.GET_VARIABLE:
+                if (arg.length < 2) {
+                    return "No module name or variable name passed"
+                }
                 return JSON.stringify(
-                    await account.getModuleData(arg[0], arg[1]),
+                    await account.getModuleData(module_name, vname),
                     null,
                     4
                 )
@@ -311,7 +490,7 @@ Prev: ${cmd.prev ?? "None"}\n\
             seq_exe_error = this.sequenceHandler!.handle(userId, command)
         } catch (e: any) {
             log.error(`CommandHandler.handleCommand() Sequence handling error: ` + e)
-            seq_exe_error = e 
+            seq_exe_error = String(e instanceof Error ? e.message : e)
         }
         if (seq_exe_error) { // err or default seq comands passed :) im too smart :_)
             return seq_exe_error
