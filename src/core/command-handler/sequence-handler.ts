@@ -118,7 +118,7 @@ export class SequenceHandler {
         if (!handlingSeq) {
             return {
                 success: false,
-                text: `Unknown command "${command}". ${this.handlingSeq.map(itm => itm.target).join(', ')}`
+                text: `Unknown command "${command}".`
             }
         }
 

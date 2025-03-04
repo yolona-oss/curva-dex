@@ -39,10 +39,10 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         this.cmdBuilder = new CommandBuilder()
 
         this.chain.use(new HandleCmdBuilder<TContext>)
-        this.chain.use(new HandleSequenceCommand<TContext>)
         this.chain.use(new HandleHelpCmd<TContext>)
         this.chain.use(new HandleAccountCommand<TContext>)
         this.chain.use(new HandleServiceCommand<TContext>)
+        this.chain.use(new HandleSequenceCommand<TContext>)
         this.chain.use(new HandleCallbackExecution<TContext>)
     }
 
