@@ -1,7 +1,7 @@
 import { getConfig, getInitialConfig } from '@core/config'
 import { AvailableUIsEnum, AvailableUIsType, IUI, mapCommands } from '@core/ui/types';
 import { FilesWrapper, Manager } from '@core/db';
-import { CommandHandler } from '@core/command-handler';
+import { MotherCmdHandler } from '@core/command-handler';
 import { WithInit } from '@core/types/with-init';
 
 import { DefaultTgUICommands } from './constants/commands';
@@ -21,7 +21,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
 
     constructor(
         botApiKey: string,
-        public readonly commandHandler: CommandHandler<TgContext>
+        public readonly cmdHandler: MotherCmdHandler<TgContext>
     ) {
         super();
         this.bot = new telegraf.Telegraf(botApiKey);
@@ -82,17 +82,17 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
             throw new Error("TelegemUI::init() already inited")
         }
 
-        if (!this.commandHandler.isInitialized()) {
+        if (!this.cmdHandler.isInitialized()) {
             throw new Error("TelegemUI::init() command handler not inited")
         }
 
-        const commands = this.commandHandler.mapHandlersToCommands();
+        const commands = this.cmdHandler.mapHandlersToUICommands();
 
         commands.forEach(cmd => {
             log.echo(`-- Assigning command: "${chalk.bold(cmd.command)}"`)
             this.bot.command(cmd.command, async (ctx) => {
                 try {
-                    const response = await this.commandHandler.handleCommand(cmd.command, ctx);
+                    const response = await this.cmdHandler.handleCommand(cmd.command, ctx);
                     await ctx.reply(String(response.text), );
                 } catch (e: any) {
                     await ctx.reply(`Internall error: ${e.message}`);
@@ -168,7 +168,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
                 if (ctx.text && ctx.text.startsWith("/")) {
                     return
                 }
-                const res = await this.commandHandler.handleCommand(ctx!.text, ctx)
+                const res = await this.cmdHandler.handleCommand(ctx!.text, ctx)
                 const mk = res.markup ?
                     res.markup.map(m => ({
                         text: m.text,
@@ -251,7 +251,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
             if (!manager.useGreeting) { continue } // skip
             await this.notifyManagers(manager.userId, "Service going offline", stickers.verySad)
         }
-        await this.commandHandler.stop()
+        await this.cmdHandler.stop()
         this.bot.stop();
         log.echo("** Telegram ui stopped");
     }

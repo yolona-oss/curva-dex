@@ -2,9 +2,9 @@ import { BaseCommandService } from "@core/command-handler";
 
 import { IPumpFunRobotConfig, defaultCfg } from "./pf-config";
 
-import { defaultServiceParamsMap, IDefaultServiceParams, IDefaultServiceSessionData } from "@core/command-handler/command-service";
+import { defaultServiceParamsMap, IDefaultServiceParams, IDefaultServiceSessionData } from "@core/command-handler";
 import { PumpFunRobot } from "./pf-robot";
-import { BLANK_USER_ID } from "@core/command-handler/command-handler";
+import { BLANK_USER_ID } from "@core/command-handler";
 import { IMTCStateSave } from "@bots/traider/mtc";
 import { PumpFunAssetType } from "@bots/traider/impl/pump.fun";
 

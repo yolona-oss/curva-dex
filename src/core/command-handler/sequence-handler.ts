@@ -1,6 +1,7 @@
 import { Stack } from '@utils/struct/stack'
 import { WithNeighbors } from '@core/types/with-neighbors'
-import { DefaultSeqCommandsEnum } from '@core/constants/command'
+import { BuiltInSeqCommandsEnum } from './constants/built-in-cmd-enum'
+import { ICmdHandlerResponce } from './types'
 
 interface ISequenceType {
     target: string
@@ -34,27 +35,46 @@ export class SequenceHandler {
         })
     }
 
-    private handleDefaultSeqCommands(command: string, selSequence: Stack<string>|undefined, seqId: string): string|void {
+    private handleBuiltInSeqCommands(command: string, selSequence: Stack<string>|undefined, seqId: string): ICmdHandlerResponce&{skip?: boolean} {
         switch (command) {
-            case DefaultSeqCommandsEnum.NEXT_COMMAND:
+            case BuiltInSeqCommandsEnum.NEXT_COMMAND:
                 // TODO handle next if command seq allow this and no arguments or defaults provided
+                // skip
                 break
-            case DefaultSeqCommandsEnum.BACK_COMMAND:
+            case BuiltInSeqCommandsEnum.BACK_COMMAND:
                 if (selSequence) {
                     if (selSequence.size() > 0) {
                         const prevCmd = this.sequences.get(String(seqId))!.pop()
-                        return `You are backed to "${prevCmd}".`
+                        return {
+                            success: true,
+                            text: `You are backed to "${prevCmd}".`
+                        }
                     }
                 }
-                return "You are not in a command sequence."
-            case DefaultSeqCommandsEnum.CANCEL_COMMAND:
+                return {
+                    success: false,
+                    text: "You are not in a command sequence."
+                }
+            case BuiltInSeqCommandsEnum.CANCEL_COMMAND:
                 if (selSequence) {
                     this.sequences.get(String(seqId))!.drop()
-                    return "Sequence canceled."
+                    return {
+                        success: true,
+                        text: "Sequence canceled."
+                    }
                 }
-                return "You are not in a command sequence."
+                return  {
+                    success: false,
+                    text: "You are not in a command sequence."
+                }
             default:
-                return
+                // skip
+                break
+        }
+
+        return {
+            success: true,
+            skip: true
         }
     }
 
@@ -77,15 +97,18 @@ export class SequenceHandler {
         return notIncludes
     }
 
-    // TODO
-    public handle(seqId: number|string, command: string): string|void {
+    /**
+    *  @returns void on skip
+    */
+    public handle(seqId: number|string, command: string): ICmdHandlerResponce|void {
         seqId = String(seqId)
         const selSequence = this.sequences.get(seqId)
         const handlingSeq = this.handlingSeq.find((item) => item.target === command)
 
-        const answer = this.handleDefaultSeqCommands(command, selSequence, seqId)
-        if (answer) {
-            return answer
+        const res = this.handleBuiltInSeqCommands(command, selSequence, seqId)
+        if (!res.skip) {
+            const { text, success } = res
+            return { text, success}
         }
 
         if (!selSequence) {
@@ -93,7 +116,10 @@ export class SequenceHandler {
         }
 
         if (!handlingSeq) {
-            return
+            return {
+                success: false,
+                text: `Unknown command "${command}". ${this.handlingSeq.map(itm => itm.target).join(', ')}`
+            }
         }
 
         const curHandlingSeq = this.handlingSeq.find((item) => item.target === command)!
@@ -108,7 +134,10 @@ export class SequenceHandler {
         if (notExecuted.length == 0) {
             this.addToSeq(seqId, command)
         } else {
-            return `You are not executed all prev commands(${notExecuted.length}): ${notExecuted.join(', ')}.`
+            return {
+                success: false,
+                text: `You are not executed all prev commands(${notExecuted.length}): ${notExecuted.join(', ')}.`
+            }
         }
 
         // command is last in sequence
@@ -116,5 +145,7 @@ export class SequenceHandler {
             this.dropSeq(seqId)
             return
         }
+
+        return
     }
 }

@@ -1,6 +1,6 @@
 // TODO MOVE THIS TO SOMETHING OTHER SOMTHING
 
-export const BuiltInNames = {
+export const BuiltInTradeArchNames = {
     Example: "example",
     PumpDotFun: "pump.fun"
 }

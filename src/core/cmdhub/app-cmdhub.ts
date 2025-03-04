@@ -1,6 +1,6 @@
 import { Application } from "@core/application";
 import { getInitialConfig } from "@core/config";
-import { CommandHandler } from "@core/command-handler";
+import { MotherCmdHandler } from "@core/command-handler";
 import { AvailableUIsType, BaseUIContext, IUI } from "@core/ui/types";
 import { CLIContext, CLIUI } from "@core/ui/cli";
 import { TelegramUI, TgContext } from "@core/ui/telegram";
@@ -13,7 +13,7 @@ import { FIGLET_LOGO, WELCOME_TEXT } from '@core/constants'
 export class AppCmdhub extends Application<BaseUIContext> {
     constructor(
         ui_name: AvailableUIsType,
-        cmdHandler: CommandHandler<any>
+        cmdHandler: MotherCmdHandler<any>
     ) {
         const cfg = getInitialConfig()
 
@@ -26,10 +26,10 @@ export class AppCmdhub extends Application<BaseUIContext> {
         let selected_ui: IUI<any>
         switch (ui_name) {
             case "telegram":
-                selected_ui = new TelegramUI(cfg.bot.token, cmdHandler as CommandHandler<TgContext>)
+                selected_ui = new TelegramUI(cfg.bot.token, cmdHandler)
                 break
             case "cli":
-                selected_ui = new CLIUI(cmdHandler as CommandHandler<CLIContext>)
+                selected_ui = new CLIUI(cmdHandler)
                 break
             default:
                 log.error(`Unknown UI: ${ui_name}`)
@@ -48,7 +48,7 @@ export class AppCmdhub extends Application<BaseUIContext> {
                 }
             }
         }
-        //clearScreen()
+        clearScreen()
         printLogo()
         console.log(WELCOME_TEXT)
     }

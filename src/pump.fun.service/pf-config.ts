@@ -1,4 +1,3 @@
-import { LAMPORTS_PER_SOL } from "@solana/web3.js"
 import { IBaseDEXTradeAsset } from "@bots/traider"
 import { BLANK_MINT_PREFIX } from "@bots/traider/impl/built-in"
 

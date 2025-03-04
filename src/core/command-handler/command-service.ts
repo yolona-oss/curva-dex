@@ -1,16 +1,23 @@
 import { Account, Manager } from "@core/db";
 import { IRunnable } from "@core/types/runnable";
 import { InferParsedOpts, optsParser } from "@core/utils/opts-parser";
-import { EventEmitter, EventMap } from "@utils/EventEmitter";
+import TypedEventEmitter, { EventMap } from 'typed-emitter'
+import EventEmitter from 'events'
 import { assignToCustomPath, getInterfacePathsWithTypes, isEmpty } from "@utils/object";
 import { IDefaultServiceParams, IDefaultServiceSessionData, IReceiveMsgArgs } from "./types";
-import { BLANK_SERVICE_NAME, BLANK_SERVICE_SESSION_ID, DEFAULT_INCREMENTAL_EXPIRITY_OPT, DEFAULT_SERVICE_SESSION_EXPIRITY, NOT_ALLOWABLE_SESSION_NAMES } from "./constants";
+import {
+    BLANK_SERVICE_NAME,
+    BLANK_SERVICE_SESSION_ID,
+    DEFAULT_INCREMENTAL_EXPIRITY_OPT,
+    DEFAULT_SERVICE_SESSION_EXPIRITY,
+    NOT_ALLOWABLE_SESSION_NAMES
+} from "./constants";
 
-interface bcs_em<T = string> extends EventMap {
-    message: T,
-    error: string,
-    done: string,
-    liveLog: string
+interface IBaseCmdService_EvMap<T = string> extends EventMap {
+    message: (msg: T) => void,
+    error: (err: string) => void,
+    done: (msg?: string) => void,
+    liveLog: (logs: string[]) => void
 }
 
 // TODO: create corn job for session expirity
@@ -22,7 +29,7 @@ export abstract class BaseCommandService<
         TServiceParams extends IDefaultServiceParams = IDefaultServiceParams,
         TServiceSessionData extends IDefaultServiceSessionData = IDefaultServiceSessionData
     >
-        extends EventEmitter<bcs_em>
+        extends (EventEmitter as new () => TypedEventEmitter<IBaseCmdService_EvMap>)
         implements IRunnable
 {
     private _isInited = false

@@ -1,5 +1,13 @@
 import { unique } from "@core/utils/array"
-import { ICommandBuilderMarkup, IBuilderMarkupOption, ICmdBuildingState, ICmdBuildResult, ICmdBuilderHandleResult, ICommandDescriptor, ReadingCtxType } from "./types"
+import {
+    ICommandBuilderMarkup,
+    IBuilderMarkupOption,
+    ICmdBuildingState,
+    ICmdBuildResult,
+    ICmdBuilderHandleResult,
+    ICommandDescriptor,
+    ReadingCtxType
+} from "./types"
 import { DefaultBuilderCallbacks, defaultBuilderMarkupOptions } from "./constants"
 
 function toMarkup(opt: string): IBuilderMarkupOption {

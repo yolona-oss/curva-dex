@@ -1,9 +1,10 @@
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { TradeArchImplRegistry, ITradeArchImpl, BuiltInNames, SolanaWalletManager } from "@bots/traider";
+import { TradeArchImplRegistry, ITradeArchImpl, BuiltInTradeArchNames, SolanaWalletManager } from "@bots/traider";
 import { IPumpFun_TxEventName, IPumpFun_TxEventPayload } from "@bots/traider/impl/pump.fun";
 import { PumpFunApi, PumpFunAssetType, PumpFunMaster, PumpFunSlave } from "@bots/traider/impl/pump.fun"
 import { IPumpFunRobotConfig } from "./../pf-config";
-import EventEmitter from "events";
+import TypedEventEmitter, { EventMap } from 'typed-emitter'
+import EventEmitter from 'events'
 import { IMTCStateSave } from "@bots/traider/mtc";
 import { IPumpFunRobotSessionState, stateTransiteMap } from "../pf-robot-service";
 
@@ -13,7 +14,11 @@ import { PFTicker, PFTickerCtx } from "./ticker";
 import log from '@utils/logger'
 import { CmdOfferBuilder } from "@bots/traider/offer-cmd";
 
-export class PumpFunRobot extends EventEmitter {
+interface IRobot_EvMap extends EventMap {
+    message: (msg: string) => void
+}
+
+export class PumpFunRobot extends (EventEmitter as new () => TypedEventEmitter<IRobot_EvMap>) {
     private impl: ITradeArchImpl<PumpFunApi, PumpFunAssetType, SolanaWalletManager>
     private api: PumpFunApi
     private master: PumpFunMaster
@@ -43,7 +48,7 @@ export class PumpFunRobot extends EventEmitter {
     ) {
         super()
 
-        this.impl = TradeArchImplRegistry.Instance.get(BuiltInNames.PumpDotFun)!
+        this.impl = TradeArchImplRegistry.Instance.get(BuiltInTradeArchNames.PumpDotFun)!
         this.api = this.impl.api.clone()
 
         if (sessionSave) {

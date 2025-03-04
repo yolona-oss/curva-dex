@@ -1,6 +1,8 @@
 import * as fs from 'fs'
 import path from 'path'
 
+import log from '@utils/logger'
+
 export class LockManager {
     private lockFiles: Set<string> = new Set();
 
@@ -63,7 +65,7 @@ export class LockManager {
                 fs.unlinkSync(filePath);
                 unlinked++
             } catch (err) {
-                console.error(`Failed to delete lock file ${filePath}:`, err);
+                log.error(`Failed to delete lock file ${filePath}:`, err);
             }
         }
         this.lockFiles.clear();

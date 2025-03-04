@@ -1,6 +1,6 @@
 import { BaseCommandService } from '@core/command-handler'
-import { BLANK_USER_ID } from '@core/command-handler/command-handler'
-import { defaultServiceParamsMap } from '@core/command-handler/command-service'
+import { BLANK_USER_ID } from '@core/command-handler'
+import { defaultServiceParamsMap } from '@core/command-handler'
 import { genRandomNumberBetweenWithScatter } from '@utils/random'
 import { sleep } from '@utils/time'
 

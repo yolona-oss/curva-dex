@@ -16,3 +16,5 @@
 - deep refactor pump.fun impl api folder
 
 - create command aliasing
+
+- create command service param and msg type injection with reflection|decorators

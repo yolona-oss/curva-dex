@@ -1,4 +1,4 @@
-import { AbstractTTickerCtx, BaseTTickerState, BaseWalletManager, BuiltInNames, IDEXWallet, TradeArchImplRegistry, TradeSideType, TTicker } from "@bots/traider";
+import { AbstractTTickerCtx, BaseTTickerState, BaseWalletManager, BuiltInTradeArchNames, TradeArchImplRegistry, TradeSideType, TTicker } from "@bots/traider";
 import { IPumpFun_TxEventPayload, PumpFunMaster, PumpFunSlave } from "@bots/traider/impl/pump.fun";
 import { SlaveDictionary } from "./slave-dict";
 import { randomizeWithScatter } from "@core/utils/random";
@@ -22,7 +22,7 @@ export class DummyState extends BaseTTickerState {
     }
 
     async addBalance(slave: PumpFunSlave, amount: number): Promise<void> {
-        const impl = TradeArchImplRegistry.Instance.get(BuiltInNames.PumpDotFun)!
+        const impl = TradeArchImplRegistry.Instance.get(BuiltInTradeArchNames.PumpDotFun)!
         await impl.walletManager.distribute(this.config.motherShip, [{
             wallet: slave.Wallet,
             amount: BigInt(amount * LAMPORTS_PER_SOL)

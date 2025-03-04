@@ -13,9 +13,11 @@ export class Chain<Request, Response> {
         this.handlers.push(handler);
     }
 
-    handle(request: any): void {
+    handle(request: Request): Promise<Response> {
         if (this.handlers.length > 0) {
-            this.handlers[0].handle(request);
+            return this.handlers[0].handle(request);
         }
+
+        return Promise.resolve({} as Response);
     }
 }
