@@ -9,7 +9,4 @@ export type TextContext = NarrowedContext<TgContext, Types.MountMap['text']>;
 
 export interface TgCommand extends IUICommand<TelegramUI, TextContext> {
     fn: (this: TelegramUI, ctx: TextContext) => Promise<void>;
-    command: string;
-    description: string;
-    args: string[];
 }

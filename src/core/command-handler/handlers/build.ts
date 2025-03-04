@@ -1,8 +1,11 @@
+import { parseOptions } from "@core/ui/types/command";
 import { BuiltInUICmdArray } from "../built-in-cmd";
 import { BaseCommandService } from "../command-service";
-import { BuiltInCmdNames } from "../constants";
 import { ICmdCallback, ICommandDescriptor, ICommandDescriptorArg, ReadingCtxType } from "../types";
 import { AbstractCmdHandler, ICmdHandlerRequest, ICmdHandlerResponce, BaseUIContext } from "./abstract-handler";
+import { IManager } from "@core/db";
+
+// TODO add completion for builtin commands
 
 export class HandleCmdBuilder<Ctx extends BaseUIContext> extends AbstractCmdHandler<Ctx> {
     public async handle(request: ICmdHandlerRequest<Ctx>): Promise<ICmdHandlerResponce> {
@@ -14,6 +17,7 @@ export class HandleCmdBuilder<Ctx extends BaseUIContext> extends AbstractCmdHand
 
         // resume builder
         if (builder.isUserOnBuild(userId)) {
+            console.log(" -- RESUME BUILDER --")
             const res = builder.handle(userId, command)
 
             return {
@@ -25,18 +29,21 @@ export class HandleCmdBuilder<Ctx extends BaseUIContext> extends AbstractCmdHand
 
         let isNeedToStartBuilder
         try {
-            isNeedToStartBuilder = !currentCmdHandler.isCommandHaveAllArgs(command, args)
+            isNeedToStartBuilder = !currentCmdHandler.isAllArgsPassed(command, args)
+            console.log(isNeedToStartBuilder)
         } catch (e) {
             isNeedToStartBuilder = false
         }
         if (isNeedToStartBuilder) {
+            console.log(" -- START BUILDER --")
             let cb
             let isBuiltIn = true
             let isService = false
             let isActive = false
 
             if (currentCmdHandler.isBuiltInCommand(command)) {
-                cb = BuiltInCmdNames.find(builtInCmd => builtInCmd === command)
+                cb = BuiltInUICmdArray.find(builtInCmd => builtInCmd.command === command)
+                //return await super.handle(request)
             } else {
                 cb = currentCmdHandler.getCallbackFromCommandName(command)
 
@@ -79,19 +86,25 @@ export class HandleCmdBuilder<Ctx extends BaseUIContext> extends AbstractCmdHand
 
                 desc.args = isActive ? msg_args : params_args.concat(cfg_args)
             } else if (!isService && !isBuiltIn) {
-                const args_args: ICommandDescriptorArg[] = (cb as ICmdCallback<Ctx>).args?.map(a => ({
+                const commonCbArgs: ICommandDescriptorArg[] = (cb as ICmdCallback<Ctx>).args?.map(a => ({
                     ctx: 'args',
-                    name: a
+                    name: a.name,
+                    description: a.description,
+                    options: a.options ? parseOptions(a.options, currentCmdHandler, uiCtx.manager as IManager) : undefined,
+                    validator: a.validator
                 })) ?? []
 
                 desc = {
-                    args: args_args
+                    args: commonCbArgs
                 }
             } else if (isBuiltIn) {
                 desc = {
                     args: (BuiltInUICmdArray.find(c => c.command === command)?.args ?? []).map(a => ({
                         ctx: 'args',
-                        name: a
+                        name: a.name,
+                        description: a.description,
+                        options: a.options ? parseOptions(a.options, currentCmdHandler, uiCtx.manager as IManager) : undefined,
+                        validator: a.validator
                     }))
                 }
             }

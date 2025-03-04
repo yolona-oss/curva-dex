@@ -2,6 +2,33 @@ import { FilesWrapper } from '@core/db';
 
 import { TelegramUI } from '../ui'
 import { TgCommand, TextContext } from '../types'
+import { shuffle } from '@core/utils/array';
+
+const nameDict = [
+    "Valentin",
+    "Vladimir",
+    "Gandonio",
+    "Emperor",
+    "Napoleon",
+    "Napoleon III",
+    "Napoleon IV",
+    "Napoleon V",
+    "Napoleon VI",
+    "Napoleon VII",
+    "Napoleon VIII",
+    "Napoleon IX",
+    "Napoleon X",
+    "Napoleon XI",
+    "Napoleon XII",
+    "Napoleon XIII",
+    "Napoleon XIV",
+    "Joseph",
+    "Pushkin",
+    "Pussy",
+    "Boba",
+    "Boba Fett",
+    "Boba Fett II",
+]
 
 export const DefaultTgUICommands: TgCommand[] = [
     {
@@ -15,7 +42,16 @@ export const DefaultTgUICommands: TgCommand[] = [
     {
         command: "setname",
         description: "Set your name",
-        args: ["name"],
+        args: [
+            {
+                name: "name",
+                optional: false,
+                optType: "none",
+                description: "Your name, only latin symbols allowed",
+                validator: (arg: string) => Boolean(arg.trim().match(/^[a-zA-Z0-9 ]+$/)),
+                options: shuffle(nameDict).slice(0, 5)
+            }
+        ],
         fn: async function(this: TelegramUI, ctx: TextContext) {
             let name = "";
             if (ctx.message && ctx.message.text) {
@@ -73,7 +109,16 @@ export const DefaultTgUICommands: TgCommand[] = [
     {
         command: "setgreeting",
         description: "On or Off bot startup greeting",
-        args: ["on", "off"],
+        args: [
+            {
+                name: "greeting",
+                optional: false,
+                optType: "none",
+                description: "On or Off",
+                validator: (arg: string) => ["on", "off"].includes(arg),
+                options: ["on", "off"]
+            }
+        ],
         fn: async function(this: TelegramUI, ctx: TextContext) {
             await ctx.manager.updateOne({ $set: { useGreeting: (ctx.message.text.includes("on")) } });
             await ctx.reply("Startup greeting setted to: " + (ctx.manager.useGreeting ? "on" : "off"))

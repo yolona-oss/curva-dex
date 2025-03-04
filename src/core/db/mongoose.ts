@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 import log from '@utils/logger'
-import { timeoutPromise } from '@core/utils/time';
+import { timeouted } from '@core/utils/async-tools';
 
 export const MongoConnect = (uri: string, options: any, timeout = 5000): Promise<void> => {
     const conn_promise = new Promise<void>(resolve => {
@@ -12,8 +12,5 @@ export const MongoConnect = (uri: string, options: any, timeout = 5000): Promise
             resolve()
         })
     })
-    return Promise.race([
-        conn_promise,
-        timeoutPromise(timeout)
-    ])
+    return timeouted(() => conn_promise, timeout)
 };

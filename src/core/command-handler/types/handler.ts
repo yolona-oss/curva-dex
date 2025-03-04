@@ -6,6 +6,7 @@ import { BaseUIContext, IUICommandSimple } from "@core/ui"
 import { IBuilderMarkupOption } from "./builder"
 import { MotherCmdHandler } from "../mother-cmd-handler"
 import { Chain, IChainHandler } from "@core/utils/chain"
+import { CmdArgumentDef } from "@core/ui/types/command"
 
 export type ICmdFunction<Ctx> = (ctx: Ctx) => Promise<{error?: string}|void>
 export type ICmdService = BaseCommandService<any, any, any>
@@ -15,7 +16,7 @@ export type ICmdMixin<Ctx> = ICmdFunction<Ctx> | ICmdService
 export interface ICmdCallback<Ctx> extends Partial<WithNeighbors> {
     fn: ICmdMixin<Ctx>
     description: string
-    args?: string[]
+    args?: CmdArgumentDef[]
 }
 
 export type ICmdHandlerCommand = IUICommandSimple & Partial<WithNeighbors>

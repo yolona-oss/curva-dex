@@ -1,4 +1,31 @@
-import { BaseCommandService } from "@core/command-handler"
+import { BaseCommandService, MotherCmdHandler } from "@core/command-handler"
+import { IManager } from "@core/db"
+import { BaseUIContext } from ".."
+
+export type CmdArgumentOptionGenerator = (o: MotherCmdHandler<any>, manager: IManager) => string[]
+export type CmdArgumentOptionsType = string[]|CmdArgumentOptionGenerator
+
+// TODO some how create argument selection context for saveing prev selected arg to set next arg in one command.
+//      e.g. for command set variable: set service_123 var1 path_to_some __jopa__. if pipe service name to next option selection we can asses to service config scope.
+
+export interface CmdArgumentDef {
+    name: string
+    optional: boolean
+    optType: "string"|"object"|"number"|"none"
+    description?: string
+    validator?: (arg: string) => boolean
+    options?: CmdArgumentOptionsType
+}
+
+export function parseOptions<CtxType extends BaseUIContext = any>(options: CmdArgumentOptionsType, handler: MotherCmdHandler<CtxType>, manager: IManager) {
+    if (options instanceof Function) {
+        return options(handler, manager)
+    } else if (Array.isArray(options)) {
+        return options
+    } else {
+        throw new Error("Invalid options type")
+    }
+}
 
 /**
  * @description Describes the UI commands mapping
@@ -9,17 +36,16 @@ import { BaseCommandService } from "@core/command-handler"
 interface BaseCommand {
     command: string
     description: string
-    args?: string[]
+    args?: CmdArgumentDef[]
 }
 
-export const isArgOptional = (arg: string) => arg.startsWith("?")
+//export const isArgOptional = (arg: string) => arg.startsWith("?")
 
 /**
  * @description Describes the UI commands mapping with execution handler and sequence connections with other commands
  */
 export interface IUICommand<ThisUI, CtxType> extends BaseCommand {
-    fn: (this: ThisUI, ctx: CtxType) => Promise<void> |
-        BaseCommandService<any>
+    fn: (this: ThisUI, ctx: CtxType) => Promise<void> | BaseCommandService<any>
 
     next?: string[]
     prev?: string

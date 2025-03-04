@@ -21,6 +21,7 @@ import {
 } from "./types";
 import { CommandBuilder } from "./command-builder";
 import { HandleAccountCommand, HandleCallbackExecution, HandleCmdBuilder, HandleHelpCmd, HandleSequenceCommand, HandleServiceCommand } from "./handlers";
+import { isEqual } from "@core/utils/array";
 
 // TODO RENAME IT!!!
 export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
@@ -128,32 +129,29 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         return services.map(s => s.name).includes(serviceName)
     }
 
-    isCommandHaveAllArgs(command: string, args: string[]) {
-        if (BuiltInUICmdArray.map(c => c.command).includes(command)) {
-            const cmdArgs =  BuiltInUICmdArray.find(c => c.command === command)?.args
-            if (cmdArgs) {
-                return cmdArgs.every(a => args.includes(a))
+    isAllArgsPassed(command: string, args: string[]): boolean {
+        if (this.isBuiltInCommand(command)) {
+            const requiredArgs =  BuiltInUICmdArray.find(c => c.command === command)?.args?.filter(a => !a.optional)
+            if (!requiredArgs || requiredArgs.length === 0) {
+                return true
             }
+            return isEqual(requiredArgs.map(a => a.name), args)
         }
 
         const cmd = this.callbacks.get(command)
         if (!cmd) {
-            throw `Command ${command} not found`
+            return true // maybe dispatch exception?
         }
         if (cmd.fn instanceof Function) {
-            if (!cmd.args) {
+            if (!cmd.args || cmd.args.length === 0) {
                 return true
             }
-            const requiredArgs = cmd.args.filter(a => !a.startsWith("?"))
-            for (const arg of requiredArgs) {
-                if (!args.includes(arg)) {
-                    return false
-                }
-            }
+            const requiredArgs = cmd.args.filter(a => !a.optional)
+            return isEqual(requiredArgs.map(a => a.name), args)
         } else {
+            // services always neet to be configured
             return false
         }
-        return true
     }
 
     isBuiltInCommand(command: string) {
@@ -164,9 +162,6 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         return this.callbacks.get(command)
     }
 
-    /**
-     * TODO: refactor with chaining of handlers
-     */
     public async handleCommand(command: string, ctx: TContext): Promise<ICmdHandlerExecResult> {
         const args = this.getArgs(ctx.text!)
         const _userId = ctx.manager?.userId

@@ -17,3 +17,15 @@ export function unique<T>(a: T[]): T[] {
 export function isUnique<T>(a: T[]): boolean {
     return a.length === unique(a).length;
 }
+
+export function isEqual<T>(a: T[], b: T[]): boolean {
+    return JSON.stringify(a.sort()) === JSON.stringify(b.sort());
+}
+
+export function shuffle<T>(array: T[]) { 
+    for (let i = array.length - 1; i > 0; i--) { 
+        const j = Math.floor(Math.random() * (i + 1)); 
+        [array[i], array[j]] = [array[j], array[i]]; 
+    }
+    return array; 
+}; 

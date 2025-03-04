@@ -7,10 +7,35 @@ import { PumpFunRobot } from "./pf-robot";
 import { BLANK_USER_ID } from "@core/command-handler";
 import { IMTCStateSave } from "@bots/traider/mtc";
 import { PumpFunAssetType } from "@bots/traider/impl/pump.fun";
+import { CmdArgumentDef } from "@core/ui/types/command";
+import { genRandomString } from "@core/utils/random";
 
 export const serviceName = 'pump_fun'
 export const serviceDescription = `Customizable servie for the pump.fun dex simulation activity and automated trading by setting a strategy schema.`
-export const serviceParams = ["-s <session-id>", "--session-id <session-id>", '-dry-run']
+export const serviceParams: CmdArgumentDef[] = [
+    {
+        name: "-s <session-id>",
+        optional: true,
+        optType: "string",
+        description: "Session id to restore state from. Must be 4 chars long",
+        validator: (arg: string) => Boolean(arg.match(/^[0-9a-z]{4}$/)),
+        options: new Array<string>(4).fill('').map(() => genRandomString(4))
+    },
+    {
+        name: "-session-id <session-id>",
+        optional: true,
+        optType: "string",
+        description: "Session id to restore state from. Must be 4 chars long",
+        validator: (arg: string) => Boolean(arg.match(/^[0-9a-z]{4}$/)),
+        options: new Array<string>(4).fill('').map(() => genRandomString(4))
+    },
+    {
+        name: '-dry-run',
+        optional: true,
+        optType: "none",
+        description: "Run in dry mode"
+    },
+]
 
 interface IPumpFunRobotParams extends IDefaultServiceParams {
     '--dry-run': null

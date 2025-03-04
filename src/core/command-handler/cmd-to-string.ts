@@ -13,19 +13,21 @@ Prev: ${cmdCb.prev ?? "None"}\n\
 }
 
 export const commonToString = <Ctx>(cmdName: string, cmdCb: ICmdCallback<Ctx>) => {
+    const argsStr = cmdCb.args?.map(a => a.name).join(", ")
     return `Command ${cmdName},\n\
 Description: ${cmdCb.description},\n\
-Args: ${cmdCb.args?.join(", ")}\n\
+${argsStr ? `Args: ${argsStr}\n` : ""}\
 Next: ${cmdCb.next?.join(", ") ?? "None"}\n\
 Prev: ${cmdCb.prev ?? "None"}\
 `
 }
 
 export const uiCommandsToString = (commands: IUICommandSimple[]): string => {
-    return commands.map(v =>
-        `Command: ${v.command},\n\
+    return commands.map(v => {
+        const argsStr = v.args?.map(a => a.name).join(", ")
+        return `Command: ${v.command},\n\
 Description: ${v.description},\n\
-Args: ${v.args?.join(", ")}\n\
+${argsStr ? `Args: ${argsStr}\n` : ""}\
 `
-    ).join("\n")
+    }).join("\n")
 }
