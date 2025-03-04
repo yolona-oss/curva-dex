@@ -12,23 +12,6 @@ import { MotherCmdHandler } from "../mother-cmd-handler";
 type ICmdCallbackOrBuiltIn<Ctx extends BaseUIContext> = ICmdCallback<Ctx> | Omit<ICmdCallback<Ctx>, 'fn'>
 
 export class HandleCmdBuilder<Ctx extends BaseUIContext> extends AbstractCmdHandler<Ctx> {
-    private async handleBuildProcess(userId: string, command: string, ctx: Ctx, builder: CommandBuilder, cmdHandler: MotherCmdHandler<Ctx>): Promise<ICmdHandlerResponce|undefined> {
-        if (builder.isUserOnBuild(userId)) {
-            const res = builder.handle(userId, command)
-
-            if (res.built) {
-                ctx.text = res.built.args.join(" ")
-                console.log("@-- cmd build done --@")
-                return await cmdHandler.execute(res.built.command, res.built.args, ctx)!
-            }
-
-            return {
-                success: !Boolean(res.error),
-                text: res.markup.text,
-                markup: res.markup.options
-            }
-        }
-    }
 
     private getCbConfig(cb: ICmdCallbackOrBuiltIn<Ctx>, handler: MotherCmdHandler<Ctx>, userId: string) {
         let isService = false
@@ -100,6 +83,7 @@ export class HandleCmdBuilder<Ctx extends BaseUIContext> extends AbstractCmdHand
         }
     }
 
+    // TODO set configreAs types in other place and disperce to all code base
     private configureDescriptors(configureAs: "function" | "service" | "built-in", cb: ICmdCallbackOrBuiltIn<Ctx>, command: string, cmdHandler: MotherCmdHandler<Ctx>, ctx: Ctx): ICommandDescriptor {
         switch (configureAs) {
             case "function":
@@ -143,6 +127,25 @@ export class HandleCmdBuilder<Ctx extends BaseUIContext> extends AbstractCmdHand
                 success: true,
                 text: res.text,
                 markup: res.options
+            }
+        }
+        return
+    }
+
+    private async handleBuildProcess(userId: string, command: string, ctx: Ctx, builder: CommandBuilder, cmdHandler: MotherCmdHandler<Ctx>): Promise<ICmdHandlerResponce|void> {
+        if (builder.isUserOnBuild(userId)) {
+            const res = builder.handle(userId, command)
+
+            if (res.built) {
+                ctx.text = res.built.args.join(" ")
+                console.log("@-- cmd build done --@")
+                return await cmdHandler.execute(res.built.command, res.built.args, ctx)!
+            }
+
+            return {
+                success: !Boolean(res.error),
+                text: res.markup.text,
+                markup: res.markup.options
             }
         }
         return
