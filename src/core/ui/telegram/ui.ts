@@ -1,7 +1,7 @@
 import { getConfig, getInitialConfig } from '@core/config'
 import { AvailableUIsEnum, AvailableUIsType, IUI, mapCommands } from '@core/ui/types';
 import { FilesWrapper, Manager } from '@core/db';
-import { ICmdHandlerResponce, ICmdRegisterMany, MotherCmdHandler } from '@core/command-handler';
+import { IBuilderMarkupOption, ICmdHandlerResponce, ICmdRegisterMany, MotherCmdHandler } from '@core/command-handler';
 import { WithInit } from '@core/types/with-init';
 
 import { DefaultTgUICommands } from './constants/commands';
@@ -76,38 +76,33 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         this.bot.action(RegExp(cb_data.approveRequest + "*"), (ctx, next) => actions.approverequest.call(this, ctx, next));
         this.bot.action(RegExp(cb_data.approveManager + "*"), (ctx, next) => actions.approvemanager.call(this, ctx, next));
         this.bot.action(RegExp(cb_data.rejectManager + "*"),  (ctx, next) => actions.rejectmanager.call(this, ctx, next));
+        this.bot.action(RegExp("builder_*"), async (ctx) => {
+            console.log("~ACTI----------")
+            const action = String(ctx.match.input.slice("builder_".length));
+            const response = await this.cmdHandler.handleCommand(action, ctx as any);
 
-        //this.bot.action(RegExp("builder_*"), async (ctx) => {
-        //    try {
-        //        let data = ctx.match.input.slice('builder_'.length)
-        //        const res = await this.commandHandler.handleCommand(data, ctx as any);
-        //
-        //        const mk = res.markup ?
-        //            res.markup.map(m => ({
-        //                text: m.text,
-        //                callback_data: "builder_"+m.callback_data
-        //            }))
-        //            :
-        //            [];
-        //        let keyboard = telegraf.Markup.inlineKeyboard([ [ ...mk ] ])
-        //        await ctx.reply(String(res.text), keyboard);
-        //    } catch (e: any) {
-        //        log.error(e)
-        //        const msg = e instanceof Error ? e.message : e
-        //        ctx.reply(msg)
-        //    }
-        //})
+            await this.commandResultReply(ctx, response);
+
+            await ctx.deleteMessage();
+        });
+    }
+
+    // NOTE: check text length for each btn and select correct perline for each row(after determine max line len)
+    private createKeyboard(markup: IBuilderMarkupOption[], perLine = 3) {
+        let arr: Array<Array<IBuilderMarkupOption>> = []
+        for (let i = 0; i < markup.length; i += perLine) {
+            arr.push(
+                markup.slice(i, i + perLine).map(m => 
+                    telegraf.Markup.button.callback(m.text, "builder_"+m.callback_data)
+                )
+            )
+        }
+        return arr
     }
 
     private async commandResultReply(ctx: telegraf.Context, response: ICmdHandlerResponce) {
-        const mk = response.markup ?
-            response.markup.map(m => ({
-                text: m.text,
-                callback_data: /*"builder_"+*/m.callback_data
-            }))
-            :
-            [];
-        let keyboard = telegraf.Markup.inlineKeyboard([ [ ...mk ] ])
+        const layout = response.markup ? this.createKeyboard(response.markup) : [];
+        let keyboard = telegraf.Markup.inlineKeyboard(layout)
         if (response.text || response.markup) {
             await ctx.reply(String(response.text), keyboard);
         }
@@ -146,15 +141,25 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
             const fullText = ctx.text ? ctx.text : ""
             if (
                 firstWord &&
-                firstWord.startsWith("/") &&
-                DefaultTgUICommands.map(c => c.command).includes(firstWord)
+                    firstWord.startsWith("/") &&
+                    DefaultTgUICommands.map(c => c.command).includes(firstWord)
             ) {
-                console.log("!!!skip")
                 // deligate to native handler assigned with bot.command
                 return
             }
             try {
                 const response = await this.cmdHandler.handleCommand(fullText, ctx)
+                if (response.markup) {
+                    for (const action of response.markup) {
+                        console.log(action)
+                        this.bot.action(action.callback_data, async (ctx) => {
+                            console.log("))))))))))")
+                            await this.cmdHandler.handleCommand(action.callback_data, ctx as any);
+
+                            await ctx.editMessageText(action.text, telegraf.Markup.inlineKeyboard([]));
+                        })
+                    }
+                }
                 await this.commandResultReply(ctx, response);
             } catch (e: any) {
                 await ctx.reply(`Internall error: ${anyToString(e)}`);

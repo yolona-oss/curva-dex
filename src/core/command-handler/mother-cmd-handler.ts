@@ -17,11 +17,14 @@ import {
     ICmdHandlerCommand,
     ICmdHandlerExecResult,
     ICmdMixin,
-    ICmdRegisterMany
+    ICmdRegisterMany,
+    IArgReadResult,
+    ICmdService
 } from "./types";
 import { CommandBuilder } from "./command-builder";
 import { HandleAccountCommand, HandleCallbackExecution, HandleCmdBuilder, HandleHelpCmd, HandleSequenceCommand, HandleServiceCommand } from "./handlers";
 import { isEqual } from "@core/utils/array";
+import { anyToString } from "@core/utils/misc";
 
 // TODO RENAME IT!!!
 export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
@@ -121,6 +124,14 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         return this.activeServices
     }
 
+    UserServices(userId: string) {
+        const s = this.activeServices.get(userId)
+        if (!s) {
+            this.activeServices.set(userId, [])
+        }
+        return s as Array<BaseCommandService<any, any, any>>
+    }
+
     isServiceActive(userId: string, serviceName: string) {
         const services = this.activeServices.get(userId)
         if (!services) {
@@ -158,8 +169,26 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         return BuiltInUICmdArray.map(c => c.command).includes(command)
     }
 
-    getCallbackFromCommandName(command: string) {
-        return this.callbacks.get(command)
+    getCallbackFromCommandName(command: string): ICmdCallback<TContext> {
+        const cb = this.callbacks.get(command)
+        if (!cb) {
+            throw {
+                success: false,
+                text: `Command ${command} not found.`
+            }
+        }
+        return cb as ICmdCallback<TContext>
+    }
+
+    public async execute(command: string, args: IArgReadResult[], ctx: TContext): Promise<ICmdHandlerExecResult> {
+        try {
+            const cb = this.getCallbackFromCommandName(command)
+
+        } catch (e: any) {
+            if ('success' in e) {
+                return e as ICmdHandlerExecResult
+            }
+        }
     }
 
     public async handleCommand(command: string, ctx: TContext): Promise<ICmdHandlerExecResult> {
@@ -180,6 +209,75 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
             args,
             uiCtx: ctx
         })
+    }
+
+    public async runCallback(userId: string, command: string, args: IArgReadResult[], ctx: TContext) {
+        
+    }
+
+    private async runFunction(userId: string, command: string, args: IArgReadResult[], ctx: TContext) {
+        const cb = this.getCallbackFromCommandName(command)
+    }
+
+    private async runService(userId: string, serviceName: string, args: IArgReadResult[], ctx: TContext) {
+        if (this.isServiceActive(userId, serviceName)) {
+            return {
+                success: false,
+                text: `Service ${serviceName} already active.`
+            }
+        }
+
+        const cb = this.getCallbackFromCommandName(serviceName)
+        if (!cb || (cb.fn instanceof Function)) {
+            return {
+                success: false,
+                text: `Service ${serviceName} not found.`
+            }
+        }
+        const exe = cb.fn as ICmdService
+
+        const _params = args.filter(a => a.ctx === "params")
+        const params = []
+        for (const p of _params) {
+            params.push(p.name)
+            if (p.value) {
+                params.push(p.value)
+            }
+        }
+        const serviceInstance = exe.clone(userId, params)
+
+        const userServices = this.UserServices(userId)
+
+        serviceInstance.on("message", async (message: string) => {
+            await ctx.reply(message)
+        })
+        serviceInstance.on('done', async (msg: string = "") => {
+            const services = this.activeServices.get(userId)
+            if (!services) {
+                log.error(`No active services for user ${userId}`)
+                return
+            }
+            services.splice(services!.map(serv => serv.name).indexOf(serviceName), 1)
+            log.echo("-- Service done: " + serviceName)
+            await ctx.reply(`Service ${serviceName} done. ${msg}`)
+        })
+        log.echo("-- Starting service: " + serviceInstance.name)
+
+        try {
+            await serviceInstance.Initialize()
+            userServices.push(serviceInstance)
+            serviceInstance.run()
+        } catch(e: any) {
+            log.error(`Error starting service ${serviceName}: ${anyToString(e)}`)
+            return {
+                success: false,
+                text: `Error starting service ${serviceName}: ${anyToString(e)}` 
+            }
+        }
+        return {
+            success: true,
+            text: `Service ${serviceName} started.`
+        }
     }
 
     private getArgs(text: string): string[] {

@@ -8,7 +8,10 @@ import {
     ICommandDescriptor,
     ReadingCtxType
 } from "./types"
-import { DefaultBuilderCallbacks, defaultBuilderMarkupOptions } from "./constants"
+import {
+    DefaultBuilderCallbacks,
+    defaultBuilderMarkupOptions
+} from "./constants"
 
 function toMarkup(opt: string): IBuilderMarkupOption {
     return {
@@ -23,6 +26,9 @@ function toSwitchCtxMarkup(ctxs: ReadingCtxType[]) {
         options: ctxs.map(ctx => toMarkup(ctx))
     }
 }
+
+// TOO FAKING IDIOTING LOGIC
+// BUT ITS WORK!!!!!!!!
 
 // TODO mark readed args with * start line marker to make it easier to read
 export class CommandBuilder {
@@ -87,8 +93,8 @@ export class CommandBuilder {
         return {
             text: `Start building for: "${command}", inital ctx: ${initialCtx}. Select argument name:`,
             options: [
+                ...initialCtxOptions.map(arg => toMarkup(arg.name)),
                 ...defaultBuilderMarkupOptions,
-                ...initialCtxOptions.map(arg => toMarkup(arg.name))
             ]
         }
     }
@@ -116,8 +122,8 @@ export class CommandBuilder {
                     markup: {
                         text: "Ctx switched to: " + input + ". Select argument name:",
                         options: [
+                            ...cur.descriptor.args.filter(arg => arg.ctx === input).map(arg => toMarkup(arg.name)),
                             ...defaultBuilderMarkupOptions,
-                            ...cur.descriptor.args.filter(arg => arg.ctx === input).map(arg => toMarkup(arg.name))
                         ]
                     }
                 }
@@ -180,8 +186,8 @@ export class CommandBuilder {
                 markup = {
                     text: "Select next:",
                     options: [
+                        ...cur.descriptor.args.filter(arg => arg.ctx === ctx).map(arg => toMarkup(arg.name)),
                         ...defaultBuilderMarkupOptions,
-                        ...cur.descriptor.args.filter(arg => arg.ctx === ctx).map(arg => toMarkup(arg.name))
                     ]
                 }
             } else {
@@ -189,8 +195,8 @@ export class CommandBuilder {
                 markup = {
                     text: "Select argument value or type own:",
                     options: [
+                        ...argDesc.options.map(opt => toMarkup(opt)),
                         ...defaultBuilderMarkupOptions,
-                        ...argDesc.options.map(opt => toMarkup(opt))
                     ]
                 }
             }
@@ -220,8 +226,8 @@ export class CommandBuilder {
                 markup: {
                     text: "Select argument name:",
                     options: [
+                        ...cur.descriptor.args.filter(arg => arg.ctx === ctx).map(arg => toMarkup(arg.name)),
                         ...defaultBuilderMarkupOptions,
-                        ...cur.descriptor.args.filter(arg => arg.ctx === ctx).map(arg => toMarkup(arg.name))
                     ]
                 }
             }

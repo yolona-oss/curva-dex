@@ -7,21 +7,14 @@ export class HandleCallbackExecution<Ctx extends BaseUIContext> extends Abstract
 
         const { command, uiCtx, userId, args, currentCmdHandler } = request
 
-        const cb = currentCmdHandler.getCallbackFromCommandName(command)
-        const userServices = currentCmdHandler.ActiveServices.get(userId)
-
-        if (!userServices) {
-            currentCmdHandler.ActiveServices.set(userId, [])
-        }
-
-        if (!cb) {
-            return {
-                success: false,
-                text: `Unknown command "${command}"`
-            }
-        }
-
         try {
+            const cb = currentCmdHandler.getCallbackFromCommandName(command)
+            const userServices = currentCmdHandler.ActiveServices.get(userId)
+
+            if (!userServices) {
+                currentCmdHandler.ActiveServices.set(userId, [])
+            }
+
             if (typeof cb.fn === 'function') { // simple command
                 const res = await cb.fn(uiCtx)
                 return {
@@ -61,6 +54,10 @@ export class HandleCallbackExecution<Ctx extends BaseUIContext> extends Abstract
                 serviceInstance.run()
             }
         } catch (e: any) {
+            if ('success' in e) {
+                return e as ICmdHandlerResponce
+            }
+
             log.error("Command exe&setup error: " + e) // TODO naming
             const msg = e instanceof Error ? e.message : e
             return {
