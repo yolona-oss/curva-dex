@@ -1,17 +1,22 @@
+// TODO: create corn job for session expirity
+//       create opts validator and eval() injection finder
+
 import { Account, Manager } from "@core/db";
 import { IRunnable } from "@core/types/runnable";
-import { complexOptParser, IExtendedOptsMapEntryParsed, InferParsedOpts, optsParser } from "@core/utils/opts-parser";
 import TypedEventEmitter, { EventMap } from 'typed-emitter'
 import EventEmitter from 'events'
-import { assignToCustomPath, getInterfacePathsWithTypes, isEmpty } from "@utils/object";
-import { IDefaultServiceParams, IDefaultServiceParamsDefEntry, IDefaultServiceSessionData, IReceiveMsgArgs } from "./types";
+import { assignToCustomPath, isEmpty } from "@utils/object";
 import {
     BLANK_SERVICE_NAME,
+    CreateDefaultServiceSessionData,
     BLANK_SERVICE_SESSION_ID,
-    DEFAULT_INCREMENTAL_EXPIRITY_OPT,
-    DEFAULT_SERVICE_SESSION_EXPIRITY,
+    MODULE_SESSION_ID_MARK,
 } from "./constants";
-import { CmdArgumentOptionsType } from "@core/ui/types/command";
+
+import 'reflect-metadata';
+import { ServiceData, toDescriptor } from "./service-data";
+import { IArgMetadataOption } from "./service-metadata";
+import { IServiceSessionData } from "./types";
 
 interface IBaseCmdService_EvMap<T = string> extends EventMap {
     message: (msg: T) => void,
@@ -20,65 +25,58 @@ interface IBaseCmdService_EvMap<T = string> extends EventMap {
     liveLog: (logs: string[]) => void
 }
 
-// TODO: create corn job for session expirity
-
-// TODO: create opts validator and eval() injection finder
-
-export abstract class BaseCommandService<
-        CfgType extends Object = {},
-        TServiceParams extends IDefaultServiceParamsDefEntry[] = IDefaultServiceParamsDefEntry[],
-        TServiceSessionData extends IDefaultServiceSessionData = IDefaultServiceSessionData
-    >
-        extends (EventEmitter as new () => TypedEventEmitter<IBaseCmdService_EvMap>)
-        implements IRunnable
-{
+export abstract class BaseCommandService extends (EventEmitter as new () => TypedEventEmitter<IBaseCmdService_EvMap>) implements IRunnable {
     private _isInited = false
     private _isRunning: boolean = false
 
-    protected abstract __serviceReceiveMsgArgs: IReceiveMsgArgs // msg descriptor
-    protected abstract __serviceParamMap: TServiceParams // input param descriptor
-    protected params: IExtendedOptsMapEntryParsed<CmdArgumentOptionsType>[] = [] // real parsed params
-
-    protected session_id: string
-    protected session_data: Partial<TServiceSessionData> = {}
+    protected data: ServiceData
 
     constructor(
         protected userId: string, // the user who execute this service
-        protected config: CfgType,
-        protected params_string: string[],
+        serviceData: ServiceData,
         public readonly name: string = BLANK_SERVICE_NAME,
     ) {
         super()
-        this.session_id = BLANK_SERVICE_SESSION_ID
+        this.data = serviceData
     }
 
     protected abstract runWrapper(): Promise<void>
     protected abstract terminateWrapper(): Promise<void>
     abstract receiveMsg(msg: string, args: string[]): Promise<void>
-    abstract clone(userId: string, inputParam: string[], configOverwrite?: Partial<CfgType>, newName?: string): BaseCommandService<CfgType, TServiceParams, TServiceSessionData>
+    abstract clone(userId: string, serviceData: ServiceData, newName?: string): BaseCommandService
+
+    protected session_data: IServiceSessionData = CreateDefaultServiceSessionData()
 
     sendMsg(msg: string) {
         this.emit("message", msg)
     }
 
     protected createServicePrefix() {
-        return `${this.name}-${this.session_id}-${this.userId}`
+        return `${this.name}-${this.data.params.sessionId}-${this.userId}`
     }
 
-    configEntries() {
-        return getInterfacePathsWithTypes(this.config)
+    configDescriptor(): Record<string, IArgMetadataOption> {
+        return toDescriptor(this.data.config)
     }
 
-    paramsEntries() {
-        return getInterfacePathsWithTypes(this.__serviceParamMap)
+    paramsDescriptor(): Record<string, IArgMetadataOption> {
+        return toDescriptor(this.data.params)
     }
 
-    receiveMsgEntries() {
-        return getInterfacePathsWithTypes(this.__serviceReceiveMsgArgs)
+    receiveMsgDescriptor(): Record<string, IArgMetadataOption> {
+        return toDescriptor(this.data.messages)
     }
 
     toString() {
         return `${this.name}`
+    }
+
+    protected get SessionIdAsModuleName() {
+        return MODULE_SESSION_ID_MARK + this.SessionId
+    }
+
+    protected get SessionId() {
+        return this.data.params.sessionId || this.data.params.s || BLANK_SERVICE_SESSION_ID
     }
 
     async Initialize(): Promise<void> {
@@ -98,40 +96,24 @@ export abstract class BaseCommandService<
     }
 
     private initServiceParam() {
-        this.params = complexOptParser<TServiceParams, CmdArgumentOptionsType>(this.params_string, this.__serviceParamMap)
-        //this.params = optsParser(this.params_string, this.__serviceParamMap)
+        //this.params = parseServiceParams(this.params_string, this.__serviceParamMap)
     }
 
-    async initSession(skipSessionLoad = false) {
-        const sessionIdFromParam = () => {
-            const sessionParam = this.params.find(p => p.name === "-s" || p.name === "--session-id")
-            if (sessionParam) {
-                return String(sessionParam.arg)
-            }
-            return
-        }
-
-        const session_id = sessionIdFromParam()
-        if (session_id && !skipSessionLoad) {
-            this.session_id = session_id
-        } else {
-            this.session_id = BLANK_SERVICE_SESSION_ID
-        }
-
+    async initSession() {
         // load config and session data
-
-        const module_name = this.session_id === BLANK_SERVICE_SESSION_ID ? this.name : `${this.name}_${this.session_id}`
-        const module_session_name = `${module_name}_session`
 
         const user = (await Manager.findOne({userId: this.userId}))!;
         const account = (await Account.findById(user.account))!;
 
-        const accountConfig = await account.getModuleData<CfgType>(module_name)
-        const accountSessionData = await account.getModuleData<TServiceSessionData>(module_session_name)
+        const module_name = account.extendModuleName(this.name, [ this.SessionIdAsModuleName ])
+        const module_session_name = account.extendModuleName(this.name, [this.SessionId, "session_store"])
+
+        const accountConfig = await account.getModuleData<typeof this.data.config>(module_name)
+        const accountSessionData = await account.getModuleData<IServiceSessionData>(module_session_name)
         if (accountConfig && !isEmpty(accountConfig)) {
-            this.config = accountConfig
+            this.data.config = accountConfig
         } else {
-            await account.setModuleData(module_name, "", this.config)
+            await account.setModuleData(module_name, "", this.data.config)
         }
 
         if (accountSessionData && !isEmpty(accountSessionData)) {
@@ -140,7 +122,12 @@ export abstract class BaseCommandService<
                 if (Date.now() > this.session_data.createTime + this.session_data.expirity) {
                     await account.unsetModuleData(module_name)
                     await account.unsetModuleData(module_session_name)
-                    await this.initSession(true) // create new blank session
+                    console.log("blank session due session expirity passed")
+
+                    this.data.params.sessionId = BLANK_SERVICE_SESSION_ID
+                    this.data.params.s = BLANK_SERVICE_SESSION_ID
+
+                    await this.initSession() // create new blank session
                 } else if (this.session_data.incrementalExpirity && this.session_data.initialExpirity) {
                     // incremental expirity
                     // TODO do not change expirity every time :))) but how?
@@ -149,39 +136,34 @@ export abstract class BaseCommandService<
                 }
             }
         } else {
-            const sessionData = {
-                createTime: Date.now(),
-                expirity: DEFAULT_SERVICE_SESSION_EXPIRITY,
-                initialExpirity: DEFAULT_SERVICE_SESSION_EXPIRITY,
-                incrementalExpirity: DEFAULT_INCREMENTAL_EXPIRITY_OPT,
-            }
+            const sessionData = CreateDefaultServiceSessionData()
             await account.setModuleData(module_session_name, "", sessionData)
-            this.session_data = sessionData as TServiceSessionData
+            this.session_data = sessionData
         }
     }
 
-    protected async setConfigValue(path: keyof CfgType, value: any) {
-        const module_name = `${this.name}_${this.session_id}`
-
+    protected async setConfigValue(path: string, value: any) {
         const user = (await Manager.findOne({userId: this.userId}))!;
         const account = (await Account.findById(user.account))!;
+
+        const module_name = account.extendModuleName(this.name, [ this.SessionIdAsModuleName ])
 
         account.setModuleData(module_name, path as string, value)
-        this.config = assignToCustomPath(this.config, path as string, value)
+        this.data.config = assignToCustomPath(this.data.config, path as string, value)
     }
 
-    protected async setSessionDataValue(path: keyof TServiceSessionData, value: any) {
-        const module_name = `${this.name}_${this.session_id}_session`
-
+    protected async setSessionDataValue(path: string, value: any) {
         const user = (await Manager.findOne({userId: this.userId}))!;
         const account = (await Account.findById(user.account))!;
+
+        const module_name = account.extendModuleName(this.name, [ this.SessionIdAsModuleName ])
 
         account.setModuleData(module_name, path as string, value)
         this.session_data = assignToCustomPath(this.session_data, path as string, value)
     }
 
     isBlankSession() {
-        return this.session_id === BLANK_SERVICE_SESSION_ID
+        return this.SessionId === BLANK_SERVICE_SESSION_ID
     }
 
     isRunning(): boolean {

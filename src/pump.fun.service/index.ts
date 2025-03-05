@@ -1,2 +1,2 @@
-export { PumpFunRobot_service as PumpFunRobot } from './pf-robot-service'
-export { serviceName, serviceDescription, serviceParams as serviceArgs } from './pf-robot-service'
+export { PumpFunService } from './pf-robot-service'
+export { serviceName, serviceDescription, serviceArgs as serviceArgs } from './pf-robot-service'

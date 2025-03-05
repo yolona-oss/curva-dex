@@ -9,3 +9,9 @@ export function anyToString(error: any): string {
         return String(error)
     }
 }
+
+export function camelCase(input: string) { 
+    return input.toLowerCase().replace(/-(.)/g, function(_, group1) {
+        return group1.toUpperCase();
+    });
+}

@@ -26,12 +26,14 @@ import { CommandBuilder } from "./command-builder";
 import { HandleAccountCommand, HandleCallbackExecution, HandleCmdBuilder, HandleHelpCmd, HandleSequenceCommand, HandleServiceCommand } from "./handlers";
 import { isEqual } from "@core/utils/array";
 import { anyToString } from "@core/utils/misc";
+import { Account, Manager } from "@core/db";
+import { BLANK_SERVICE_SESSION_ID, MODULE_SESSION_ID_MARK } from "./constants";
 
 // TODO RENAME IT!!!
 export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
     private callbacks: Map<string, ICmdCallback<TContext>> // name -> callback
     private sequenceHandler?: SequenceHandler
-    private activeServices: Map<string, Array<BaseCommandService<any, any, any>>> // userId -> services
+    private activeServices: Map<string, Array<BaseCommandService>> // userId -> services
     private cmdBuilder: CommandBuilder
 
     private chain: ICommandHandlerChain<TContext>
@@ -125,12 +127,44 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         return this.activeServices
     }
 
-    UserServices(userId: string) {
+    UserActiveServices(userId: string): Array<BaseCommandService> {
         const s = this.activeServices.get(userId)
         if (!s) {
             this.activeServices.set(userId, [])
         }
-        return s as Array<BaseCommandService<any, any, any>>
+        return s!
+    }
+
+    async UserServiceSessions(userId: string, serviceName: string): Promise<string[]> {
+        const cb = this.getCallbackFromCommandName(serviceName)
+        if (cb.fn instanceof Function) {
+            return []
+        } else {
+            const blank = BLANK_SERVICE_SESSION_ID
+            const m = await Manager.findOne({ userId })
+            const a = await Account.findOne({ _id: m!.account })
+            const session_modules_names = await a?.getLinkedModules(serviceName)
+            
+            if (!session_modules_names || !a) {
+                return [blank]
+            }
+
+            const session_ids: string[] = []
+            for (const name of session_modules_names) {
+                const split = a.splitModuleName(name)
+                for (const s of split) {
+                    if (s.startsWith(MODULE_SESSION_ID_MARK)) {
+                        session_ids.push(s.slice(MODULE_SESSION_ID_MARK.length))
+                    }
+                }
+            }
+
+            if (!session_ids.includes(blank)) {
+                session_ids.push(blank)
+            }
+
+            return session_ids
+        }
     }
 
     isServiceActive(userId: string, serviceName: string) {
@@ -273,7 +307,7 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         }
         const serviceInstance = exe.clone(userId, params, conf)
 
-        const userServices = this.UserServices(userId)
+        const userServices = this.UserActiveServices(userId)
 
         serviceInstance.on("message", async (message: string) => {
             await ctx.reply(message)

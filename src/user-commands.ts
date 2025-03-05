@@ -2,7 +2,7 @@ import { BaseUIContext } from "@core/ui"
 import { ICmdRegisterMany } from "@core/command-handler"
 
 import { TestService } from "./user-services"
-import { PumpFunRobot,
+import { PumpFunService,
     serviceName as pumpFunRobot_CommandName,
     serviceDescription as pumpServiceDescription,
     serviceArgs as pumpServiceArgs
@@ -16,7 +16,7 @@ export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegiste
                 description: "Check sequence first",
                 next: ["check_seq_2"]
             },
-            mixin: async function(_, ctx: BaseUIContext) {
+            mixin: async function(_: any, ctx: BaseUIContext) {
                 await ctx.reply("now you can call cmd: /check_seq_2")
             }
         },
@@ -26,7 +26,7 @@ export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegiste
                 description: "Check sequence cmd",
                 prev: "check_seq_1"
             },
-            mixin: async function(_, ctx: BaseUIContext) {
+            mixin: async function(_: any, ctx: BaseUIContext) {
                 await ctx.reply("check_seq_2 success")
             }
         },
@@ -43,7 +43,7 @@ export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegiste
                 command: "example",
                 description: "run example trade pattern",
             },
-            mixin: async function(_, ctx: BaseUIContext) {
+            mixin: async function(_: any, ctx: BaseUIContext) {
                 await ctx.reply("Impl removed.")
             }
         },
@@ -53,7 +53,7 @@ export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegiste
                 description: pumpServiceDescription,
                 args: pumpServiceArgs
             },
-            mixin: new PumpFunRobot()
+            mixin: new PumpFunService()
         }
 
     ]

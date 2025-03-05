@@ -2,8 +2,9 @@ import { BaseCommandService, MotherCmdHandler } from "@core/command-handler"
 import { IManager } from "@core/db"
 import { BaseUIContext } from ".."
 
-export type CmdArgumentOptionGenerator = (o: MotherCmdHandler<any>, manager: IManager) => string[]
-export type CmdArgumentOptionsType = string[]|CmdArgumentOptionGenerator
+type SetterPattern = (...args: any[]) => Promise<string[]>
+export type CmdArgumentOptionSetter = (o: MotherCmdHandler<any>, manager: IManager) => Promise<string[]>
+export type CmdArgumentOptionsType<OptionsSetter extends SetterPattern = CmdArgumentOptionSetter> = string[]|OptionsSetter
 
 // TODO some how create argument selection context for saveing prev selected arg to set next arg in one command.
 //      e.g. for command set variable: set service_123 var1 path_to_some __jopa__. if pipe service name to next option selection we can asses to service config scope.

@@ -5,8 +5,8 @@ export const serviceToString = <Ctx>(cmdName: string, cmdCb: ICmdCallback<Ctx>) 
     const executor = cmdCb.fn as ICmdService
     return `Service ${cmdName},\n
 Description: ${cmdCb.description},\n
-Params: ${JSON.stringify(executor.paramsEntries(), null, 4)},\n
-Config: ${JSON.stringify(executor.configEntries(), null, 4)},\n
+Params: ${JSON.stringify(executor.paramsDescriptor(), null, 4)},\n
+Config: ${JSON.stringify(executor.configDescriptor(), null, 4)},\n
 Next: ${cmdCb.next?.join(", ") ?? "None"}\n\
 Prev: ${cmdCb.prev ?? "None"}\n\
 `

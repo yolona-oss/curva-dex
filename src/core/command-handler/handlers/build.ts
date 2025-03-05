@@ -39,15 +39,15 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
     }
 
     private configureServiceDesc(service: ICmdService, isActive: boolean): ICommandDescriptor {
-        const cfg_args: ICommandDescriptorArg[] = service.configEntries().map(c => ({
+        const cfg_args: ICommandDescriptorArg[] = service.configDescriptor().map(c => ({
             ctx: 'config',
             name: c.path
         }))
-        const params_args: ICommandDescriptorArg[] = service.paramsEntries().map(c => ({
+        const params_args: ICommandDescriptorArg[] = service.paramsDescriptor().map(c => ({
             ctx: 'params',
             name: c.path
         }))
-        const msg_args: ICommandDescriptorArg[] = service.receiveMsgEntries().map(c => ({
+        const msg_args: ICommandDescriptorArg[] = service.receiveMsgDescriptor().map(c => ({
             ctx: 'message',
             name: c.path
         }))
