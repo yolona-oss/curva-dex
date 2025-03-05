@@ -30,7 +30,7 @@ export type ReadingCtxType = "args" | "config" | "params" | "message"
 export interface IArgReadResult {
     ctx: ReadingCtxType
     name: string
-    value: string|null
+    value: string
 }
 
 export interface ICmdBuildingState {

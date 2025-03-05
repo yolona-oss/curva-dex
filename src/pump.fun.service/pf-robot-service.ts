@@ -1,14 +1,15 @@
-import { BaseCommandService } from "@core/command-handler";
+import { BaseCommandService, IDefaultServiceParamsDefEntry } from "@core/command-handler";
 
 import { IPumpFunRobotConfig, defaultCfg } from "./pf-config";
 
-import { defaultServiceParamsMap, IDefaultServiceParams, IDefaultServiceSessionData } from "@core/command-handler";
+import { defaultServiceParamsMapDef, IDefaultServiceParams, IDefaultServiceSessionData } from "@core/command-handler";
 import { PumpFunRobot } from "./pf-robot";
 import { BLANK_USER_ID } from "@core/command-handler";
 import { IMTCStateSave } from "@bots/traider/mtc";
 import { PumpFunAssetType } from "@bots/traider/impl/pump.fun";
-import { CmdArgumentDef } from "@core/ui/types/command";
+import { CmdArgumentDef, CmdArgumentOptionsType } from "@core/ui/types/command";
 import { genRandomString } from "@core/utils/random";
+import { IExtendedOptsMapEntry, IExtendedOptsMapEntryParsed } from "@core/utils/opts-parser";
 
 export const serviceName = 'pump_fun'
 export const serviceDescription = `Customizable servie for the pump.fun dex simulation activity and automated trading by setting a strategy schema.`
@@ -37,12 +38,15 @@ export const serviceParams: CmdArgumentDef[] = [
     },
 ]
 
-interface IPumpFunRobotParams extends IDefaultServiceParams {
-    '--dry-run': null
-}
-const pumpFunParamsMap: IPumpFunRobotParams = {
-    ...defaultServiceParamsMap,
-    '--dry-run': null
+interface IPumpFunRobotParamsEntry extends IDefaultServiceParamsDefEntry { }
+
+const pumpFunParamsMap: IPumpFunRobotParamsEntry[] = {
+    ...serviceParams.map(p => ({
+        name: p.name,
+        argType: p.optType as "string" | "number" | "none",
+        argOptions: p.options
+    })),
+    ...defaultServiceParamsMapDef,
 }
 
 interface IServiceSessionData extends IDefaultServiceSessionData {
@@ -81,8 +85,8 @@ stateTransiteMap
 
 export type IPumpFunRobotMessageReceiveType = "pause" | "resume" | "stop" | "sell-all"
 
-export class PumpFunRobot_service extends BaseCommandService<IPumpFunRobotConfig, IPumpFunRobotParams, IServiceSessionData> {
-    protected __serviceParamMap: IPumpFunRobotParams = pumpFunParamsMap;
+export class PumpFunRobot_service extends BaseCommandService<IPumpFunRobotConfig, IPumpFunRobotParamsEntry[], IServiceSessionData> {
+    protected __serviceParamMap: IPumpFunRobotParamsEntry[] = pumpFunParamsMap;
     protected __serviceReceiveMsgArgs = {
         'pause': null,
         'resume': null,
@@ -107,8 +111,9 @@ export class PumpFunRobot_service extends BaseCommandService<IPumpFunRobotConfig
         )
     }
 
-    clone(userId: string, inputParam: string[], newName: string = serviceName) {
-        return new PumpFunRobot_service(userId, inputParam, Object.assign({}, this.config), newName)
+    clone(userId: string, inputParam: string[], conf: Partial<IPumpFunRobotConfig> = {}, newName: string = serviceName) {
+        const merge_conf = Object.assign({}, this.config, conf)
+        return new PumpFunRobot_service(userId, inputParam, merge_conf, newName)
     }
 
     async receiveMsg(msg: keyof typeof this.__serviceReceiveMsgArgs, __: string[]): Promise<void> {
@@ -148,7 +153,7 @@ export class PumpFunRobot_service extends BaseCommandService<IPumpFunRobotConfig
             this.config.targetAsset,
             this.config,
             this.isBlankSession() ? null : master_state_save,
-            this.params["--dry-run"]
+            Boolean(this.params.find(p => p.name === '--dry-run'))
         )
 
         await this.robot.Initialize()

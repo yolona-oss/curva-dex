@@ -17,7 +17,7 @@ export interface CmdArgumentDef {
     options?: CmdArgumentOptionsType
 }
 
-export function parseOptions<CtxType extends BaseUIContext = any>(options: CmdArgumentOptionsType, handler: MotherCmdHandler<CtxType>, manager: IManager) {
+export function exposeCmdArgumentDefOptions<CtxType extends BaseUIContext = any>(options: CmdArgumentOptionsType, handler: MotherCmdHandler<CtxType>, manager: IManager) {
     if (options instanceof Function) {
         return options(handler, manager)
     } else if (Array.isArray(options)) {
@@ -45,7 +45,7 @@ interface BaseCommand {
  * @description Describes the UI commands mapping with execution handler and sequence connections with other commands
  */
 export interface IUICommand<ThisUI, CtxType> extends BaseCommand {
-    fn: (this: ThisUI, ctx: CtxType) => Promise<void> | BaseCommandService<any>
+    fn: (this: ThisUI, args: string[], ctx: CtxType) => Promise<void> | BaseCommandService<any>
 
     next?: string[]
     prev?: string

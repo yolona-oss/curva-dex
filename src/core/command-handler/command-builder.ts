@@ -46,6 +46,7 @@ export class CommandBuilder {
     }
 
     private stopBuild(userId: string) {
+        console.log("__ done __")
         this.usersBuildingQueue.delete(userId)
     }
 
@@ -97,6 +98,18 @@ export class CommandBuilder {
                 ...defaultBuilderMarkupOptions,
             ]
         }
+    }
+
+    private isAllRead(bs: ICmdBuildingState) {
+        const { read } = bs.state
+
+        for (const darg of bs.descriptor.args) {
+            if (!read.find(arg => arg.name === darg.name && (darg.options ? arg.value != "" && arg.value : true))) {
+                return false
+            }
+        }
+        
+        return true
     }
 
     // ridiculous logic implementation of state machine :((
@@ -153,7 +166,7 @@ export class CommandBuilder {
                 done: true,
                 built: res ? res : undefined,
                 markup: {
-                    text: res ? "Build done" : "Build failed",
+                    text: res ? "Build success" : "Build failed",
                 }
             }
         }
@@ -201,7 +214,7 @@ export class CommandBuilder {
                 }
             }
 
-            cur.state.read.push({ctx, name: input, value: null})
+            cur.state.read.push({ctx, name: input, value: ''})
 
             return {
                 done: false,
@@ -221,6 +234,21 @@ export class CommandBuilder {
                 argRead.value = input
             }
             cur.state.readingValue = 'name'
+
+            // is last value
+            if (this.isAllRead(cur)) {
+                const res = this.build(userId)
+                if (res) {
+                    return {
+                        done: true,
+                        built: res,
+                        markup: {
+                            text: "Build success",
+                        }
+                    }
+                }
+            }
+
             return {
                 done: false,
                 markup: {

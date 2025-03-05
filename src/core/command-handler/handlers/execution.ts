@@ -1,7 +1,10 @@
 import log from "@core/utils/logger"
 import { AbstractCmdHandler, BaseUIContext, ICmdHandlerRequest, ICmdHandlerResponce } from "./abstract-handler"
 
+// TODO reaimplement with fn execution loginc inside cmd handler
+
 export class HandleCallbackExecution<Ctx extends BaseUIContext> extends AbstractCmdHandler<Ctx> {
+
     public async handle(request: ICmdHandlerRequest<Ctx>): Promise<ICmdHandlerResponce> {
         console.log("HANDLE CALLBACK EXECUTION CMD")
 
@@ -16,7 +19,7 @@ export class HandleCallbackExecution<Ctx extends BaseUIContext> extends Abstract
             }
 
             if (typeof cb.fn === 'function') { // simple command
-                const res = await cb.fn(uiCtx)
+                const res = await cb.fn(args, uiCtx)
                 return {
                     success: res?.error ? false : true,
                     text: res?.error ?? undefined
@@ -32,7 +35,7 @@ export class HandleCallbackExecution<Ctx extends BaseUIContext> extends Abstract
                     }
                 }
 
-                const serviceInstance = cb.fn.clone(userId, args, serviceName)
+                const serviceInstance = cb.fn.clone(userId, args)
 
                 serviceInstance.on("message", async (message: string) => {
                     await uiCtx.reply(message)

@@ -1,6 +1,6 @@
 import { BaseCommandService } from '@core/command-handler'
 import { BLANK_USER_ID } from '@core/command-handler'
-import { defaultServiceParamsMap } from '@core/command-handler'
+import { defaultServiceParamsMapDef } from '@core/command-handler'
 import { genRandomNumberBetweenWithScatter } from '@utils/random'
 import { sleep } from '@utils/time'
 
@@ -15,10 +15,10 @@ export class TestService extends BaseCommandService {
         'reset': [],
         'setmax': ['value']
     }
-    protected __serviceParamMap = defaultServiceParamsMap
+    protected __serviceParamMap = defaultServiceParamsMapDef
 
-    constructor(userId: string = BLANK_USER_ID, input: string[] = [], name: string = 'blob') {
-        super(userId, {}, input, name)
+    constructor(userId: string = BLANK_USER_ID, input: string[] = [], conf: Partial<{}> = {}, name: string = 'blob') {
+        super(userId, conf, input, name)
     }
 
     private isPaused = false
@@ -42,8 +42,8 @@ export class TestService extends BaseCommandService {
         }
     }
 
-    clone(userId: string, input: string[], newName?: string): BaseCommandService {
-        return new TestService(userId, input, newName)
+    clone(userId: string, input: string[], conf: Partial<{}> = {}, newName?: string): BaseCommandService {
+        return new TestService(userId, input, conf, newName)
     }
 
     async runWrapper() {

@@ -1,4 +1,6 @@
-import { Opt, OptsMap } from "@core/utils/opts-parser"
+import { CmdArgumentOptionsType } from "@core/ui/types/command"
+import { IExtendedOptsMapEntry, IExtendedOptsMapEntryParsed, OptsMap } from "@core/utils/opts-parser"
+import { genRandomString } from "@core/utils/random"
 
 export interface IDefaultServiceSessionData {
     createTime: number
@@ -7,10 +9,22 @@ export interface IDefaultServiceSessionData {
     incrementalExpirity: boolean // if true - every time when service run with new expirity
 }
 
-export const defaultServiceParamsMap: IDefaultServiceParams = {
-    '--session-id': Opt.String,
-    '-s': Opt.String
-}
+export const defaultServiceParamsMapDef: IExtendedOptsMapEntry<CmdArgumentOptionsType>[] = [
+    {
+        name: '--session-id',
+        argType: 'string',
+        argValidator: (arg: string) => Boolean(arg.match(/^[0-9a-zA-Z]{4}$/)),
+        argOptions: new Array<string>(4).fill('').map(() => genRandomString(4))
+    },
+    {
+        name: '-s',
+        argType: 'string',
+        argValidator: (arg: string) => Boolean(arg.match(/^[0-9a-zA-Z]{4}$/)),
+        argOptions: new Array<string>(4).fill('').map(() => genRandomString(4))
+    }
+]
+
+export interface IDefaultServiceParamsDefEntry extends IExtendedOptsMapEntry<CmdArgumentOptionsType> { }
 
 export interface IDefaultServiceParams extends OptsMap {
     '--session-id': String
@@ -23,3 +37,4 @@ export interface IDefaultServiceParams extends OptsMap {
  */
 export type IReceiveMsgArgs = Record<string, string[]|null>
 
+export type IReceiveMsgArgsDef = Record<string, IExtendedOptsMapEntry<CmdArgumentOptionsType>[]>

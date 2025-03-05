@@ -1,17 +1,17 @@
 import { Account, Manager } from "@core/db";
 import { IRunnable } from "@core/types/runnable";
-import { InferParsedOpts, optsParser } from "@core/utils/opts-parser";
+import { complexOptParser, IExtendedOptsMapEntryParsed, InferParsedOpts, optsParser } from "@core/utils/opts-parser";
 import TypedEventEmitter, { EventMap } from 'typed-emitter'
 import EventEmitter from 'events'
 import { assignToCustomPath, getInterfacePathsWithTypes, isEmpty } from "@utils/object";
-import { IDefaultServiceParams, IDefaultServiceSessionData, IReceiveMsgArgs } from "./types";
+import { IDefaultServiceParams, IDefaultServiceParamsDefEntry, IDefaultServiceSessionData, IReceiveMsgArgs } from "./types";
 import {
     BLANK_SERVICE_NAME,
     BLANK_SERVICE_SESSION_ID,
     DEFAULT_INCREMENTAL_EXPIRITY_OPT,
     DEFAULT_SERVICE_SESSION_EXPIRITY,
-    NOT_ALLOWABLE_SESSION_NAMES
 } from "./constants";
+import { CmdArgumentOptionsType } from "@core/ui/types/command";
 
 interface IBaseCmdService_EvMap<T = string> extends EventMap {
     message: (msg: T) => void,
@@ -26,7 +26,7 @@ interface IBaseCmdService_EvMap<T = string> extends EventMap {
 
 export abstract class BaseCommandService<
         CfgType extends Object = {},
-        TServiceParams extends IDefaultServiceParams = IDefaultServiceParams,
+        TServiceParams extends IDefaultServiceParamsDefEntry[] = IDefaultServiceParamsDefEntry[],
         TServiceSessionData extends IDefaultServiceSessionData = IDefaultServiceSessionData
     >
         extends (EventEmitter as new () => TypedEventEmitter<IBaseCmdService_EvMap>)
@@ -37,7 +37,7 @@ export abstract class BaseCommandService<
 
     protected abstract __serviceReceiveMsgArgs: IReceiveMsgArgs // msg descriptor
     protected abstract __serviceParamMap: TServiceParams // input param descriptor
-    protected params: Partial<InferParsedOpts<TServiceParams>> = {} // real parsed params
+    protected params: IExtendedOptsMapEntryParsed<CmdArgumentOptionsType>[] = [] // real parsed params
 
     protected session_id: string
     protected session_data: Partial<TServiceSessionData> = {}
@@ -55,7 +55,7 @@ export abstract class BaseCommandService<
     protected abstract runWrapper(): Promise<void>
     protected abstract terminateWrapper(): Promise<void>
     abstract receiveMsg(msg: string, args: string[]): Promise<void>
-    abstract clone(userId: string, inputParam: string[], newName?: string): BaseCommandService<CfgType, TServiceParams, TServiceSessionData>
+    abstract clone(userId: string, inputParam: string[], configOverwrite?: Partial<CfgType>, newName?: string): BaseCommandService<CfgType, TServiceParams, TServiceSessionData>
 
     sendMsg(msg: string) {
         this.emit("message", msg)
@@ -98,22 +98,20 @@ export abstract class BaseCommandService<
     }
 
     private initServiceParam() {
-        this.params = optsParser(this.params_string, this.__serviceParamMap)
+        this.params = complexOptParser<TServiceParams, CmdArgumentOptionsType>(this.params_string, this.__serviceParamMap)
+        //this.params = optsParser(this.params_string, this.__serviceParamMap)
     }
 
     async initSession(skipSessionLoad = false) {
-        const parseSession_id = () => {
-            const sessionParam = this.params['--session-id'] || this.params['-s']
+        const sessionIdFromParam = () => {
+            const sessionParam = this.params.find(p => p.name === "-s" || p.name === "--session-id")
             if (sessionParam) {
-                const session_id = String(sessionParam)
-                // allow only letters and numbers
-                if (session_id.match(/^[a-zA-Z0-9]+$/) && !NOT_ALLOWABLE_SESSION_NAMES.includes(session_id)) {
-                    return session_id
-                }
+                return String(sessionParam.arg)
             }
             return
         }
-        const session_id = parseSession_id()
+
+        const session_id = sessionIdFromParam()
         if (session_id && !skipSessionLoad) {
             this.session_id = session_id
         } else {

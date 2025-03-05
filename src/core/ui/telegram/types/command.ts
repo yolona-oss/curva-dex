@@ -8,5 +8,5 @@ import { NarrowedContext, Types } from "telegraf";
 export type TextContext = NarrowedContext<TgContext, Types.MountMap['text']>;
 
 export interface TgCommand extends IUICommand<TelegramUI, TextContext> {
-    fn: (this: TelegramUI, ctx: TextContext) => Promise<void>;
+    fn: (this: TelegramUI, args: string[], ctx: TextContext) => Promise<void>;
 }

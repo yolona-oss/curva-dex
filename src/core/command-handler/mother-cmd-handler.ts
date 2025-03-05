@@ -19,7 +19,8 @@ import {
     ICmdMixin,
     ICmdRegisterMany,
     IArgReadResult,
-    ICmdService
+    ICmdService,
+    ICmdFunction
 } from "./types";
 import { CommandBuilder } from "./command-builder";
 import { HandleAccountCommand, HandleCallbackExecution, HandleCmdBuilder, HandleHelpCmd, HandleSequenceCommand, HandleServiceCommand } from "./handlers";
@@ -180,14 +181,12 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         return cb as ICmdCallback<TContext>
     }
 
-    public async execute(command: string, args: IArgReadResult[], ctx: TContext): Promise<ICmdHandlerExecResult> {
-        try {
-            const cb = this.getCallbackFromCommandName(command)
-
-        } catch (e: any) {
-            if ('success' in e) {
-                return e as ICmdHandlerExecResult
-            }
+    public async execute(userId: string, command: string, args: IArgReadResult[], ctx: TContext) {
+        const cb = this.getCallbackFromCommandName(command)
+        if (cb.fn instanceof Function) {
+            return await this.runFunction(userId, command, args, ctx)
+        } else {
+            return await this.runService(userId, command, args, ctx)
         }
     }
 
@@ -211,12 +210,34 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         })
     }
 
-    public async runCallback(userId: string, command: string, args: IArgReadResult[], ctx: TContext) {
-        
-    }
-
-    private async runFunction(userId: string, command: string, args: IArgReadResult[], ctx: TContext) {
+    private async runFunction(_: string, command: string, args: IArgReadResult[], ctx: TContext) {
         const cb = this.getCallbackFromCommandName(command)
+
+        try {
+            const _args = args.filter(a => a.ctx === "args" && a.value).map(a => a.value) as string[]
+            console.log(args)
+            console.log(_args)
+            const res = await (cb.fn as ICmdFunction<TContext>)(_args, ctx)
+            if (res && res.error) {
+                return {
+                    success: false,
+                    text: `Execution failed: ${res.error}`
+                }
+            } else {
+                return {
+                    success: true,
+                    text: `Execution success`
+                }
+            }
+        } catch (e: any) {
+            if ('success' in e) {
+                return e as ICmdHandlerExecResult
+            }
+            return {
+                success: false,
+                text: `Command execution error: ${anyToString(e)}`
+            }
+        }
     }
 
     private async runService(userId: string, serviceName: string, args: IArgReadResult[], ctx: TContext) {
@@ -236,6 +257,12 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         }
         const exe = cb.fn as ICmdService
 
+        const _conf = args.filter(a => a.ctx === 'config')
+        let conf = {}
+        for (const c of _conf) {
+            conf = Object.assign(conf, { [c.name]: c.value })
+        }
+
         const _params = args.filter(a => a.ctx === "params")
         const params = []
         for (const p of _params) {
@@ -244,7 +271,7 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
                 params.push(p.value)
             }
         }
-        const serviceInstance = exe.clone(userId, params)
+        const serviceInstance = exe.clone(userId, params, conf)
 
         const userServices = this.UserServices(userId)
 

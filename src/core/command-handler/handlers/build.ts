@@ -1,4 +1,4 @@
-import { parseOptions } from "@core/ui/types/command";
+import { exposeCmdArgumentDefOptions } from "@core/ui/types/command";
 import { BuiltInUICmdArray } from "../built-in-cmd";
 import { BaseCommandService } from "../command-service";
 import { ICmdCallback, ICmdService, ICommandDescriptor, ICommandDescriptorArg, ReadingCtxType } from "../types";
@@ -9,11 +9,11 @@ import { MotherCmdHandler } from "../mother-cmd-handler";
 
 // TODO add completion for builtin commands
 
-type ICmdCallbackOrBuiltIn<Ctx extends BaseUIContext> = ICmdCallback<Ctx> | Omit<ICmdCallback<Ctx>, 'fn'>
+type ICmdCallbackOrBuiltIn<UICtx extends BaseUIContext> = ICmdCallback<UICtx> | Omit<ICmdCallback<UICtx>, 'fn'>
 
-export class HandleCmdBuilder<Ctx extends BaseUIContext> extends AbstractCmdHandler<Ctx> {
+export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHandler<UICtx> {
 
-    private getCbConfig(cb: ICmdCallbackOrBuiltIn<Ctx>, handler: MotherCmdHandler<Ctx>, userId: string) {
+    private getCbConfig(cb: ICmdCallbackOrBuiltIn<UICtx>, handler: MotherCmdHandler<UICtx>, userId: string) {
         let isService = false
         let isActive = false
         if ('fn' in cb) {
@@ -28,7 +28,7 @@ export class HandleCmdBuilder<Ctx extends BaseUIContext> extends AbstractCmdHand
         }
     }
 
-    private selectCtxs(cb: ICmdCallbackOrBuiltIn<Ctx>, userId: string, handler: MotherCmdHandler<Ctx>): ReadingCtxType[] {
+    private selectCtxs(cb: ICmdCallbackOrBuiltIn<UICtx>, userId: string, handler: MotherCmdHandler<UICtx>): ReadingCtxType[] {
         const { isService, isActive } = this.getCbConfig(cb, handler, userId)
 
         return isService ?
@@ -52,17 +52,21 @@ export class HandleCmdBuilder<Ctx extends BaseUIContext> extends AbstractCmdHand
             name: c.path
         }))
 
+        console.log(cfg_args)
+        console.log(params_args)
+        console.log(msg_args)
+
         return {
             args: isActive ? msg_args : params_args.concat(cfg_args)
         }
     }
 
-    private configureFunctionDesc(cb: ICmdCallback<Ctx>, cmdHandler: MotherCmdHandler<Ctx>, ctx: Ctx): ICommandDescriptor {
+    private configureFunctionDesc(cb: ICmdCallback<UICtx>, cmdHandler: MotherCmdHandler<UICtx>, ctx: UICtx): ICommandDescriptor {
         const commonCbArgs: ICommandDescriptorArg[] = cb.args?.map(a => ({
             ctx: 'args',
             name: a.name,
             description: a.description,
-            options: a.options ? parseOptions(a.options, cmdHandler, ctx.manager as IManager) : undefined,
+            options: a.options ? exposeCmdArgumentDefOptions(a.options, cmdHandler, ctx.manager as IManager) : undefined,
             validator: a.validator
         })) ?? []
 
@@ -71,23 +75,23 @@ export class HandleCmdBuilder<Ctx extends BaseUIContext> extends AbstractCmdHand
         }
     }
 
-    private configureBuiltInDesc(command: string, cmdHandler: MotherCmdHandler<Ctx>, ctx: Ctx): ICommandDescriptor {
+    private configureBuiltInDesc(command: string, cmdHandler: MotherCmdHandler<UICtx>, ctx: UICtx): ICommandDescriptor {
         return {
             args: (BuiltInUICmdArray.find(c => c.command === command)?.args ?? []).map(a => ({
                 ctx: 'args',
                 name: a.name,
                 description: a.description,
-                options: a.options ? parseOptions(a.options, cmdHandler, ctx.manager as IManager) : undefined,
+                options: a.options ? exposeCmdArgumentDefOptions(a.options, cmdHandler, ctx.manager as IManager) : undefined,
                 validator: a.validator
             }))
         }
     }
 
     // TODO set configreAs types in other place and disperce to all code base
-    private configureDescriptors(configureAs: "function" | "service" | "built-in", cb: ICmdCallbackOrBuiltIn<Ctx>, command: string, cmdHandler: MotherCmdHandler<Ctx>, ctx: Ctx): ICommandDescriptor {
+    private configureDescriptors(configureAs: "function" | "service" | "built-in", cb: ICmdCallbackOrBuiltIn<UICtx>, command: string, cmdHandler: MotherCmdHandler<UICtx>, ctx: UICtx): ICommandDescriptor {
         switch (configureAs) {
             case "function":
-                return this.configureFunctionDesc(cb as ICmdCallback<Ctx>, cmdHandler, ctx)
+                return this.configureFunctionDesc(cb as ICmdCallback<UICtx>, cmdHandler, ctx)
             case "service":
                 if (!('fn' in cb)) {
                     throw new Error(`configureAs: "service" but no fn in callback`)
@@ -99,12 +103,12 @@ export class HandleCmdBuilder<Ctx extends BaseUIContext> extends AbstractCmdHand
         }
     }
 
-    private async startNewBuild(userId: string, command: string, args: string[], ctx: Ctx, builder: CommandBuilder, cmdHandler: MotherCmdHandler<Ctx>): Promise<ICmdHandlerResponce|void> {
+    private async startNewBuild(userId: string, command: string, args: string[], ctx: UICtx, builder: CommandBuilder, cmdHandler: MotherCmdHandler<UICtx>): Promise<ICmdHandlerResponce|void> {
         if (!cmdHandler.isAllArgsPassed(command, args)) {
             let cb
 
             if (cmdHandler.isBuiltInCommand(command)) {
-                cb = BuiltInUICmdArray.find(builtInCmd => builtInCmd.command === command) as Omit<ICmdCallback<Ctx>, 'fn'>
+                cb = BuiltInUICmdArray.find(builtInCmd => builtInCmd.command === command) as Omit<ICmdCallback<UICtx>, 'fn'>
             } else {
                 cb = cmdHandler.getCallbackFromCommandName(command)
             }
@@ -132,14 +136,13 @@ export class HandleCmdBuilder<Ctx extends BaseUIContext> extends AbstractCmdHand
         return
     }
 
-    private async handleBuildProcess(userId: string, command: string, ctx: Ctx, builder: CommandBuilder, cmdHandler: MotherCmdHandler<Ctx>): Promise<ICmdHandlerResponce|void> {
+    private async handleBuildProcess(userId: string, command: string, ctx: UICtx, builder: CommandBuilder, cmdHandler: MotherCmdHandler<UICtx>): Promise<ICmdHandlerResponce|void> {
         if (builder.isUserOnBuild(userId)) {
             const res = builder.handle(userId, command)
 
             if (res.built) {
-                ctx.text = res.built.args.join(" ")
                 console.log("@-- cmd build done --@")
-                return await cmdHandler.execute(res.built.command, res.built.args, ctx)!
+                return await cmdHandler.execute(userId, res.built.command, res.built.args, ctx)
             }
 
             return {
@@ -151,7 +154,7 @@ export class HandleCmdBuilder<Ctx extends BaseUIContext> extends AbstractCmdHand
         return
     }
 
-    public async handle(request: ICmdHandlerRequest<Ctx>): Promise<ICmdHandlerResponce> {
+    public async handle(request: ICmdHandlerRequest<UICtx>): Promise<ICmdHandlerResponce> {
         const { command, userId, uiCtx, args, currentCmdHandler } = request
 
         const builder = currentCmdHandler.CommandBuilder

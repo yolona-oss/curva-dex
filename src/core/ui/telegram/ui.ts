@@ -79,10 +79,9 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         this.bot.action(RegExp("builder_*"), async (ctx) => {
             console.log("~ACTI----------")
             const action = String(ctx.match.input.slice("builder_".length));
-            const response = await this.cmdHandler.handleCommand(action, ctx as any);
-
-            await this.commandResultReply(ctx, response);
-
+            console.log(action)
+            const res = await this.cmdHandler.handleCommand(action, ctx as any);
+            await this.commandResultReply(ctx, res);
             await ctx.deleteMessage();
         });
     }
@@ -149,17 +148,6 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
             }
             try {
                 const response = await this.cmdHandler.handleCommand(fullText, ctx)
-                if (response.markup) {
-                    for (const action of response.markup) {
-                        console.log(action)
-                        this.bot.action(action.callback_data, async (ctx) => {
-                            console.log("))))))))))")
-                            await this.cmdHandler.handleCommand(action.callback_data, ctx as any);
-
-                            await ctx.editMessageText(action.text, telegraf.Markup.inlineKeyboard([]));
-                        })
-                    }
-                }
                 await this.commandResultReply(ctx, response);
             } catch (e: any) {
                 await ctx.reply(`Internall error: ${anyToString(e)}`);
