@@ -14,7 +14,7 @@ import {
 } from "./constants";
 
 import 'reflect-metadata';
-import { ServiceData, toDescriptor } from "./service-data";
+import { BaseServiceConfig, BaseServiceInteractMessages, BaseServiceParameters, ServiceData, toDescriptor } from "./service-data";
 import { IArgMetadataOption } from "./service-metadata";
 import { IServiceSessionData } from "./types";
 
@@ -25,15 +25,22 @@ interface IBaseCmdService_EvMap<T = string> extends EventMap {
     liveLog: (logs: string[]) => void
 }
 
-export abstract class BaseCommandService extends (EventEmitter as new () => TypedEventEmitter<IBaseCmdService_EvMap>) implements IRunnable {
+export abstract class BaseCommandService<
+        TConfig extends BaseServiceConfig = BaseServiceConfig,
+        TParams extends BaseServiceParameters = BaseServiceParameters,
+        TInteractMessages extends BaseServiceInteractMessages = BaseServiceInteractMessages
+    >
+    extends (EventEmitter as new () => TypedEventEmitter<IBaseCmdService_EvMap>)
+    implements IRunnable
+{
     private _isInited = false
     private _isRunning: boolean = false
 
-    protected data: ServiceData
+    protected data: ServiceData<TConfig, TParams, TInteractMessages>
 
     constructor(
         protected userId: string, // the user who execute this service
-        serviceData: ServiceData,
+        serviceData: ServiceData<TConfig, TParams, TInteractMessages>,
         public readonly name: string = BLANK_SERVICE_NAME,
     ) {
         super()

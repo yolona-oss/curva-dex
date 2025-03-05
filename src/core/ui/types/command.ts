@@ -18,7 +18,7 @@ export interface CmdArgumentDef {
     options?: CmdArgumentOptionsType
 }
 
-export function exposeCmdArgumentDefOptions<CtxType extends BaseUIContext = any>(options: CmdArgumentOptionsType, handler: MotherCmdHandler<CtxType>, manager: IManager) {
+export function exposeCmdArgumentDefOptions<CtxType extends BaseUIContext = any>(options: CmdArgumentOptionsType<any>, handler: MotherCmdHandler<CtxType>, manager: IManager) {
     if (options instanceof Function) {
         return options(handler, manager)
     } else if (Array.isArray(options)) {

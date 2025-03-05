@@ -1,6 +1,6 @@
 import { SERVICE_METADATA_KEY } from "./constants";
 import { genRandomString } from "@core/utils/random";
-import { ArgMetadata, getArgMetadata, IArgMetadataOption } from "./service-metadata";
+import { ArgMetadata, getArgUndefMetadata, IArgMetadataOption } from "./service-metadata";
 
 import { sessionIdValidator, sessionOptsWithRand } from "./utils/misc";
 
@@ -11,23 +11,24 @@ import { camelCase } from "@core/utils/misc";
 //    [K in keyof T]: T[K] extends Function ? never : K
 //}[keyof T]>;
 
-export function toDescriptor<T extends Object>(instance: T) {
-    const metadata = getArgMetadata(instance)
-    let ret: Record<string, any> = {}
-    for (const key in metadata) {
-        const meta = metadata[key]
-        if (meta) {
-            Object.assign(ret, { [key]: meta.defaultValue })
-        }
-    }
-    return ret as Record<keyof T, IArgMetadataOption>
+export function toDescriptor<T extends Object>(instance: T): Record<keyof T, IArgMetadataOption> {
+    return getArgUndefMetadata(instance)
+    //const metadata = getArgUndefMetadata(instance)
+    //let ret: Record<string, any> = {}
+    //for (const key in metadata) {
+    //    const meta = metadata[key]
+    //    if (meta) {
+    //        Object.assign(ret, { [key]: meta.defaultValue })
+    //    }
+    //}
+    //return ret as Record<keyof T, IArgMetadataOption>
 }
 
 class BaseDataStore {
     constructor() { }
 }
 
-export class BaseServiceConfig extends BaseDataStore {
+export abstract class BaseServiceConfig extends BaseDataStore {
 }
 
 export class BaseServiceParameters extends BaseDataStore {
@@ -62,20 +63,17 @@ export class BaseServiceInteractMessages extends BaseDataStore {
     echo!: string
 }
 
-export class ServiceData {
-    config: BaseServiceConfig
-    params: BaseServiceParameters
-    messages: BaseServiceInteractMessages
-
+export class ServiceData<
+        TConfig extends BaseServiceConfig = BaseServiceConfig,
+        TParams extends BaseServiceParameters = BaseServiceParameters,
+        TMessages extends BaseServiceInteractMessages = BaseServiceInteractMessages
+    >
+{
     constructor(
-        config: BaseServiceConfig,
-        params: BaseServiceParameters,
-        messages: BaseServiceInteractMessages
-    ) {
-        this.config = config
-        this.params = params
-        this.messages = messages
-    }
+        public config: TConfig,
+        public params: TParams,
+        public messages: TMessages
+    ) { }
 }
 
 /**

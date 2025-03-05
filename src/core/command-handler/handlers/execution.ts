@@ -35,7 +35,7 @@ export class HandleCallbackExecution<Ctx extends BaseUIContext> extends Abstract
                     }
                 }
 
-                const serviceInstance = cb.fn.clone(userId, args)
+                const serviceInstance = cb.fn.clone(userId)
 
                 serviceInstance.on("message", async (message: string) => {
                     await uiCtx.reply(message)

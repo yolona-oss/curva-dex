@@ -1,7 +1,7 @@
 import { BaseCommandService } from '@core/command-handler'
 import { BLANK_USER_ID } from '@core/command-handler'
-import { BaseServiceInteractMessages, ServiceData } from '@core/command-handler/service-data'
-import { ArgMetadata } from '@core/command-handler/service-metadata'
+import { BaseServiceConfig, BaseServiceInteractMessages, BaseServiceParameters, ServiceData } from '@core/command-handler/service-data'
+import { ArgMetadata, getArgUndefMetadata } from '@core/command-handler/service-metadata'
 import { genRandomNumberBetweenWithScatter } from '@utils/random'
 import { sleep } from '@utils/time'
 
@@ -44,16 +44,17 @@ class TestServiceInteractMessages extends BaseServiceInteractMessages {
     setmax?: number
 }
 
-export class TestService extends BaseCommandService {
+export class TestService extends BaseCommandService<BaseServiceConfig, BaseServiceParameters, TestServiceInteractMessages> {
     private max = 1000n
     private i = 3n
 
     constructor(
         userId: string = BLANK_USER_ID,
-        serviceData: ServiceData = new ServiceData({}, {}, new TestServiceInteractMessages()),
+        serviceData: ServiceData<BaseServiceConfig, BaseServiceParameters, TestServiceInteractMessages> = new ServiceData<BaseServiceConfig, BaseServiceParameters, TestServiceInteractMessages>({}, {}, new TestServiceInteractMessages()),
         name: string = TestServiceName
     ) {
         super(userId, serviceData, name)
+        console.log(this.receiveMsgDescriptor())
     }
 
     private isPaused = false

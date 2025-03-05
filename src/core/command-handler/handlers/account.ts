@@ -7,7 +7,7 @@ export class HandleAccountCommand<Ctx extends BaseUIContext> extends AbstractCmd
 
         console.log("HANDLE ACCOUNT CMD")
 
-        const { command, userId, args, currentCmdHandler, uiCtx } = request
+        const { command, args, uiCtx } = request
 
         if (!uiCtx.manager?.account) {
             // NOTE: may be add account creation logic here?
