@@ -77,7 +77,7 @@ export class TestService extends BaseCommandService {
         }
     }
 
-    clone(userId: string, serviceData: ServiceData, newName?: string): BaseCommandService {
+    clone(userId: string, serviceData?: ServiceData, newName?: string): BaseCommandService {
         return new TestService(userId, serviceData, newName)
     }
 

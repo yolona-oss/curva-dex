@@ -9,7 +9,7 @@ import { Chain, IChainHandler } from "@core/utils/chain"
 import { CmdArgumentDef } from "@core/ui/types/command"
 
 export type ICmdFunction<Ctx> = (args: string[], ctx: Ctx) => Promise<{error?: string}|void>
-export type ICmdService = BaseCommandService<any, any, any>
+export type ICmdService = BaseCommandService
 
 export type ICmdMixin<Ctx> = ICmdFunction<Ctx> | ICmdService
 

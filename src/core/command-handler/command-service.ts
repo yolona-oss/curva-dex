@@ -43,7 +43,7 @@ export abstract class BaseCommandService extends (EventEmitter as new () => Type
     protected abstract runWrapper(): Promise<void>
     protected abstract terminateWrapper(): Promise<void>
     abstract receiveMsg(msg: string, args: string[]): Promise<void>
-    abstract clone(userId: string, serviceData: ServiceData, newName?: string): BaseCommandService
+    abstract clone(userId: string, serviceData?: ServiceData, newName?: string): BaseCommandService
 
     protected session_data: IServiceSessionData = CreateDefaultServiceSessionData()
 
