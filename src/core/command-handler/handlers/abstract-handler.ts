@@ -14,6 +14,7 @@ export abstract class AbstractCmdHandler<Ctx extends BaseUIContext> implements I
     }
 
     async handle(request: ICmdHandlerRequest<Ctx>): Promise<ICmdHandlerResponce> {
+        console.log("HANDLE", this.constructor.name)
         if (this.next) {
             return await this.next.handle(request)
         }

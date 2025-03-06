@@ -44,21 +44,25 @@ class TestServiceInteractMessages extends BaseServiceInteractMessages {
     setmax?: number
 }
 
+class TestServiceParameters extends BaseServiceParameters {
+
+}
+
 interface TestServiceSessionData extends IServiceSessionData {
     prev_max?: number
 }
 
-export class TestService extends BaseCommandService<TestServiceSessionData, BaseServiceConfig, BaseServiceParameters, TestServiceInteractMessages> {
+export class TestService extends BaseCommandService<TestServiceSessionData, BaseServiceConfig, TestServiceParameters, TestServiceInteractMessages> {
     private max = 1000n
     private i = 3n
 
     constructor(
         userId: string = BLANK_USER_ID,
-        serviceData: ServiceData<BaseServiceConfig, BaseServiceParameters, TestServiceInteractMessages> = new ServiceData<BaseServiceConfig, BaseServiceParameters, TestServiceInteractMessages>({}, {}, new TestServiceInteractMessages()),
+        serviceData?: ServiceData<BaseServiceConfig, BaseServiceParameters, TestServiceInteractMessages>,
         name: string = TestServiceName
     ) {
+        serviceData = serviceData ?? new ServiceData({}, new TestServiceParameters(), new TestServiceInteractMessages())
         super(userId, serviceData, name)
-        console.log(this.receiveMsgDescriptor())
     }
 
     private isPaused = false

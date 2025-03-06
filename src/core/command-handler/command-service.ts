@@ -116,7 +116,7 @@ export abstract class BaseCommandService<
         const account = (await Account.findById(user.account))!;
 
         const module_name = account.extendModuleName(this.name, [ this.SessionIdAsModuleName ])
-        const module_session_name = account.extendModuleName(this.name, [this.SessionId, "session_store"])
+        const module_session_name = account.extendModuleName(this.name, [this.SessionIdAsModuleName, "session_store"])
 
         const accountConfig = await account.getModuleData<typeof this.data.config>(module_name)
         const accountSessionData = await account.getModuleData<TSessionData>(module_session_name)

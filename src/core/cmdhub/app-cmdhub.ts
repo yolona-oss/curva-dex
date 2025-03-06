@@ -37,7 +37,7 @@ export class AppCmdhub extends Application<BaseUIContext> {
         }
 
         super("cmdhub", selected_ui)
-        this.printBanner()
+        //this.printBanner()
     }
 
     private printBanner() {

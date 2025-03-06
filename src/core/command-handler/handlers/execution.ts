@@ -6,7 +6,7 @@ import { AbstractCmdHandler, BaseUIContext, ICmdHandlerRequest, ICmdHandlerRespo
 export class HandleCallbackExecution<Ctx extends BaseUIContext> extends AbstractCmdHandler<Ctx> {
 
     public async handle(request: ICmdHandlerRequest<Ctx>): Promise<ICmdHandlerResponce> {
-        console.log("HANDLE CALLBACK EXECUTION CMD")
+        console.log("HANDLE", this.constructor.name)
 
         const { command, uiCtx, userId, args, currentCmdHandler } = request
 
@@ -57,7 +57,7 @@ export class HandleCallbackExecution<Ctx extends BaseUIContext> extends Abstract
                 serviceInstance.run()
             }
         } catch (e: any) {
-            if ('success' in e) {
+            if (e && typeof e === 'object' && 'success' in e) {
                 return e as ICmdHandlerResponce
             }
 

@@ -22,7 +22,7 @@ class ServiceStopArgs {
 const ServiceStopCommand: BuiltInCommand = {
     command: BuiltInServiceCommandsEnum.STOP_COMMAND,
     description: "Stop service with passed name <service-name>.",
-    args: new ServiceStopArgs(),
+    args: ServiceStopArgs,
     exec: async function(this: MotherCmdHandler<any>, args: string[], ctx) {
         const userId = String(ctx.manager!.userId)
         const serviceName = args[0]
@@ -52,7 +52,7 @@ class ServiceRunArgs {
 const ServiceRunCommand: BuiltInCommand = {
     command: BuiltInServiceCommandsEnum.RUN_COMMAND,
     description: "Run service with passed name <service-name>. NOCONFIG!!!",
-    args: new ServiceRunArgs(),
+    args: ServiceRunArgs,
     exec: async function(this: MotherCmdHandler<any>, args: string[], ctx) {
         const userId = String(ctx.manager!.userId)
         const serviceName = args[0]
@@ -113,7 +113,7 @@ class ServiceSendMsgArgs {
 const ServiceSendMsgCommand: BuiltInCommand = {
     command: BuiltInServiceCommandsEnum.SEND_MSG_COMMAND,
     description: "Send message to service with passed name <service-name> and <message> with optional args.",
-    args: new ServiceSendMsgArgs(),
+    args: ServiceSendMsgArgs,
     exec: async function(this: MotherCmdHandler<any>, args: string[], ctx) {
         const userId = String(ctx.manager!.userId)
         const serviceName = args[0]

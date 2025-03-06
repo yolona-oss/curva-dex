@@ -1,9 +1,11 @@
-import { CmdArgument } from "@core/ui/types/command"
+import { CmdArgument, getCmdArgMetadata, getCmdArgUndefMetadata } from "@core/ui/types/command"
 import { BuiltInAccountCommandsEnum } from "../constants"
 import { Account, Manager } from "@core/db"
 import log from "@core/utils/logger"
 import { BuiltInCommand } from "../types/built-in-cmd"
 import { MotherCmdHandler } from "../mother-cmd-handler"
+
+import "reflect-metadata";
 
 async function getAllUserModules(accountId: string): Promise<string[]> {
     const account = await Account.findById(accountId)
@@ -46,7 +48,7 @@ class SetVariableArgs {
 const SetVariableCommand: BuiltInCommand = {
     command: BuiltInAccountCommandsEnum.SET_VARIABLE,
     description: "Create or update variable for user execution context",
-    args: new SetVariableArgs(),
+    args: SetVariableArgs,
     exec: async function(this: MotherCmdHandler<any>, args: string[], ctx) {
         const userId = String(ctx.manager!.userId)
         const user = await Manager.findOne({userId: Number(userId)})
@@ -56,10 +58,21 @@ const SetVariableCommand: BuiltInCommand = {
         }
 
         const [module_name, path, value] = args
+        console.log(`SetVariableCommand: ${module_name}, ${path}, ${value}`)
         await account.setModuleData(module_name, path, value)
         await ctx.reply(`Variable ${path} set to ${value}`)
     }
 }
+
+//console.log(getCmdArgMetadata(SetVariableArgs.prototype))
+//console.log(getCmdArgMetadata(new SetVariableArgs()));
+//console.log(getCmdArgMetadata(SetVariableArgs));
+//for (const key in SetVariableCommand.args) {
+//    const data = SetVariableCommand.args[key]
+//    console.log(`-- CMD: ${SetVariableCommand.command}, ${key}: ${data}`)
+//
+//}
+//process.exit(0)
 
 /////////////////////////
 
@@ -88,7 +101,7 @@ class RemoveVariableArgs {
 const RemoveVariableCommand: BuiltInCommand = {
     command: BuiltInAccountCommandsEnum.REMOVE_VARIABLE,
     description: "Remove variable for user execution context",
-    args: new RemoveVariableArgs(),
+    args: RemoveVariableArgs,
     exec: async function(this: MotherCmdHandler<any>, args: string[], ctx) {
         const userId = String(ctx.manager!.userId)
         const user = await Manager.findOne({userId: Number(userId)})
@@ -126,7 +139,7 @@ class GetVariableArgs {
 const GetVariableCommand: BuiltInCommand = {
     command: BuiltInAccountCommandsEnum.GET_VARIABLE,
     description: "Get variable for user execution context",
-    args: new GetVariableArgs(),
+    args: GetVariableArgs,
     exec: async function(this: MotherCmdHandler<any>, args: string[], ctx) {
         const userId = String(ctx.manager!.userId)
         const user = await Manager.findOne({userId: Number(userId)})

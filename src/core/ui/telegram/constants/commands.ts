@@ -57,7 +57,6 @@ export const BuiltInTgUICommands: TgCommand[] = [
     {
         command: "start",
         description: "Start dummy command",
-        args: [],
         exec: async function(this: TelegramUI, _, ctx: TextContext) {
             await ctx.reply("Hello, dummy comman here :-)");
         }
@@ -65,7 +64,7 @@ export const BuiltInTgUICommands: TgCommand[] = [
     {
         command: "setname",
         description: "Set your name",
-        args: new SetNameArgs(),
+        args: SetNameArgs,
         exec: async function(this: TelegramUI, args: string[], ctx: TextContext) {
             const name = args[0];
             if (name && name.length > 0) {
@@ -96,7 +95,6 @@ export const BuiltInTgUICommands: TgCommand[] = [
     {
         command: "gooffline",
         description: "Go offline",
-        args: [],
         exec: async function(this: TelegramUI, _, ctx: TextContext) {
             await ctx.manager.updateOne({ $set: { online: false } });
         },
@@ -104,7 +102,6 @@ export const BuiltInTgUICommands: TgCommand[] = [
     {
         command: "goonline",
         description: "Go online",
-        args: [],
         exec: async function(this: TelegramUI, _, ctx: TextContext) {
             await ctx.manager.updateOne({ $set: { online: true } });
         },
@@ -112,7 +109,6 @@ export const BuiltInTgUICommands: TgCommand[] = [
     {
         command: "status",
         description: "Get your status",
-        args: [],
         exec: async function(this: TelegramUI, _, ctx: TextContext) {
             await ctx.reply("Your status: " + (ctx.manager.online ? "online" : "offline"))
         }
@@ -120,11 +116,17 @@ export const BuiltInTgUICommands: TgCommand[] = [
     {
         command: "setgreeting",
         description: "On or Off bot startup greeting",
-        args: new SetGreetingArgs(),
+        args: SetGreetingArgs,
         exec: async function(this: TelegramUI, args: string[], ctx: TextContext) {
             const greeting = args[0];
+
+            if (!greeting) {
+                await ctx.replyWithMarkdownV2('No string passed, try: __"/setgreeting on"__');
+                return;
+            }
+
             await ctx.manager.updateOne({ $set: { useGreeting: (greeting === 'on') } });
-            await ctx.reply("Startup greeting setted to: " + (ctx.manager.useGreeting ? "on" : "off"))
+            await ctx.reply("Startup greeting setted to: " + greeting)
         }
     }
 ]

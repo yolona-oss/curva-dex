@@ -26,7 +26,7 @@ import { anyToString } from "@core/utils/misc";
 import { Account, Manager } from "@core/db";
 import { BLANK_SERVICE_SESSION_ID, MODULE_SESSION_ID_MARK } from "./constants";
 import { ServiceData } from "./service-data";
-import { BaseCommandArgumentDesc, getCmdArgMetadata } from "@core/ui/types/command";
+import { BaseCommandArgumentDesc, getCmdArgMetadata, IUICommandProcessed } from "@core/ui/types/command";
 
 import {
     SetVariableCommand,
@@ -45,12 +45,17 @@ import {
     CommonHelp,
 } from "./built-in-cmd";
 
+import 'reflect-metadata'
+
 import { BuiltInCommandNames, toRegister } from "./built-in-cmd";
 
-// TODO RENAME IT!!!
+// TODO RENAME IT!!! and split
 export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
     private callbacks: Map<string, ICmdCallback<TContext>> // name -> callback
     private sequenceHandler?: SequenceHandler
+    /**
+     * @description Per user active services
+     */
     private activeServices: Map<string, Array<BaseCommandService<any>>> // userId -> services
     private cmdBuilder: CommandBuilder
 
@@ -70,20 +75,20 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
 
     done() {
         this.registerMany([
-            toRegister(SetVariableCommand),
-            toRegister(RemoveVariableCommand),
-            toRegister(GetVariableCommand),
+            toRegister<TContext>(SetVariableCommand as any, this),
+            toRegister<TContext>(RemoveVariableCommand as any, this),
+            toRegister<TContext>(GetVariableCommand as any, this),
 
-            toRegister(ServiceStopCommand),
-            toRegister(ServiceRunCommand),
-            toRegister(ServiceSendMsgCommand),
+            toRegister<TContext>(ServiceStopCommand as any, this),
+            toRegister<TContext>(ServiceRunCommand as any, this),
+            toRegister<TContext>(ServiceSendMsgCommand as any, this),
 
-            toRegister(NextInSeqCommand),
-            toRegister(BackInSeqCommand),
-            toRegister(CancelSeqCommand),
+            toRegister<TContext>(NextInSeqCommand as any, this),
+            toRegister<TContext>(BackInSeqCommand as any, this),
+            toRegister<TContext>(CancelSeqCommand as any, this),
 
-            toRegister(ConcreetHelp),
-            toRegister(CommonHelp),
+            toRegister<TContext>(ConcreetHelp as any, this),
+            toRegister<TContext>(CommonHelp as any, this),
         ])
 
         const cbNames = this.callbacks.keys().toArray()
@@ -147,30 +152,29 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
     */
     unBoundRegister(command: ICmdHandlerCommand, mixin: ICmdMixin<TContext>) {
         this.validateCmdName(command.command)
-        this.registerWrapper(command, mixin)
+        this.registerWrapper(command, mixin, false)
     }
 
     private validateCmdName(command: string) {
         if (command in this.callbacks) {
             throw new Error("CommandHandler.register() command already registered: " + command);
         }
-        if (BuiltInCommandNames.includes(command)) {
-            throw new Error("CommandHandler.register() command already registered as default: " + command);
-        }
+        //if (BuiltInCommandNames.includes(command)) {
+        //    throw new Error("CommandHandler.register() command already registered as default: " + command);
+        //}
     }
 
-    private registerWrapper(command: ICmdHandlerCommand, mixin: ICmdMixin<TContext>) {
+    private registerWrapper(command: ICmdHandlerCommand, mixin: ICmdMixin<TContext>, bounded = true) {
         let argsDesc: (BaseCommandArgumentDesc&{name: string})[] = []
-        if (command.args && command.args.length !== 0) {
+        if (command.args) {
             const _args = command.args
-            for (const key in _args) {
-                const meta = getCmdArgMetadata(_args[key])
-                for (const k in meta) {
-                    argsDesc.push({
-                        name: k,
-                        ...meta[k]
-                    })
-                }
+            const metaArg = getCmdArgMetadata<any>(_args)
+            for (const key in metaArg) {
+                const arg = metaArg[key]
+                argsDesc.push({
+                    ...arg,
+                    name: key
+                })
             }
         }
 
@@ -181,8 +185,9 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
                 description: command.description,
                 args: argsDesc,
                 next: command.next,
-                prev: command.prev
-            }
+                prev: command.prev,
+                seqBounded: bounded
+            },
         );
     }
     
@@ -335,9 +340,10 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
                 uiCtx: ctx
             })
         } catch(e: any) {
-            if ('success' in e) {
+            if (e && typeof e === 'object' && 'success' in e) {
                 return e as ICmdHandlerExecResult
             }
+            log.error(e)
             return {
                 success: false,
                 text: `Command handling error: ${anyToString(e)}`
@@ -367,7 +373,7 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
                 }
             }
         } catch (e: any) {
-            if ('success' in e) {
+            if (e && typeof e === 'object' && 'success' in e) {
                 return e as ICmdHandlerExecResult
             }
             return {
@@ -437,7 +443,7 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
             userServices.push(serviceInstance)
             serviceInstance.run()
         } catch(e: any) {
-            log.error(`Error starting service ${serviceName}: ${anyToString(e)}`)
+            log.error(`Error starting service ${serviceName}: ${anyToString(e)}`, e)
             return {
                 success: false,
                 text: `Error starting service ${serviceName}: ${anyToString(e)}` 
@@ -482,7 +488,7 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         return ret
     }
 
-    public mapHandlersToUICommands(): IUICommandSimple[] {
+    public mapHandlersToUICommands(): IUICommandProcessed[] {
         let cmd = this.callbacks.keys().toArray()
         const desc = this.callbacks.values().map(v => v.description).toArray()
         const args = this.callbacks.values().map(v => v.args).toArray()
@@ -491,10 +497,17 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
             (_, i) => ({
                 command: cmd[i],
                 description: desc[i],
-                args: args[i]}
-            )
+                args: args[i]
+            })
         )
 
         return registredCmds
+    }
+
+    public debug() {
+        for (const [name, cb] of this.callbacks) {
+            name;
+            console.log(`${name}:`, cb)
+        }
     }
 }

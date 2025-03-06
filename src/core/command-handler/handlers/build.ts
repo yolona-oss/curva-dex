@@ -34,15 +34,16 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
         const manager = await Manager.findOne({ userId })!
 
         const serviceArgCtx: ReadingCtxType[] = ['params', 'config', 'message']
-        const builderArgs: IBuilderCmdArgDesc[] = []
+        const builderArgs: IBuilderCmdArgDesc[] = new Array()
         for (const ctxName of serviceArgCtx) {
             const descriptor: Record<string, BaseCommandArgumentDesc> = service[ctxName === 'message' ? 'receiveMsgDescriptor' : ctxName === 'config' ? 'configDescriptor' : 'paramsDescriptor']()
+            console.log(`Descriptor: ${service.name}:${ctxName}`, JSON.stringify(descriptor, null, 4))
 
             for (const key in descriptor) {
                 const options = descriptor[key].pairOptions ?
                     await exposeCmdArgumentDefOptions(service.name, descriptor[key].pairOptions, cmdHandler, manager as IManager)
                     :
-                    undefined
+                    undefined;
                 builderArgs.push({
                     ...descriptor[key],
                     ctx: ctxName,
@@ -78,9 +79,6 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
             case "function":
                 return this.configureFunctionDesc(command, cb as ICmdCallback<UICtx>, cmdHandler, ctx)
             case "service":
-                if (!('fn' in cb)) {
-                    throw new Error(`configureAs: "service" but no fn in callback`)
-                }
                 const { isActive } = this.getCbConfig(cb, cmdHandler, String(ctx.manager!.userId))
                 return await this.configureServiceDesc(cb.execMixin as ICmdService, userId, cmdHandler, isActive)
         }
@@ -99,6 +97,7 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
                 configureAs, userId, cb, command, cmdHandler, ctx
             )
 
+            console.log(`Build setup ${JSON.stringify(desc, null, 4)}`)
             const res = builder.startBuild(userId, command, desc, ctxs)
 
             return {
@@ -129,6 +128,8 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
     }
 
     public async handle(request: ICmdHandlerRequest<UICtx>): Promise<ICmdHandlerResponce> {
+        console.log("HANDLE", this.constructor.name)
+
         const { command, userId, uiCtx, args, currentCmdHandler } = request
 
         const builder = currentCmdHandler.CommandBuilder

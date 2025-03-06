@@ -17,6 +17,7 @@ export interface ICmdCallback<Ctx> extends Partial<WithNeighbors> {
     execMixin: ICmdMixin<Ctx>
     description: string
     args?: (BaseCommandArgumentDesc&{name: string})[]
+    seqBounded: boolean
 }
 
 export type ICmdHandlerCommand = IUICommandSimple & Partial<WithNeighbors>

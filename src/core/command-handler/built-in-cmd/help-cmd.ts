@@ -1,4 +1,4 @@
-import { CmdArgument, getCmdArgUndefMetadata, IUICommandSimple } from "@core/ui/types/command"
+import { CmdArgument, getCmdArgMetadata, IUICommandSimple } from "@core/ui/types/command"
 import { BuiltInHelpCommandsEnum } from "../constants"
 import { MotherCmdHandler } from "../mother-cmd-handler"
 import { BuiltInCommand } from "../types/built-in-cmd"
@@ -31,7 +31,7 @@ export const uiCommandsToString = (commands: IUICommandSimple[]): string => {
     return commands.map(v => {
         let argsStr: string = ""
         if (v.args) {
-            const meta = getCmdArgUndefMetadata(v.args)
+            const meta = v.args
             for (const key in meta) {
                 const arg = meta[key]
                 argsStr += `${key}: ${arg.description ?? "No description"}\n`
@@ -49,7 +49,6 @@ ${argsStr ? `Args: ${argsStr}\n` : ""}\
 const CommonHelp: BuiltInCommand = {
     command: BuiltInHelpCommandsEnum.HELP_COMMAND,
     description: "List all available commands.",
-    args: {},
     exec: async function(this: MotherCmdHandler<any>, _: string[], ctx) {
         const commands = this.mapHandlersToUICommands()
         const commandsStr = uiCommandsToString(commands)
@@ -75,7 +74,7 @@ class ConcreetHelpArgs {
 const ConcreetHelp: BuiltInCommand = {
     command: BuiltInHelpCommandsEnum.CHELP_COMMAND,
     description: "Print help for concreet command",
-    args: new ConcreetHelpArgs(),
+    args: ConcreetHelpArgs,
     exec: async function(this: MotherCmdHandler<any>, args: string[], ctx) {
         const command = args[0]
 
@@ -85,7 +84,7 @@ const ConcreetHelp: BuiltInCommand = {
             const commandHelpStr = isService ? serviceToString(command, cb) : commonToString(command, cb)
             await ctx.reply(commandHelpStr)
         } catch(e: any) {
-            if ('success' in e) {
+            if (e && typeof e === 'object' && 'success' in e) {
                 await ctx.reply(e.text)
             }
             await ctx.reply(`Unknown error: ${anyToString(e)}`)

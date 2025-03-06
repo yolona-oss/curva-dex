@@ -109,15 +109,17 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
 
     private setTextHandler() {
         this.bot.on("text", async (ctx) => {
-            console.log("TEXT")
+            console.log("#TEXT----------")
             const firstWord = ctx.text?.split(" ")[0]
             const fullText = ctx.text ? ctx.text : ""
             if (
                 firstWord &&
-                    firstWord.startsWith("/") &&
-                    BuiltInTgUICommands.map(c => c.command).includes(firstWord)
+                    firstWord.startsWith("/")
             ) {
                 // deligate to native handler assigned with bot.command
+                console.log("#TEXT--DELIGATE")
+                const asCommand = firstWord.slice(1);
+                await this.handleCmd(asCommand, ctx);
                 return
             }
             try {
@@ -127,7 +129,6 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
                 await ctx.reply(`Internall error: ${anyToString(e)}`);
                 log.error(`Command "${firstWord}" "${ctx.manager.userId}" error: ${anyToString(e)}`, e);
             }
-            console.log("#TEXT----------")
         })
     }
 
@@ -135,16 +136,20 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         commands.forEach(cmd => {
             log.echo(`-- Assigning command: "${chalk.bold(cmd.command)}"`)
             this.bot.command(cmd.command, async (ctx) => {
-                try {
-                    const response = await this.cmdHandler.handleCommand(cmd.command, ctx);
-                    await this.commandResultReply(ctx, response);
-                } catch (e: any) {
-                    await ctx.reply(`Internall error: ${anyToString(e)}`);
-                    log.error(`Command "${cmd.command}" "${ctx.manager.userId}" error: ${anyToString(e)}`, e);
-                }
                 console.log("@COMM----------")
+                await this.handleCmd(cmd.command, ctx);
             });
         })
+    }
+
+    private async handleCmd(cmd: string, ctx: TgContext) {
+        try {
+            const response = await this.cmdHandler.handleCommand(cmd, ctx);
+            await this.commandResultReply(ctx, response);
+        } catch (e: any) {
+            await ctx.reply(`Internall error: ${anyToString(e)}`);
+            log.error(`Command "${cmd}" "${ctx.manager.userId}" error: ${anyToString(e)}`, e);
+        }
     }
 
     private registerTgComands() {
@@ -164,6 +169,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
                 tgCmd.mixin as ICmdMixin<TgContext>
             )
         }
+        return tgCommands
     }
 
     private async setupCommands() {
@@ -175,17 +181,15 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
             throw new Error("TelegemUI::init() command handler not inited")
         }
 
-        const commands = this.cmdHandler.mapHandlersToUICommands();
+        // apply builtin tg commands to cmd handler
+        const tgCommands = this.registerTgComands()
+        const commands = this.cmdHandler.mapHandlersToUICommands().concat(tgCommands.map(cmd => cmd.command))
 
         this.verifyCommands(commands)
         log.echo(`Commands verified ${chalk.green("successfully")}. Total commands: ${chalk.bold(commands.length)}`)
 
-        // assign commands
-        // apply builtin tg commands to cmd handler
-        this.registerTgComands()
-        this.setTextHandler()
-        // apply commands to bot
         this.setCommandHandler(commands)
+        this.setTextHandler()
 
         // assign to autocomplete
         await this.bot.telegram.setMyCommands(commands)

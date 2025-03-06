@@ -181,12 +181,12 @@ export class CommandBuilder {
         const ctx = cur.state.readingCtx
         const readType = cur.state.readingValue
         if (readType === 'name') {
-            const argDesc = cur.descriptor.args.find(arg => arg.name === input)
+            const argDesc = cur.descriptor.args.find(arg => arg.name.toLowerCase() === input.toLowerCase())
             if (!argDesc) {
                 return {
                     done: true,
                     markup: {
-                        text: "Unknown argument name: " + input + ". Exiting...",
+                        text: `Unknown argument name: "${input}". Avalible names(ctx: ${ctx}): ${cur.descriptor.args.filter(arg => arg.ctx === ctx).map(arg => arg.name)}. Exiting...`,
                     }
                 }
             }

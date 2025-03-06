@@ -1,4 +1,4 @@
-import { CmdArgument, COMMAND_ARG_DESC_KEY, getCmdArgMetadata, getCmdArgUndefMetadata } from "@core/ui/types/command";
+import { CmdArgument, COMMAND_ARG_DESC_KEY, getCmdArgMetadata } from "@core/ui/types/command";
 
 @CmdArgument({
     required: false,
@@ -24,6 +24,6 @@ attachMetadata(args,
     { required: false, standalone: false, pairOptions: ["1", "2", "off"], defaultValue: "1", validator: () => true, description: "Session id to restore state from." }
 )
 
-const res = getCmdArgUndefMetadata(args)
+const res = getCmdArgMetadata(args)
 
 console.log(res)

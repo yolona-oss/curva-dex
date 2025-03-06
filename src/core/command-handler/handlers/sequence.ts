@@ -7,6 +7,12 @@ export class HandleSequenceCommand<Ctx extends BaseUIContext> extends AbstractCm
         console.log("HANDLE SEQUENCE CMD")
 
         const { command, userId, currentCmdHandler } = request
+
+        const cb = currentCmdHandler.getCallbackFromCommandName(command)
+        if (!cb.seqBounded) {
+            return await super.handle(request)
+        }
+
         let res
         let err
         const sequenceHandler = currentCmdHandler.SequenceHandler
