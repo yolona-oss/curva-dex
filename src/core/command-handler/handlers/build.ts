@@ -1,5 +1,4 @@
-import { exposeCmdArgumentDefOptions } from "@core/ui/types/command";
-import { BuiltInUICmdArray } from "../built-in-cmd";
+import { BaseCommandArgumentDesc, exposeCmdArgumentDefOptions } from "@core/ui/types/command";
 import { BaseCommandService } from "../command-service";
 import { ICmdCallback, ICmdService, IBuilderCmdDesc, IBuilderCmdArgDesc, ReadingCtxType } from "../types";
 import { AbstractCmdHandler, ICmdHandlerRequest, ICmdHandlerResponce, BaseUIContext } from "./abstract-handler";
@@ -9,26 +8,19 @@ import { MotherCmdHandler } from "../mother-cmd-handler";
 
 // TODO add completion for builtin commands
 
-type ICmdCallbackOrBuiltIn<UICtx extends BaseUIContext> = ICmdCallback<UICtx> | Omit<ICmdCallback<UICtx>, 'fn'>
-
 export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHandler<UICtx> {
 
-    private getCbConfig(cb: ICmdCallbackOrBuiltIn<UICtx>, handler: MotherCmdHandler<UICtx>, userId: string) {
-        let isService = false
-        let isActive = false
-        if ('fn' in cb) {
-            isService = cb.execMixin instanceof BaseCommandService
-            isActive = isService ? handler.isServiceActive(userId, cb.execMixin.name) : false
-        }
+    private getCbConfig(cb: ICmdCallback<UICtx>, handler: MotherCmdHandler<UICtx>, userId: string) {
+        const isService = cb.execMixin instanceof BaseCommandService
+        const isActive = isService ? handler.isServiceActive(userId, cb.execMixin.name) : false
 
         return {
             isService,
             isActive,
-            isBuiltIn: !('fn' in cb)
         }
     }
 
-    private selectCtxs(cb: ICmdCallbackOrBuiltIn<UICtx>, userId: string, handler: MotherCmdHandler<UICtx>): ReadingCtxType[] {
+    private selectCtxs(cb: ICmdCallback<UICtx>, userId: string, handler: MotherCmdHandler<UICtx>): ReadingCtxType[] {
         const { isService, isActive } = this.getCbConfig(cb, handler, userId)
 
         return isService ?
@@ -38,59 +30,29 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
             ['args']
     }
 
-    // TODO: merge all assignin to one loop
     private async configureServiceDesc(service: ICmdService, userId: string, cmdHandler: MotherCmdHandler<UICtx>, isActive: boolean): Promise<IBuilderCmdDesc> {
         const manager = await Manager.findOne({ userId })!
 
-        const cfgServiceDesc = service.configDescriptor()
-        const cfg_args: IBuilderCmdArgDesc[] = []
+        const serviceArgCtx: ReadingCtxType[] = ['params', 'config', 'message']
+        const builderArgs: IBuilderCmdArgDesc[] = []
+        for (const ctxName of serviceArgCtx) {
+            const descriptor: Record<string, BaseCommandArgumentDesc> = service[ctxName === 'message' ? 'receiveMsgDescriptor' : ctxName === 'config' ? 'configDescriptor' : 'paramsDescriptor']()
 
-        for (const key in cfgServiceDesc) {
-            const options = cfgServiceDesc[key]?.pairOptions ?
-                await exposeCmdArgumentDefOptions(service.name, cfgServiceDesc[key].pairOptions, cmdHandler, manager as IManager)
-                :
-                undefined
-            cfg_args.push({
-                ...cfgServiceDesc[key],
-                ctx: 'config',
-                pairOptions: options,
-                name: key,
-            })
-        }
-
-        const paramServiceDesc = service.paramsDescriptor()
-        const params_args: IBuilderCmdArgDesc[] = []
-
-        for (const key in paramServiceDesc) {
-            const options = paramServiceDesc[key].pairOptions ?
-                await exposeCmdArgumentDefOptions(service.name, paramServiceDesc[key].pairOptions, cmdHandler, manager as IManager)
-                :
-                undefined
-            params_args.push({
-                ...paramServiceDesc[key],
-                ctx: 'params',
-                pairOptions: options,
-                name: key
-            })
-        }
-
-        const msgServiceDesc = service.receiveMsgDescriptor()
-        const msg_args: IBuilderCmdArgDesc[] = []
-
-        for (const key in msgServiceDesc) {
-            const options = msgServiceDesc[key].pairOptions ?
-                await exposeCmdArgumentDefOptions(service.name, msgServiceDesc[key].pairOptions, cmdHandler, manager as IManager)
-                :
-                undefined
-            msg_args.push({
-                ...msgServiceDesc[key],
-                ctx: 'message',
-                pairOptions: options,
-                name: key
-            })
+            for (const key in descriptor) {
+                const options = descriptor[key].pairOptions ?
+                    await exposeCmdArgumentDefOptions(service.name, descriptor[key].pairOptions, cmdHandler, manager as IManager)
+                    :
+                    undefined
+                builderArgs.push({
+                    ...descriptor[key],
+                    ctx: ctxName,
+                    pairOptions: options,
+                    name: key
+                })
+            }
         }
         return {
-            args: isActive ? msg_args : params_args.concat(cfg_args)
+            args: isActive ? builderArgs.filter(a => a.ctx === 'message') : builderArgs.filter(a => a.ctx !== 'message')
         }
     }
 
