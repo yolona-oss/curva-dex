@@ -56,65 +56,44 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
         }
     }
 
-    private async configureFunctionDesc(cb: ICmdCallback<UICtx>, cmdHandler: MotherCmdHandler<UICtx>, ctx: UICtx): IBuilderCmdDesc {
-        const commonCbArgs: IBuilderCmdArgDesc[] = cb.args?.map(a => ({
+    private async configureFunctionDesc(command: string, cb: ICmdCallback<UICtx>, cmdHandler: MotherCmdHandler<UICtx>, ctx: UICtx): IBuilderCmdDesc {
+        const commonCbArgs = cb.args?.map(async (a) => ({
             ctx: 'args',
             name: a.name,
             description: a.description,
-            options: a.options ? await exposeCmdArgumentDefOptions(a.options, cmdHandler, ctx.manager as IManager) : undefined,
+            pairOptions: await exposeCmdArgumentDefOptions(command, a.pairOptions, cmdHandler, ctx.manager as IManager),
+            standalone: a.standalone,
             validator: a.validator
         })) ?? []
 
+        const args: IBuilderCmdArgDesc[] = await Promise.all(commonCbArgs)
         return {
-            args: commonCbArgs
-        }
-    }
-
-    private async configureBuiltInDesc(command: string, cmdHandler: MotherCmdHandler<UICtx>, ctx: UICtx): Promise<IBuilderCmdDesc> {
-        return {
-            args: (BuiltInUICmdArray.find(c => c.command === command)?.args ?? []).map(a => ({
-                ctx: 'args',
-                name: a.name,
-                description: a.description,
-                options: a.options ? await exposeCmdArgumentDefOptions(a.options, cmdHandler, ctx.manager as IManager) : undefined,
-                validator: a.validator
-            }))
+            args: args
         }
     }
 
     // TODO set configreAs types in other place and disperce to all code base
-    private async configureDescriptors(configureAs: "function" | "service" | "built-in", userId: string, cb: ICmdCallbackOrBuiltIn<UICtx>, command: string, cmdHandler: MotherCmdHandler<UICtx>, ctx: UICtx): Promise<IBuilderCmdDesc> {
+    private async configureDescriptors(configureAs: "function" | "service", userId: string, cb: ICmdCallback<UICtx>, command: string, cmdHandler: MotherCmdHandler<UICtx>, ctx: UICtx): Promise<IBuilderCmdDesc> {
         switch (configureAs) {
             case "function":
-                return this.configureFunctionDesc(cb as ICmdCallback<UICtx>, cmdHandler, ctx)
+                return this.configureFunctionDesc(command, cb as ICmdCallback<UICtx>, cmdHandler, ctx)
             case "service":
                 if (!('fn' in cb)) {
                     throw new Error(`configureAs: "service" but no fn in callback`)
                 }
                 const { isActive } = this.getCbConfig(cb, cmdHandler, String(ctx.manager!.userId))
                 return await this.configureServiceDesc(cb.execMixin as ICmdService, userId, cmdHandler, isActive)
-            case "built-in":
-                return this.configureBuiltInDesc(command, cmdHandler, ctx)
         }
     }
 
     private async startNewBuild(userId: string, command: string, args: string[], ctx: UICtx, builder: CommandBuilder, cmdHandler: MotherCmdHandler<UICtx>): Promise<ICmdHandlerResponce|void> {
         if (!cmdHandler.isAllArgsPassed(command, args)) {
-            let cb
-
-            if (cmdHandler.isBuiltInCommand(command)) {
-                cb = BuiltInUICmdArray.find(builtInCmd => builtInCmd.command === command) as Omit<ICmdCallback<UICtx>, 'fn'>
-            } else {
-                cb = cmdHandler.getCallbackFromCommandName(command)
-            }
-            const { isService, isBuiltIn } = this.getCbConfig(cb, cmdHandler, userId)
+            const cb = cmdHandler.getCallbackFromCommandName(command)
+            const { isService } = this.getCbConfig(cb, cmdHandler, userId)
             const ctxs = this.selectCtxs(cb, userId, cmdHandler)
 
             const configureAs = isService ?
-                "service" :
-                isBuiltIn ?
-                    "built-in" :
-                    "function"
+                "service" : "function"
 
             let desc: IBuilderCmdDesc = await this.configureDescriptors(
                 configureAs, userId, cb, command, cmdHandler, ctx

@@ -40,13 +40,18 @@ export function CmdArgument(metadata: BaseCommandArgumentDesc) {
     };
 }
 
-export async function exposeCmdArgumentDefOptions<CtxType extends BaseUIContext = any>(cmdName: string, options: CmdArgumentPairOptionsType<CmdArgumentOptionSetter>, handler: MotherCmdHandler<CtxType>, manager: IManager) {
+export async function exposeCmdArgumentDefOptions<CtxType extends BaseUIContext = any>(
+    cmdName: string,
+    options: CmdArgumentPairOptionsType<CmdArgumentOptionSetter>|undefined,
+    handler: MotherCmdHandler<CtxType>,
+    manager: IManager
+) {
     if (options instanceof Function) {
         return await options(cmdName, handler, manager)
     } else if (Array.isArray(options)) {
         return options
     } else {
-        throw new Error("Invalid options type")
+        return undefined
     }
 }
 
