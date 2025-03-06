@@ -1,10 +1,10 @@
 import { getConfig, getInitialConfig } from '@core/config'
-import { AvailableUIsEnum, AvailableUIsType, IUI, mapCommands } from '@core/ui/types';
+import { AvailableUIsEnum, AvailableUIsType, IUI, IUICommandSimple } from '@core/ui/types';
 import { FilesWrapper, Manager } from '@core/db';
-import { IBuilderMarkupOption, ICmdHandlerResponce, ICmdRegisterMany, MotherCmdHandler } from '@core/command-handler';
+import { ICmdBuilderMarkupOption, ICmdHandlerResponce, ICmdMixin, MotherCmdHandler } from '@core/command-handler';
 import { WithInit } from '@core/types/with-init';
 
-import { DefaultTgUICommands } from './constants/commands';
+import { BuiltInTgUICommands } from './constants/commands';
 import { cb_data, actions, stickers } from './constants';
 import { TgContext } from "./types";
 
@@ -87,8 +87,8 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
     }
 
     // NOTE: check text length for each btn and select correct perline for each row(after determine max line len)
-    private createKeyboard(markup: IBuilderMarkupOption[], perLine = 3) {
-        let arr: Array<Array<IBuilderMarkupOption>> = []
+    private createKeyboard(markup: ICmdBuilderMarkupOption[], perLine = 3) {
+        let arr: Array<Array<ICmdBuilderMarkupOption>> = []
         for (let i = 0; i < markup.length; i += perLine) {
             arr.push(
                 markup.slice(i, i + perLine).map(m => 
@@ -107,33 +107,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         }
     }
 
-    private async setupCommands() {
-        if (this.isInitialized()) {
-            throw new Error("TelegemUI::init() already inited")
-        }
-
-        if (!this.cmdHandler.isInitialized()) {
-            throw new Error("TelegemUI::init() command handler not inited")
-        }
-
-        const commands = this.cmdHandler.mapHandlersToUICommands();
-
-        // assign commands
-        commands.forEach(cmd => {
-            log.echo(`-- Assigning command: "${chalk.bold(cmd.command)}"`)
-            this.bot.command(cmd.command, async (ctx) => {
-                try {
-                    const response = await this.cmdHandler.handleCommand(cmd.command, ctx);
-                    await this.commandResultReply(ctx, response);
-                } catch (e: any) {
-                    await ctx.reply(`Internall error: ${anyToString(e)}`);
-                    log.error(`Command "${cmd.command}" "${ctx.manager.userId}" error: ${anyToString(e)}`, e);
-                }
-                console.log("@COMM----------")
-            });
-        })
-
-        // handle builder handler execution
+    private setTextHandler() {
         this.bot.on("text", async (ctx) => {
             console.log("TEXT")
             const firstWord = ctx.text?.split(" ")[0]
@@ -141,7 +115,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
             if (
                 firstWord &&
                     firstWord.startsWith("/") &&
-                    DefaultTgUICommands.map(c => c.command).includes(firstWord)
+                    BuiltInTgUICommands.map(c => c.command).includes(firstWord)
             ) {
                 // deligate to native handler assigned with bot.command
                 return
@@ -155,29 +129,66 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
             }
             console.log("#TEXT----------")
         })
+    }
 
-        const toAssignCmds = mapCommands(DefaultTgUICommands).concat(commands).map(cmd =>
-            ({ command: cmd.command, description: cmd.description })
-        )
+    private setCommandHandler(commands: IUICommandSimple[]) {
+        commands.forEach(cmd => {
+            log.echo(`-- Assigning command: "${chalk.bold(cmd.command)}"`)
+            this.bot.command(cmd.command, async (ctx) => {
+                try {
+                    const response = await this.cmdHandler.handleCommand(cmd.command, ctx);
+                    await this.commandResultReply(ctx, response);
+                } catch (e: any) {
+                    await ctx.reply(`Internall error: ${anyToString(e)}`);
+                    log.error(`Command "${cmd.command}" "${ctx.manager.userId}" error: ${anyToString(e)}`, e);
+                }
+                console.log("@COMM----------")
+            });
+        })
+    }
 
-        this.verifyCommands(toAssignCmds)
-        log.echo(`Commands verified ${chalk.green("successfully")}. Total commands: ${chalk.bold(toAssignCmds.length)}`)
-
-        const maped = DefaultTgUICommands.map(
+    private registerTgComands() {
+        const tgCommands = BuiltInTgUICommands.map(
             cmd => ({
                 command: {
                     command: cmd.command,
                     description: cmd.description,
                     args: cmd.args
                 },
-                mixin: cmd.fn.bind(this)
+                mixin: cmd.exec.bind(this)
             }))
 
-        this.cmdHandler.registerMany(maped as ICmdRegisterMany<TgContext>)
-        this.cmdHandler.done()
+        for (const tgCmd of tgCommands) {
+            this.cmdHandler.unBoundRegister(
+                tgCmd.command,
+                tgCmd.mixin as ICmdMixin<TgContext>
+            )
+        }
+    }
+
+    private async setupCommands() {
+        if (this.isInitialized()) {
+            throw new Error("TelegemUI::init() already inited")
+        }
+
+        if (!this.cmdHandler.isInitialized()) {
+            throw new Error("TelegemUI::init() command handler not inited")
+        }
+
+        const commands = this.cmdHandler.mapHandlersToUICommands();
+
+        this.verifyCommands(commands)
+        log.echo(`Commands verified ${chalk.green("successfully")}. Total commands: ${chalk.bold(commands.length)}`)
+
+        // assign commands
+        // apply builtin tg commands to cmd handler
+        this.registerTgComands()
+        this.setTextHandler()
+        // apply commands to bot
+        this.setCommandHandler(commands)
 
         // assign to autocomplete
-        await this.bot.telegram.setMyCommands(toAssignCmds)
+        await this.bot.telegram.setMyCommands(commands)
 
         this.setInitialized()
     }

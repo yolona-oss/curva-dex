@@ -1,11 +1,11 @@
 import { unique } from "@core/utils/array"
 import {
-    ICommandBuilderMarkup,
-    IBuilderMarkupOption,
+    ICmdBuilderMarkup,
+    ICmdBuilderMarkupOption,
     ICmdBuildingState,
     ICmdBuildResult,
     ICmdBuilderHandleResult,
-    ICommandDescriptor,
+    IBuilderCmdDesc,
     ReadingCtxType
 } from "./types"
 import {
@@ -13,7 +13,7 @@ import {
     defaultBuilderMarkupOptions
 } from "./constants"
 
-function toMarkup(opt: string): IBuilderMarkupOption {
+function toMarkup(opt: string): ICmdBuilderMarkupOption {
     return {
         text: opt,
         callback_data: opt
@@ -62,7 +62,7 @@ export class CommandBuilder {
         }
     }
 
-    startBuild(userId: string, command: string, desc: ICommandDescriptor, contexts: ReadingCtxType[] = ['args']): ICommandBuilderMarkup {
+    startBuild(userId: string, command: string, desc: IBuilderCmdDesc, contexts: ReadingCtxType[] = ['args']): ICmdBuilderMarkup {
         if (this.usersBuildingQueue.has(userId)) {
             throw "User already has active build."
         }
@@ -104,7 +104,7 @@ export class CommandBuilder {
         const { read } = bs.state
 
         for (const darg of bs.descriptor.args) {
-            if (!read.find(arg => arg.name === darg.name && (darg.options ? arg.value != "" && arg.value : true))) {
+            if (!read.find(arg => arg.name === darg.name && (darg.pairOptions ? arg.value != "" && arg.value : true))) {
                 return false
             }
         }
@@ -173,7 +173,7 @@ export class CommandBuilder {
 
         if (input === DefaultBuilderCallbacks.switchCtx) {
             return {
-                done: true,
+                done: false,
                 markup: toSwitchCtxMarkup(cur.avalibleCtxs)
             }
         }
@@ -191,10 +191,10 @@ export class CommandBuilder {
                 }
             }
 
-            let markup: ICommandBuilderMarkup = {
+            let markup: ICmdBuilderMarkup = {
                 text: "",
             }
-            if (!argDesc.options) { // no input
+            if (!argDesc.pairOptions) { // no input
                 cur.state.readingValue = 'name'
                 markup = {
                     text: "Select next:",
@@ -208,7 +208,7 @@ export class CommandBuilder {
                 markup = {
                     text: "Select argument value or type own:",
                     options: [
-                        ...argDesc.options.map(opt => toMarkup(opt)),
+                        ...argDesc.pairOptions.map(opt => toMarkup(opt)),
                         ...defaultBuilderMarkupOptions,
                     ]
                 }

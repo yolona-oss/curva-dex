@@ -1,5 +1,5 @@
 import { BaseUIContext } from "@core/ui"
-import { ICmdRegisterMany } from "@core/command-handler"
+import { ICmdRegisterManyEntry } from "@core/command-handler"
 
 import { TestService } from "./user-services"
 import { PumpFunService,
@@ -7,8 +7,9 @@ import { PumpFunService,
     serviceDescription as pumpServiceDescription,
     serviceArgs as pumpServiceArgs
 } from './pump.fun.service'
+import { CmdArgument } from "@core/ui/types/command"
 
-export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegisterMany<Ctx> {
+export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegisterManyEntry<Ctx> {
     return [
         {
             command: {

@@ -6,6 +6,7 @@ export const BuiltInSeqCommandsEnum = {
 
 export const BuiltInServiceCommandsEnum = {
     STOP_COMMAND: "stop",
+    RUN_COMMAND: "run",
     SEND_MSG_COMMAND: "msg",
 }
 

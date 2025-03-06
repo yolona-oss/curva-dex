@@ -1,7 +1,7 @@
 import { exposeCmdArgumentDefOptions } from "@core/ui/types/command";
 import { BuiltInUICmdArray } from "../built-in-cmd";
 import { BaseCommandService } from "../command-service";
-import { ICmdCallback, ICmdService, ICommandDescriptor, ICommandDescriptorArg, ReadingCtxType } from "../types";
+import { ICmdCallback, ICmdService, IBuilderCmdDesc, IBuilderCmdArgDesc, ReadingCtxType } from "../types";
 import { AbstractCmdHandler, ICmdHandlerRequest, ICmdHandlerResponce, BaseUIContext } from "./abstract-handler";
 import { IManager, Manager } from "@core/db";
 import { CommandBuilder } from "../command-builder";
@@ -17,8 +17,8 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
         let isService = false
         let isActive = false
         if ('fn' in cb) {
-            isService = cb.fn instanceof BaseCommandService
-            isActive = isService ? handler.isServiceActive(userId, cb.fn.name) : false
+            isService = cb.execMixin instanceof BaseCommandService
+            isActive = isService ? handler.isServiceActive(userId, cb.execMixin.name) : false
         }
 
         return {
@@ -39,47 +39,53 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
     }
 
     // TODO: merge all assignin to one loop
-    private async configureServiceDesc(service: ICmdService, userId: string, cmdHandler: MotherCmdHandler<UICtx>, isActive: boolean): Promise<ICommandDescriptor> {
+    private async configureServiceDesc(service: ICmdService, userId: string, cmdHandler: MotherCmdHandler<UICtx>, isActive: boolean): Promise<IBuilderCmdDesc> {
         const manager = await Manager.findOne({ userId })!
 
         const cfgServiceDesc = service.configDescriptor()
-        const cfg_args: ICommandDescriptorArg[] = []
+        const cfg_args: IBuilderCmdArgDesc[] = []
 
         for (const key in cfgServiceDesc) {
-            const options = cfgServiceDesc[key].options ? exposeCmdArgumentDefOptions(cfgServiceDesc[key].options, cmdHandler, manager as IManager) : undefined
-            const validator = cfgServiceDesc[key].validator
+            const options = cfgServiceDesc[key]?.pairOptions ?
+                await exposeCmdArgumentDefOptions(service.name, cfgServiceDesc[key].pairOptions, cmdHandler, manager as IManager)
+                :
+                undefined
             cfg_args.push({
+                ...cfgServiceDesc[key],
                 ctx: 'config',
-                validator,
-                options,
-                name: key
+                pairOptions: options,
+                name: key,
             })
         }
 
         const paramServiceDesc = service.paramsDescriptor()
-        const params_args: ICommandDescriptorArg[] = []
+        const params_args: IBuilderCmdArgDesc[] = []
 
         for (const key in paramServiceDesc) {
-            const options = paramServiceDesc[key].options ? exposeCmdArgumentDefOptions(paramServiceDesc[key].options, cmdHandler, manager as IManager) : undefined
-            const validator = paramServiceDesc[key].validator
+            const options = paramServiceDesc[key].pairOptions ?
+                await exposeCmdArgumentDefOptions(service.name, paramServiceDesc[key].pairOptions, cmdHandler, manager as IManager)
+                :
+                undefined
             params_args.push({
+                ...paramServiceDesc[key],
                 ctx: 'params',
-                validator,
-                options,
+                pairOptions: options,
                 name: key
             })
         }
 
         const msgServiceDesc = service.receiveMsgDescriptor()
-        const msg_args: ICommandDescriptorArg[] = []
+        const msg_args: IBuilderCmdArgDesc[] = []
 
         for (const key in msgServiceDesc) {
-            const options = msgServiceDesc[key].options ? exposeCmdArgumentDefOptions(msgServiceDesc[key].options, cmdHandler, manager as IManager) : undefined
-            const validator = msgServiceDesc[key].validator
+            const options = msgServiceDesc[key].pairOptions ?
+                await exposeCmdArgumentDefOptions(service.name, msgServiceDesc[key].pairOptions, cmdHandler, manager as IManager)
+                :
+                undefined
             msg_args.push({
+                ...msgServiceDesc[key],
                 ctx: 'message',
-                validator,
-                options,
+                pairOptions: options,
                 name: key
             })
         }
@@ -88,12 +94,12 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
         }
     }
 
-    private configureFunctionDesc(cb: ICmdCallback<UICtx>, cmdHandler: MotherCmdHandler<UICtx>, ctx: UICtx): ICommandDescriptor {
-        const commonCbArgs: ICommandDescriptorArg[] = cb.args?.map(a => ({
+    private async configureFunctionDesc(cb: ICmdCallback<UICtx>, cmdHandler: MotherCmdHandler<UICtx>, ctx: UICtx): IBuilderCmdDesc {
+        const commonCbArgs: IBuilderCmdArgDesc[] = cb.args?.map(a => ({
             ctx: 'args',
             name: a.name,
             description: a.description,
-            options: a.options ? exposeCmdArgumentDefOptions(a.options, cmdHandler, ctx.manager as IManager) : undefined,
+            options: a.options ? await exposeCmdArgumentDefOptions(a.options, cmdHandler, ctx.manager as IManager) : undefined,
             validator: a.validator
         })) ?? []
 
@@ -102,20 +108,20 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
         }
     }
 
-    private configureBuiltInDesc(command: string, cmdHandler: MotherCmdHandler<UICtx>, ctx: UICtx): ICommandDescriptor {
+    private async configureBuiltInDesc(command: string, cmdHandler: MotherCmdHandler<UICtx>, ctx: UICtx): Promise<IBuilderCmdDesc> {
         return {
             args: (BuiltInUICmdArray.find(c => c.command === command)?.args ?? []).map(a => ({
                 ctx: 'args',
                 name: a.name,
                 description: a.description,
-                options: a.options ? exposeCmdArgumentDefOptions(a.options, cmdHandler, ctx.manager as IManager) : undefined,
+                options: a.options ? await exposeCmdArgumentDefOptions(a.options, cmdHandler, ctx.manager as IManager) : undefined,
                 validator: a.validator
             }))
         }
     }
 
     // TODO set configreAs types in other place and disperce to all code base
-    private async configureDescriptors(configureAs: "function" | "service" | "built-in", userId: string, cb: ICmdCallbackOrBuiltIn<UICtx>, command: string, cmdHandler: MotherCmdHandler<UICtx>, ctx: UICtx): Promise<ICommandDescriptor> {
+    private async configureDescriptors(configureAs: "function" | "service" | "built-in", userId: string, cb: ICmdCallbackOrBuiltIn<UICtx>, command: string, cmdHandler: MotherCmdHandler<UICtx>, ctx: UICtx): Promise<IBuilderCmdDesc> {
         switch (configureAs) {
             case "function":
                 return this.configureFunctionDesc(cb as ICmdCallback<UICtx>, cmdHandler, ctx)
@@ -124,7 +130,7 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
                     throw new Error(`configureAs: "service" but no fn in callback`)
                 }
                 const { isActive } = this.getCbConfig(cb, cmdHandler, String(ctx.manager!.userId))
-                return await this.configureServiceDesc(cb.fn as ICmdService, userId, cmdHandler, isActive)
+                return await this.configureServiceDesc(cb.execMixin as ICmdService, userId, cmdHandler, isActive)
             case "built-in":
                 return this.configureBuiltInDesc(command, cmdHandler, ctx)
         }
@@ -148,7 +154,7 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
                     "built-in" :
                     "function"
 
-            let desc: ICommandDescriptor = await this.configureDescriptors(
+            let desc: IBuilderCmdDesc = await this.configureDescriptors(
                 configureAs, userId, cb, command, cmdHandler, ctx
             )
 

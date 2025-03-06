@@ -2,31 +2,97 @@ import { BaseCommandService, MotherCmdHandler } from "@core/command-handler"
 import { IManager } from "@core/db"
 import { BaseUIContext } from ".."
 
-type SetterPattern = (...args: any[]) => Promise<string[]>
-export type CmdArgumentOptionSetter = (o: MotherCmdHandler<any>, manager: IManager) => Promise<string[]>
-export type CmdArgumentOptionsType<OptionsSetter extends SetterPattern = CmdArgumentOptionSetter> = string[]|OptionsSetter
+import 'reflect-metadata'
+
+export const COMMAND_ARG_DESC_KEY = Symbol('commandArgDescKey')
 
 // TODO some how create argument selection context for saveing prev selected arg to set next arg in one command.
 //      e.g. for command set variable: set service_123 var1 path_to_some __jopa__. if pipe service name to next option selection we can asses to service config scope.
 
-export interface CmdArgumentDef {
-    name: string
-    optional: boolean
-    optType: "string"|"object"|"number"|"none"
+type SetterPattern = (...args: any[]) => Promise<string[]>
+export type CmdArgumentOptionSetter = (cmdName: string, o: MotherCmdHandler<any>, manager: IManager) => Promise<string[]>
+export type CmdArgumentPairOptionsType<OptionsSetter extends SetterPattern = CmdArgumentOptionSetter> = string[]|OptionsSetter
+
+export interface BaseCommandArgumentDesc {
+    required?: boolean
     description?: string
     validator?: (arg: string) => boolean
-    options?: CmdArgumentOptionsType
+
+    standalone: boolean // mean dont need any option
+    pairOptions?: CmdArgumentPairOptionsType<CmdArgumentOptionSetter>
+    defaultValue?: string
 }
 
-export function exposeCmdArgumentDefOptions<CtxType extends BaseUIContext = any>(options: CmdArgumentOptionsType<any>, handler: MotherCmdHandler<CtxType>, manager: IManager) {
+const CmdArgumentMetaDefaults: Partial<BaseCommandArgumentDesc> = {
+    validator: () => true,
+    required: false,
+    pairOptions: [],
+    description: "Common argument",
+}
+
+export function CmdArgument(metadata: BaseCommandArgumentDesc) {
+    return function (target: any, propertyKey: string) {
+        const defaultsMergeMetadata = {
+            ...CmdArgumentMetaDefaults,
+            ...metadata
+        }
+        Reflect.defineMetadata(COMMAND_ARG_DESC_KEY, defaultsMergeMetadata, target, propertyKey);
+    };
+}
+
+export async function exposeCmdArgumentDefOptions<CtxType extends BaseUIContext = any>(cmdName: string, options: CmdArgumentPairOptionsType<CmdArgumentOptionSetter>, handler: MotherCmdHandler<CtxType>, manager: IManager) {
     if (options instanceof Function) {
-        return options(handler, manager)
+        return await options(cmdName, handler, manager)
     } else if (Array.isArray(options)) {
         return options
     } else {
         throw new Error("Invalid options type")
     }
 }
+
+export type CommandArgumentMetadata<T extends string|number|symbol = string> = Record<T, BaseCommandArgumentDesc>
+export type CommandArgmuentKeyHolder = Record<string, any>
+
+export function getCmdArgMetadata<T extends CommandArgmuentKeyHolder>(instance: T): CommandArgumentMetadata<keyof T> {
+    const metadataMap: Partial<CommandArgumentMetadata<keyof T>> = {};
+
+    // Iterate over all properties of the instance
+    for (const key of Object.keys(instance) as Array<keyof T>) {
+        const metadata = Reflect.getMetadata(COMMAND_ARG_DESC_KEY, instance, key as string);
+        if (metadata) {
+            metadataMap[key] = metadata;
+        }
+    }
+
+    return metadataMap as CommandArgumentMetadata<keyof T>
+}
+
+export function getCmdArgUndefMetadata<T extends CommandArgmuentKeyHolder>(target: T): CommandArgumentMetadata<keyof T> {
+    const metadataMap: Partial<Record<keyof T, BaseCommandArgumentDesc>> = {}
+
+    let currentTarget = target;
+    while (currentTarget !== null && currentTarget !== Object.prototype) {
+        const propertyKeys = Object.getOwnPropertyNames(currentTarget);
+
+        propertyKeys.forEach((propertyKey) => {
+            if (propertyKey === 'constructor' || typeof currentTarget[propertyKey] === 'function') {
+                return;
+            }
+
+            const metadata = Reflect.getMetadata(COMMAND_ARG_DESC_KEY, currentTarget, propertyKey);
+            if (metadata && !metadataMap[propertyKey]) {
+                metadataMap[propertyKey as keyof T] = metadata;
+            }
+        });
+
+        // Move up the prototype chain
+        currentTarget = Object.getPrototypeOf(currentTarget);
+    }
+
+    return metadataMap as CommandArgumentMetadata<keyof T>
+}
+
+export type CommandArgumentDefenition = Record<string, any> // with metadata attachment
 
 /**
  * @description Describes the UI commands mapping
@@ -37,7 +103,7 @@ export function exposeCmdArgumentDefOptions<CtxType extends BaseUIContext = any>
 interface BaseCommand {
     command: string
     description: string
-    args?: CmdArgumentDef[]
+    args?: CommandArgumentDefenition
 }
 
 //export const isArgOptional = (arg: string) => arg.startsWith("?")
@@ -46,7 +112,7 @@ interface BaseCommand {
  * @description Describes the UI commands mapping with execution handler and sequence connections with other commands
  */
 export interface IUICommand<ThisUI, CtxType> extends BaseCommand {
-    fn: (this: ThisUI, args: string[], ctx: CtxType) => Promise<void> | BaseCommandService<any>
+    exec: (this: ThisUI, args: string[], ctx: CtxType) => Promise<void> | BaseCommandService<any>
 
     next?: string[]
     prev?: string

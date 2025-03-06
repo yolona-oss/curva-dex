@@ -15,8 +15,8 @@ import {
 
 import 'reflect-metadata';
 import { BaseServiceConfig, BaseServiceInteractMessages, BaseServiceParameters, ServiceData, toDescriptor } from "./service-data";
-import { IArgMetadataOption } from "./service-metadata";
 import { IServiceSessionData } from "./types";
+import { CommandArgumentMetadata } from "@core/ui/types/command";
 
 interface IBaseCmdService_EvMap<T = string> extends EventMap {
     message: (msg: T) => void,
@@ -26,6 +26,7 @@ interface IBaseCmdService_EvMap<T = string> extends EventMap {
 }
 
 export abstract class BaseCommandService<
+        TSessionData extends IServiceSessionData,
         TConfig extends BaseServiceConfig = BaseServiceConfig,
         TParams extends BaseServiceParameters = BaseServiceParameters,
         TInteractMessages extends BaseServiceInteractMessages = BaseServiceInteractMessages
@@ -38,6 +39,8 @@ export abstract class BaseCommandService<
 
     protected data: ServiceData<TConfig, TParams, TInteractMessages>
 
+    protected session_data: Partial<TSessionData> & IServiceSessionData
+
     constructor(
         protected userId: string, // the user who execute this service
         serviceData: ServiceData<TConfig, TParams, TInteractMessages>,
@@ -45,14 +48,14 @@ export abstract class BaseCommandService<
     ) {
         super()
         this.data = serviceData
+        // TODO: VVVVVVVVVVVVVVVVVVVVVVVVVV HOW TO FIX? VVVVVVVVVVVVVVVVVV
+        this.session_data = CreateDefaultServiceSessionData() as (Partial<TSessionData> & IServiceSessionData)
     }
 
     protected abstract runWrapper(): Promise<void>
     protected abstract terminateWrapper(): Promise<void>
     abstract receiveMsg(msg: string, args: string[]): Promise<void>
-    abstract clone(userId: string, serviceData?: ServiceData, newName?: string): BaseCommandService
-
-    protected session_data: IServiceSessionData = CreateDefaultServiceSessionData()
+    abstract clone(userId: string, serviceData?: ServiceData, newName?: string): BaseCommandService<TSessionData>
 
     sendMsg(msg: string) {
         this.emit("message", msg)
@@ -62,15 +65,15 @@ export abstract class BaseCommandService<
         return `${this.name}-${this.data.params.sessionId}-${this.userId}`
     }
 
-    configDescriptor(): Record<string, IArgMetadataOption> {
+    configDescriptor(): CommandArgumentMetadata<keyof TConfig> {
         return toDescriptor(this.data.config)
     }
 
-    paramsDescriptor(): Record<string, IArgMetadataOption> {
+    paramsDescriptor(): CommandArgumentMetadata<keyof TParams> {
         return toDescriptor(this.data.params)
     }
 
-    receiveMsgDescriptor(): Record<string, IArgMetadataOption> {
+    receiveMsgDescriptor(): CommandArgumentMetadata<keyof TInteractMessages> {
         return toDescriptor(this.data.messages)
     }
 
@@ -116,7 +119,7 @@ export abstract class BaseCommandService<
         const module_session_name = account.extendModuleName(this.name, [this.SessionId, "session_store"])
 
         const accountConfig = await account.getModuleData<typeof this.data.config>(module_name)
-        const accountSessionData = await account.getModuleData<IServiceSessionData>(module_session_name)
+        const accountSessionData = await account.getModuleData<TSessionData>(module_session_name)
         if (accountConfig && !isEmpty(accountConfig)) {
             this.data.config = accountConfig
         } else {
@@ -145,7 +148,7 @@ export abstract class BaseCommandService<
         } else {
             const sessionData = CreateDefaultServiceSessionData()
             await account.setModuleData(module_session_name, "", sessionData)
-            this.session_data = sessionData
+            this.session_data = sessionData as (Partial<TSessionData> & IServiceSessionData)
         }
     }
 

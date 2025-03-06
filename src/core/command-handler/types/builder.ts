@@ -1,4 +1,6 @@
-export interface IBuilderMarkupOption {
+import { BaseCommandArgumentDesc } from "@core/ui/types/command"
+
+export interface ICmdBuilderMarkupOption {
     text: string,
     callback_data: string
 }
@@ -7,27 +9,25 @@ export interface IBuilderMarkupOption {
  * @param text - text to describe current action
  * @param options - list of options to choose from
  */
-export interface ICommandBuilderMarkup {
+export interface ICmdBuilderMarkup {
     text: string
-    options?: IBuilderMarkupOption[]
+    options?: ICmdBuilderMarkupOption[]
 }
 
-export interface ICommandDescriptorArg {
+export interface IBuilderCmdArgDesc extends BaseCommandArgumentDesc {
     ctx: ReadingCtxType,
     name: string,
-    type?: string, // defaulted to string
-    options?: string[], // undefined means no options, zero arr len means user self input
-    validator?: (arg: string) => boolean
+    pairOptions?: string[]
 }
 
-export interface ICommandDescriptor {
-    args: ICommandDescriptorArg[]
+export interface IBuilderCmdDesc {
+    args: IBuilderCmdArgDesc[]
 }
 
 type ReadingValueType = "name" | "value" | "ctx"
 export type ReadingCtxType = "args" | "config" | "params" | "message"
 
-export interface IArgReadResult {
+export interface IBuilderCmdArgReadResult {
     ctx: ReadingCtxType
     name: string
     value: string
@@ -36,11 +36,11 @@ export interface IArgReadResult {
 export interface ICmdBuildingState {
     command: string
     avalibleCtxs: ReadingCtxType[]
-    descriptor: ICommandDescriptor
+    descriptor: IBuilderCmdDesc
     state: {
         readingCtx: ReadingCtxType
         readingValue: ReadingValueType
-        read: IArgReadResult[]
+        read: IBuilderCmdArgReadResult[]
     }
 
     //defaultOptions?: IBuilderMarkupOption[]
@@ -49,12 +49,12 @@ export interface ICmdBuildingState {
 
 export interface ICmdBuildResult {
     command: string
-    args: IArgReadResult[]
+    args: IBuilderCmdArgReadResult[]
 }
 
 export interface ICmdBuilderHandleResult {
     done: boolean
     built?: ICmdBuildResult
     error?: string
-    markup: ICommandBuilderMarkup
+    markup: ICmdBuilderMarkup
 }

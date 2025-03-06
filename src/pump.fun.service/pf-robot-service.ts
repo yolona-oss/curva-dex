@@ -1,4 +1,4 @@
-import { BaseCommandService, IDefaultServiceParametersOpts, IServiceSessionData } from "@core/command-handler";
+import { BaseCommandService, IServiceSessionData } from "@core/command-handler";
 
 import { IPumpFunRobotConfig, defaultCfg } from "./pf-config";
 
@@ -6,20 +6,18 @@ import { PumpFunRobot } from "./pf-robot";
 import { BLANK_USER_ID } from "@core/command-handler";
 import { IMTCStateSave } from "@bots/traider/mtc";
 import { PumpFunAssetType } from "@bots/traider/impl/pump.fun";
-import { CmdArgumentDef, CmdArgumentOptionsType } from "@core/ui/types/command";
-import { genRandomString } from "@core/utils/random";
-import { IExtendedOptsMapEntry, IExtendedOptsMapEntryParsed } from "@core/utils/opts-parser";
 import { BaseServiceInteractMessages, ServiceData } from "@core/command-handler/service-data";
-import { ArgMetadata } from "@core/command-handler/service-metadata";
 
 export const serviceName = 'pump_fun'
 export const serviceDescription = `Customizable servie for the pump.fun dex simulation activity and automated trading by setting a strategy schema.`
 
-export const serviceArgs = []
+export class serviceArgs {
 
-interface IPumpFunRobotParameters extends IDefaultServiceParametersOpts {
-    dryRun?: boolean
 }
+
+//interface IPumpFunRobotParameters extends IDefaultServiceParametersOpts {
+//    dryRun?: boolean
+//}
 
 interface IPFServiceSessionData extends IServiceSessionData {
     state: IPumpFunRobotSessionState
@@ -56,7 +54,7 @@ export const stateTransiteMap: Record<IPumpFunRobotSessionState, IPumpFunRobotSe
 
 export type IPumpFunRobotMessageReceiveType = "pause" | "resume" | "stop" | "sell-all"
 
-export class PumpFunService extends BaseCommandService {
+export class PumpFunService extends BaseCommandService<IPFServiceSessionData, IPumpFunRobotConfig> {
 
     private robot?: PumpFunRobot
 

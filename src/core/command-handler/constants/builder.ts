@@ -1,4 +1,4 @@
-import { IBuilderMarkupOption } from "../types/builder"
+import { ICmdBuilderMarkupOption } from "../types/builder"
 
 export const DefaultBuilderCallbacks = {
     execute: "__execute",
@@ -6,7 +6,7 @@ export const DefaultBuilderCallbacks = {
     switchCtx: "__switchCtx"
 }
 
-export const defaultBuilderMarkupOptions: IBuilderMarkupOption[] = [
+export const defaultBuilderMarkupOptions: ICmdBuilderMarkupOption[] = [
     {
         text: "Execute",
         callback_data: DefaultBuilderCallbacks.execute

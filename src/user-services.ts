@@ -1,42 +1,42 @@
-import { BaseCommandService } from '@core/command-handler'
+import { BaseCommandService, IServiceSessionData } from '@core/command-handler'
 import { BLANK_USER_ID } from '@core/command-handler'
 import { BaseServiceConfig, BaseServiceInteractMessages, BaseServiceParameters, ServiceData } from '@core/command-handler/service-data'
-import { ArgMetadata, getArgUndefMetadata } from '@core/command-handler/service-metadata'
+import { CmdArgument } from '@core/ui/types/command'
 import { genRandomNumberBetweenWithScatter } from '@utils/random'
 import { sleep } from '@utils/time'
 
 const TestServiceName = 'test_service'
 
 class TestServiceInteractMessages extends BaseServiceInteractMessages {
-    @ArgMetadata({
+    @CmdArgument({
         required: false,
         standalone: true,
         description: "Pause service",
     })
     pause?: boolean
 
-    @ArgMetadata({
+    @CmdArgument({
         required: false,
         standalone: true,
         description: "Resume service",
     })
     resume?: boolean
 
-    @ArgMetadata({
+    @CmdArgument({
         required: false,
         standalone: true,
         description: "Stop service",
     })
     stop?: boolean
 
-    @ArgMetadata({
+    @CmdArgument({
         required: false,
         standalone: true,
         description: "Reset service",
     })
     reset?: boolean
 
-    @ArgMetadata({
+    @CmdArgument({
         required: false,
         standalone: false,
         description: "Set max value",
@@ -44,7 +44,11 @@ class TestServiceInteractMessages extends BaseServiceInteractMessages {
     setmax?: number
 }
 
-export class TestService extends BaseCommandService<BaseServiceConfig, BaseServiceParameters, TestServiceInteractMessages> {
+interface TestServiceSessionData extends IServiceSessionData {
+    prev_max?: number
+}
+
+export class TestService extends BaseCommandService<TestServiceSessionData, BaseServiceConfig, BaseServiceParameters, TestServiceInteractMessages> {
     private max = 1000n
     private i = 3n
 
@@ -78,11 +82,12 @@ export class TestService extends BaseCommandService<BaseServiceConfig, BaseServi
         }
     }
 
-    clone(userId: string, serviceData?: ServiceData, newName?: string): BaseCommandService {
+    clone(userId: string, serviceData?: ServiceData, newName?: string): BaseCommandService<TestServiceSessionData> {
         return new TestService(userId, serviceData, newName)
     }
 
     async runWrapper() {
+        this.emit('message', `Start with ${this.i}, target value ${this.max}, prev target: ${this.session_data.prev_max ?? 0}`)
         while (true) {
             if (!super.isRunning()) {
                 break
@@ -99,5 +104,6 @@ export class TestService extends BaseCommandService<BaseServiceConfig, BaseServi
     }
 
     async terminateWrapper() {
+        await this.setSessionDataValue("prev_max", this.max)
     }
 }

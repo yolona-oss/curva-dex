@@ -3,10 +3,10 @@
 import { WithNeighbors } from "@core/types/with-neighbors"
 import { BaseCommandService } from "../command-service"
 import { BaseUIContext, IUICommandSimple } from "@core/ui"
-import { IBuilderMarkupOption } from "./builder"
+import { ICmdBuilderMarkupOption } from "./builder"
 import { MotherCmdHandler } from "../mother-cmd-handler"
 import { Chain, IChainHandler } from "@core/utils/chain"
-import { CmdArgumentDef } from "@core/ui/types/command"
+import { BaseCommandArgumentDesc } from "@core/ui/types/command"
 
 export type ICmdFunction<Ctx> = (args: string[], ctx: Ctx) => Promise<{error?: string}|void>
 export type ICmdService = BaseCommandService<any, any, any>
@@ -14,24 +14,24 @@ export type ICmdService = BaseCommandService<any, any, any>
 export type ICmdMixin<Ctx> = ICmdFunction<Ctx> | ICmdService
 
 export interface ICmdCallback<Ctx> extends Partial<WithNeighbors> {
-    fn: ICmdMixin<Ctx>
+    execMixin: ICmdMixin<Ctx>
     description: string
-    args?: CmdArgumentDef[]
+    args?: (BaseCommandArgumentDesc&{name: string})[]
 }
 
 export type ICmdHandlerCommand = IUICommandSimple & Partial<WithNeighbors>
 
-export interface ICmdRegister<Ctx> {
+export interface ICmdRegisterEntry<Ctx> {
     command: ICmdHandlerCommand,
     mixin: ICmdMixin<Ctx>
 }
 
-export type ICmdRegisterMany<Ctx> = Array<ICmdRegister<Ctx>>
+export type ICmdRegisterManyEntry<Ctx> = Array<ICmdRegisterEntry<Ctx>>
 
 export interface ICmdHandlerExecResult {
     success: boolean
     text?: string
-    markup?: IBuilderMarkupOption[]
+    markup?: ICmdBuilderMarkupOption[]
 }
 
 export type ICmdHandlerResponce = ICmdHandlerExecResult

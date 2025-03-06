@@ -7,9 +7,6 @@ import log from '@utils/logger'
 import { SequenceHandler } from "./sequence-handler";
 import { BaseCommandService } from "./command-service";
 
-import { BuiltInUICmdArray } from './built-in-cmd'
-import { DefaultTgUICommands } from "@core/ui/telegram/constants";
-
 import { Chain } from "@core/utils/chain";
 import {
     ICommandHandlerChain,
@@ -17,23 +14,44 @@ import {
     ICmdHandlerCommand,
     ICmdHandlerExecResult,
     ICmdMixin,
-    ICmdRegisterMany,
-    IArgReadResult,
+    ICmdRegisterManyEntry,
+    IBuilderCmdArgReadResult,
     ICmdService,
     ICmdFunction
 } from "./types";
 import { CommandBuilder } from "./command-builder";
-import { HandleAccountCommand, HandleCallbackExecution, HandleCmdBuilder, HandleHelpCmd, HandleSequenceCommand, HandleServiceCommand } from "./handlers";
-import { isEqual } from "@core/utils/array";
+import { HandleCallbackExecution, HandleCmdBuilder, HandleSequenceCommand } from "./handlers";
+import { isContainsAll, isEqual_Deep } from "@core/utils/array";
 import { anyToString } from "@core/utils/misc";
 import { Account, Manager } from "@core/db";
 import { BLANK_SERVICE_SESSION_ID, MODULE_SESSION_ID_MARK } from "./constants";
+import { ServiceData } from "./service-data";
+import { BaseCommandArgumentDesc, getCmdArgMetadata } from "@core/ui/types/command";
+
+import {
+    SetVariableCommand,
+    GetVariableCommand,
+    RemoveVariableCommand,
+
+    ServiceStopCommand,
+    ServiceRunCommand,
+    ServiceSendMsgCommand,
+
+    NextInSeqCommand,
+    BackInSeqCommand,
+    CancelSeqCommand,
+
+    ConcreetHelp,
+    CommonHelp,
+} from "./built-in-cmd";
+
+import { BuiltInCommandNames, toRegister } from "./built-in-cmd";
 
 // TODO RENAME IT!!!
 export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
     private callbacks: Map<string, ICmdCallback<TContext>> // name -> callback
     private sequenceHandler?: SequenceHandler
-    private activeServices: Map<string, Array<BaseCommandService>> // userId -> services
+    private activeServices: Map<string, Array<BaseCommandService<any>>> // userId -> services
     private cmdBuilder: CommandBuilder
 
     private chain: ICommandHandlerChain<TContext>
@@ -46,14 +64,33 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         this.cmdBuilder = new CommandBuilder()
 
         this.chain.use(new HandleCmdBuilder<TContext>)
-        this.chain.use(new HandleHelpCmd<TContext>)
-        this.chain.use(new HandleAccountCommand<TContext>)
-        this.chain.use(new HandleServiceCommand<TContext>)
         this.chain.use(new HandleSequenceCommand<TContext>)
         this.chain.use(new HandleCallbackExecution<TContext>)
     }
 
     done() {
+        this.registerMany([
+            toRegister(SetVariableCommand),
+            toRegister(RemoveVariableCommand),
+            toRegister(GetVariableCommand),
+
+            toRegister(ServiceStopCommand),
+            toRegister(ServiceRunCommand),
+            toRegister(ServiceSendMsgCommand),
+
+            toRegister(NextInSeqCommand),
+            toRegister(BackInSeqCommand),
+            toRegister(CancelSeqCommand),
+
+            toRegister(ConcreetHelp),
+            toRegister(CommonHelp),
+        ])
+
+        const cbNames = this.callbacks.keys().toArray()
+        if (!isContainsAll(cbNames, BuiltInCommandNames)) {
+            throw new Error("CommandHandler::done() not all built-in commands registered");
+        }
+
         if (!validateWithNeighborsMap(this.callbacks)) {
             throw new Error("CommandHandler::done() invalid callbacks map");
         }
@@ -92,23 +129,57 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         log.echo(" -- All services stopped")
     }
 
-    public registerMany(commands: ICmdRegisterMany<TContext>) {
+    public registerMany(commands: ICmdRegisterManyEntry<TContext>) {
         commands.forEach(cmd => this.register(cmd.command, cmd.mixin))
     }
 
     public register(command: ICmdHandlerCommand, mixin: ICmdMixin<TContext>) {
-        if (command.command in this.callbacks) {
-            throw new Error("CommandHandler.register() command already registered: " + command.command);
+        if (this.isInitialized()) {
+            throw new Error("Not permitted to register command after init");
         }
-        if (BuiltInUICmdArray.map(c => c.command).includes(command.command)) {
-            throw new Error("CommandHandler.register() command already registered as default: " + command.command);
+
+        this.validateCmdName(command.command)
+        this.registerWrapper(command, mixin)
+    }
+
+    /**
+    * @description All command registred with this method not allowed to use in sequence
+    */
+    unBoundRegister(command: ICmdHandlerCommand, mixin: ICmdMixin<TContext>) {
+        this.validateCmdName(command.command)
+        this.registerWrapper(command, mixin)
+    }
+
+    private validateCmdName(command: string) {
+        if (command in this.callbacks) {
+            throw new Error("CommandHandler.register() command already registered: " + command);
         }
+        if (BuiltInCommandNames.includes(command)) {
+            throw new Error("CommandHandler.register() command already registered as default: " + command);
+        }
+    }
+
+    private registerWrapper(command: ICmdHandlerCommand, mixin: ICmdMixin<TContext>) {
+        let argsDesc: (BaseCommandArgumentDesc&{name: string})[] = []
+        if (command.args && command.args.length !== 0) {
+            const _args = command.args
+            for (const key in _args) {
+                const meta = getCmdArgMetadata(_args[key])
+                for (const k in meta) {
+                    argsDesc.push({
+                        name: k,
+                        ...meta[k]
+                    })
+                }
+            }
+        }
+
         this.callbacks.set(
             command.command,
             {
-                fn: mixin,
+                execMixin: mixin,
                 description: command.description,
-                args: command.args,
+                args: argsDesc,
                 next: command.next,
                 prev: command.prev
             }
@@ -127,7 +198,7 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         return this.activeServices
     }
 
-    UserActiveServices(userId: string): Array<BaseCommandService> {
+    UserActiveServices(userId: string): Array<BaseCommandService<any>> {
         const s = this.activeServices.get(userId)
         if (!s) {
             this.activeServices.set(userId, [])
@@ -135,9 +206,21 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         return s!
     }
 
+    RemoveUserAcitveService(userId: string, serviceName: string) {
+        const s = this.activeServices.get(userId)
+        if (!s) {
+            throw `User ${userId} active services store not initialized`
+        }
+        const instance = s.find(serv => serv.name === serviceName)
+        if (!instance) {
+            throw `User ${userId} active service ${serviceName} not found`
+        }
+        s.splice(s.indexOf(instance), 1)
+    }
+
     async UserServiceSessions(userId: string, serviceName: string): Promise<string[]> {
         const cb = this.getCallbackFromCommandName(serviceName)
-        if (cb.fn instanceof Function) {
+        if (cb.execMixin instanceof Function) {
             return []
         } else {
             const blank = BLANK_SERVICE_SESSION_ID
@@ -175,25 +258,19 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         return services.map(s => s.name).includes(serviceName)
     }
 
-    isAllArgsPassed(command: string, args: string[]): boolean {
-        if (this.isBuiltInCommand(command)) {
-            const requiredArgs =  BuiltInUICmdArray.find(c => c.command === command)?.args?.filter(a => !a.optional)
-            if (!requiredArgs || requiredArgs.length === 0) {
-                return true
-            }
-            return isEqual(requiredArgs.map(a => a.name), args)
-        }
-
+    isAllArgsPassed(command: string, passedArgs: string[]): boolean {
         const cmd = this.callbacks.get(command)
         if (!cmd) {
+            log.error(`While processing command "${command}" passed arguments, command not found`)
             return true // maybe dispatch exception?
         }
-        if (cmd.fn instanceof Function) {
+        if (cmd.execMixin instanceof Function || !(cmd.execMixin instanceof BaseCommandService)) {
             if (!cmd.args || cmd.args.length === 0) {
                 return true
             }
-            const requiredArgs = cmd.args.filter(a => !a.optional)
-            return isEqual(requiredArgs.map(a => a.name), args)
+            const requiredArgs = cmd.args.filter(a => a.required)
+            const requiredArgNames = requiredArgs.map(a => a.name)
+            return isEqual_Deep(requiredArgNames, passedArgs)
         } else {
             // services always neet to be configured
             return false
@@ -201,7 +278,7 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
     }
 
     isBuiltInCommand(command: string) {
-        return BuiltInUICmdArray.map(c => c.command).includes(command)
+        return BuiltInCommandNames.includes(command)
     }
 
     getCallbackFromCommandName(command: string): ICmdCallback<TContext> {
@@ -215,9 +292,23 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         return cb as ICmdCallback<TContext>
     }
 
-    public async execute(userId: string, command: string, args: IArgReadResult[], ctx: TContext) {
+    public async terminateService(userId: string, serviceName: string) {
+        if (!this.isServiceActive(userId, serviceName)) {
+            throw `Service ${serviceName} of user ${userId} not active`
+        }
+
+        const services = this.activeServices.get(userId)!
+        try {
+            await services.find(serv => serv.name === serviceName)!.terminate()
+        } catch (e: any) {
+            throw `Service ${serviceName} terminate error: ${anyToString(e)}`
+        }
+        this.RemoveUserAcitveService(userId, serviceName)
+    }
+
+    public async execute(userId: string, command: string, args: IBuilderCmdArgReadResult[], ctx: TContext) {
         const cb = this.getCallbackFromCommandName(command)
-        if (cb.fn instanceof Function) {
+        if (cb.execMixin instanceof Function) {
             return await this.runFunction(userId, command, args, ctx)
         } else {
             return await this.runService(userId, command, args, ctx)
@@ -235,23 +326,35 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
             }
         }
 
-        return await this.chain.handle({
-            currentCmdHandler: this,
-            command: command,
-            userId: String(_userId),
-            args,
-            uiCtx: ctx
-        })
+        try {
+            return await this.chain.handle({
+                currentCmdHandler: this,
+                command: command,
+                userId: String(_userId),
+                args,
+                uiCtx: ctx
+            })
+        } catch(e: any) {
+            if ('success' in e) {
+                return e as ICmdHandlerExecResult
+            }
+            return {
+                success: false,
+                text: `Command handling error: ${anyToString(e)}`
+            }
+        }
     }
 
-    private async runFunction(_: string, command: string, args: IArgReadResult[], ctx: TContext) {
+    private async runFunction(_: string, command: string, args: IBuilderCmdArgReadResult[], ctx: TContext) {
         const cb = this.getCallbackFromCommandName(command)
 
         try {
             const _args = args.filter(a => a.ctx === "args" && a.value).map(a => a.value) as string[]
-            console.log(args)
-            console.log(_args)
-            const res = await (cb.fn as ICmdFunction<TContext>)(_args, ctx)
+            const exec = cb.execMixin as ICmdFunction<TContext>
+            if (this.isBuiltInCommand(command)) {
+                exec.bind(this)
+            }
+            const res = await exec(_args, ctx)
             if (res && res.error) {
                 return {
                     success: false,
@@ -274,7 +377,7 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         }
     }
 
-    private async runService(userId: string, serviceName: string, args: IArgReadResult[], ctx: TContext) {
+    private async runService(userId: string, serviceName: string, args: IBuilderCmdArgReadResult[], ctx: TContext) {
         if (this.isServiceActive(userId, serviceName)) {
             return {
                 success: false,
@@ -283,13 +386,13 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         }
 
         const cb = this.getCallbackFromCommandName(serviceName)
-        if (!cb || (cb.fn instanceof Function)) {
+        if (!cb || (cb.execMixin instanceof Function)) {
             return {
                 success: false,
                 text: `Service ${serviceName} not found.`
             }
         }
-        const exe = cb.fn as ICmdService
+        const exe = cb.execMixin as ICmdService
 
         const _conf = args.filter(a => a.ctx === 'config')
         let conf = {}
@@ -298,14 +401,19 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         }
 
         const _params = args.filter(a => a.ctx === "params")
-        const params = []
+        let params = {}
         for (const p of _params) {
-            params.push(p.name)
-            if (p.value) {
-                params.push(p.value)
-            }
+            params = Object.assign(conf, { [p.name]: p.value })
         }
-        const serviceInstance = exe.clone(userId, params, conf)
+
+        const _msgs = args.filter(a => a.ctx === "message")
+        let messages = {}
+        for (const m of _msgs) {
+            messages = Object.assign(conf, { [m.name]: m.value })
+        }
+
+        new ServiceData(conf as any, params as any, messages as any)
+        const serviceInstance = exe.clone(userId, undefined)
 
         const userServices = this.UserActiveServices(userId)
 
@@ -346,6 +454,34 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         return splited.slice(1)
     }
 
+    public isService(name: string): boolean {
+        const cb = this.getCallbackFromCommandName(name)
+        if (!cb) {
+            return false
+        }
+        return cb.execMixin instanceof BaseCommandService
+    }
+
+    public getRegistredServiceNames(): string[] {
+        let ret: string[] = []
+        this.callbacks.forEach((v) => {
+            if (v.execMixin instanceof BaseCommandService) {
+                ret.push(v.execMixin.name)
+            }
+        })
+        return ret
+    }
+
+    public getRegistredCommandNames(): string[] {
+        let ret: string[] = []
+        this.callbacks.forEach((v) => {
+            if (v.execMixin instanceof Function) {
+                ret.push(v.execMixin.name)
+            }
+        })
+        return ret
+    }
+
     public mapHandlersToUICommands(): IUICommandSimple[] {
         let cmd = this.callbacks.keys().toArray()
         const desc = this.callbacks.values().map(v => v.description).toArray()
@@ -359,6 +495,6 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
             )
         )
 
-        return BuiltInUICmdArray.concat(registredCmds).concat(DefaultTgUICommands)
+        return registredCmds
     }
 }

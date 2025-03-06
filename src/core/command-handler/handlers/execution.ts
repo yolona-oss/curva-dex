@@ -18,13 +18,13 @@ export class HandleCallbackExecution<Ctx extends BaseUIContext> extends Abstract
                 currentCmdHandler.ActiveServices.set(userId, [])
             }
 
-            if (typeof cb.fn === 'function') { // simple command
-                const res = await cb.fn(args, uiCtx)
+            if (typeof cb.execMixin === 'function') { // simple command
+                const res = await cb.execMixin(args, uiCtx)
                 return {
                     success: res?.error ? false : true,
                     text: res?.error ?? undefined
                 }
-            } else if (cb.fn) { // service exe command
+            } else if (cb.execMixin) { // service exe command
                 //const serviceName = cb.fn.name
                 const serviceName = command
 
@@ -35,7 +35,7 @@ export class HandleCallbackExecution<Ctx extends BaseUIContext> extends Abstract
                     }
                 }
 
-                const serviceInstance = cb.fn.clone(userId)
+                const serviceInstance = cb.execMixin.clone(userId)
 
                 serviceInstance.on("message", async (message: string) => {
                     await uiCtx.reply(message)

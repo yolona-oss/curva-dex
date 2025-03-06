@@ -1,15 +1,10 @@
-export interface IDefaultServiceParametersOpts {
-    '--session-id': string
-    '-s': string
-}
-
-/**
- * key - msg-name
- * value - args one-word description
- */
-export type IReceiveMsgArgs = Record<string, string[]|undefined>
-
-export type IReceiveMsgArgsDef = Record<string, string[]|undefined>
+///**
+// * key - msg-name
+// * value - args one-word description
+// */
+//export type IReceiveMsgArgs = Record<string, string[]|undefined>
+//
+//export type IReceiveMsgArgsDef = Record<string, string[]|undefined>
 
 export interface IServiceSessionData {
     createTime: number
