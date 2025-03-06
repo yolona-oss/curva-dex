@@ -12,7 +12,7 @@ import log from '@utils/logger'
 import find from "find-process";
 import mongoose from "mongoose";
 import { configDotenv } from "dotenv";
-import { sleep } from "@utils/time";
+//import { sleep } from "@utils/time";
 
 configDotenv({
     path: '.env'
@@ -105,9 +105,9 @@ export abstract class Application<CtxType extends BaseUIContext> extends WithIni
 
         this._isRunning = true
 
-        while (this.isRunning()) {
-            await sleep(1000)
-        }
+        //while (this.isRunning()) {
+        //    await sleep(1000)
+        //}
     }
 
     async terminate() {

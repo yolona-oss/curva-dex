@@ -37,10 +37,21 @@ export class AppCmdhub extends Application<BaseUIContext> {
         }
 
         super("cmdhub", selected_ui)
-        //this.printBanner()
+    }
+
+    private printCommands() {
+        if (!getInitialConfig().show_commands) {
+            return
+        }
+
+        this.ui.printCommands()
     }
 
     private printBanner() {
+        if (!getInitialConfig().show_logo) {
+            return
+        }
+
         function printLogo() {
             for (const line of FIGLET_LOGO) {
                 for (const ch of line) {
@@ -58,13 +69,23 @@ export class AppCmdhub extends Application<BaseUIContext> {
 
         log.echo(`Initializing Application with UI: ${this.ui.ContextType()}...`)
 
-        //log.echo("Creating lock file for UI...")
-        //const locked = this.ui.lock(this.lockManager)
-        //if (!locked) {
-        //    log.error("Application with same UI already running")
-        //    process.exit(-1)
-        //}
+        log.echo("Creating lock file for UI...")
+        const locked = this.ui.lock(this.lockManager)
+        if (!locked) {
+            log.error("Application with same UI already running")
+            process.exit(-1)
+        }
 
         super.setInitialized()
+    }
+
+    async run(): Promise<void> {
+        await super.run()
+
+        if (getInitialConfig().dev_mode) {
+            return
+        }
+        this.printBanner()
+        this.printCommands()
     }
 }

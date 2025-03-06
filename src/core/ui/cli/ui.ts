@@ -35,6 +35,10 @@ export class CLIUI extends WithInit implements IUI<CLIContext> {
         this.setInitialized()
     }
 
+    printCommands(): void {
+        console.log(this.cmds)
+    }
+
     lock(_: LockManager): boolean {
         return true
     }

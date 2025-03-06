@@ -9,6 +9,8 @@ export interface IUI<CtxType extends BaseUIContext> extends IRunnable, WithInit 
     readonly cmdHandler: MotherCmdHandler<CtxType>
 
     ContextType(): AvailableUIsType
+    
+    printCommands(): void
 
     lock(lockManager: LockManager): boolean
     unlock(lockManager: LockManager): boolean

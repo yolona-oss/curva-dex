@@ -15,6 +15,7 @@ import crypto from 'crypto'
 import * as telegraf from 'telegraf'
 import chalk from 'chalk';
 import { anyToString } from '@core/utils/misc';
+import { IUICommandProcessed } from '../types/command';
 
 export class TelegramUI extends WithInit implements IUI<TgContext> {
     public readonly bot: telegraf.Telegraf<TgContext>
@@ -48,6 +49,15 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
 
     isRunning(): boolean {
         return this.isActive;
+    }
+
+    printCommands(): void {
+        for (const cmd of this.cmdHandler.mapHandlersToUICommands()) {
+            cmd;
+            //console.log(`${cmd.command} - ${cmd.description}`);
+            //cmd.args && cmd.args.length ? console.log(cmd.args) : void 0;
+            //console.log()
+        }
     }
 
     private async setupMiddleware() {
@@ -183,7 +193,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
 
         // apply builtin tg commands to cmd handler
         const tgCommands = this.registerTgComands()
-        const commands = this.cmdHandler.mapHandlersToUICommands().concat(tgCommands.map(cmd => cmd.command))
+        const commands = this.cmdHandler.mapHandlersToUICommands().concat(tgCommands.map(cmd => cmd.command) as IUICommandProcessed[])
 
         this.verifyCommands(commands)
         log.echo(`Commands verified ${chalk.green("successfully")}. Total commands: ${chalk.bold(commands.length)}`)

@@ -1,5 +1,5 @@
 import * as fs from 'fs'
-import { min, pattern, Infer, assert, object, number, string } from 'superstruct'
+import { min, pattern, Infer, assert, object, number, string, boolean } from 'superstruct'
 import { readFileSync } from 'fs'
 import log from '@utils/logger'
 import { main_config_path } from '@core/constants/path'
@@ -31,6 +31,10 @@ function parseConfig() {
 }
 
 const ConfigSign = object({
+    show_logo: boolean(),
+    show_commands: boolean(),
+    dev_mode: boolean(),
+
     bot: object({
         token: pattern(string(), /^[0-9]{8,10}:[a-zA-Z0-9_-]{35}$/),
         admin_id: number(),
@@ -62,6 +66,10 @@ const ConfigSign = object({
 })
 
 const EMPTY_CONFIG: ConfigType = {
+    show_logo: true,
+    show_commands: true,
+    dev_mode: false,
+
     bot: {
         token: "",
         admin_id: 0,
@@ -161,6 +169,10 @@ export async function createConfigIfNotExists() {
         const log_level = await askPrompt("Log level: ", (v) => Boolean(v.match(/^(trace|debug|info|warn|error)$/)), "trace"); // trace, debug, info, warn, error
 
         const user_config = {
+            show_logo: true,
+            show_commands: true,
+            dev_mode: false,
+
             bot: {
                 token: bot_token,
                 admin_id,
