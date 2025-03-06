@@ -17,9 +17,10 @@ const logFileName = "./.log/" +
 
 type ExtendedLog = {
     (...arg: any[]): void,
-    echo:  (...arg: any[]) => void
+    info:  (...arg: any[]) => void
     error: (...arg: any[]) => void
     warn: (...arg: any[]) => void
+    debug: (...arg: any[]) => void
     trace: (...arg: any[]) => void
     lineSep: (symbol?: string) => void
 }
@@ -48,7 +49,7 @@ log.warn = function(...arg: any[]) {
     console.warn(logTime() + ':' + '[' + chalk.yellow('WW') + '] ->', ...arg)
 }
 
-log.echo = function(...arg: any[]) {
+log.info = function(...arg: any[]) {
     log(...arg)
     console.log(logTime() + ':' + '[' + chalk.blue('II') + '] ->', ...arg)
 }

@@ -105,7 +105,7 @@ const EMPTY_CONFIG: ConfigType = {
 
 export async function createConfigIfNotExists() {
     if (!fs.existsSync(main_config_path)) {
-        log.echo("Creating config with default params")
+        log.info("Creating config with default params")
 
         function askPrompt<T extends string|number = string>(
             question: string,

@@ -34,11 +34,11 @@ export abstract class Application<CtxType extends BaseUIContext> extends WithIni
         this.ui = ui
         this.id = name
         process.on("SIGINT", async () => {
-            log.echo("SIGINT received. Terminating...")
+            log.info("SIGINT received. Terminating...")
             await this.terminate()
         });
         process.on("SIGTERM", async () => {
-            log.echo("SIGINT received. Terminating...")
+            log.info("SIGINT received. Terminating...")
             await this.terminate()
         });
     }
@@ -51,7 +51,7 @@ export abstract class Application<CtxType extends BaseUIContext> extends WithIni
         try {
             await createConfigIfNotExists()
 
-            log.echo("Application::setup() checking lock...")
+            log.info("Application::setup() checking lock...")
             await this.lockApp()
 
             const plzkillme = await getConfig()
@@ -93,10 +93,10 @@ export abstract class Application<CtxType extends BaseUIContext> extends WithIni
         }
 
         try {
-            log.echo("Application::run() ui running...")
+            log.info("Application::run() ui running...")
             await this.ui.run()
 
-            log.echo("Application::run() processing...")
+            log.info("Application::run() processing...")
         } catch (e: any) {
             log.error("Application::run() failed ui start:", e);
             log.error("Forse terminating.")
@@ -114,9 +114,9 @@ export abstract class Application<CtxType extends BaseUIContext> extends WithIni
         if (this.ui.isRunning()) {
             await this.ui.terminate()
         } else {
-            log.echo("Application::terminate() UI not running")
+            log.info("Application::terminate() UI not running")
         }
-        log.echo("Application::terminate() cleanup lock files...")
+        log.info("Application::terminate() cleanup lock files...")
         this.lockManager.cleanupAll()
         await mongoose.disconnect()
         this._isRunning = false

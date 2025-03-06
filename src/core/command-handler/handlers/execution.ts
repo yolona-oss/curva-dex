@@ -47,10 +47,10 @@ export class HandleCallbackExecution<Ctx extends BaseUIContext> extends Abstract
                         return
                     }
                     services.splice(services!.map(serv => serv.name).indexOf(serviceName), 1)
-                    log.echo("-- Service done: " + serviceName)
+                    log.info("-- Service done: " + serviceName)
                     await uiCtx.reply(`Service ${serviceName} done. ${msg}`)
                 })
-                log.echo("-- Starting service: " + serviceInstance.name)
+                log.info("-- Starting service: " + serviceInstance.name)
 
                 await serviceInstance.Initialize()
                 userServices!.push(serviceInstance)

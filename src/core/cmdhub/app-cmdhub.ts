@@ -22,7 +22,7 @@ export class AppCmdhub extends Application<BaseUIContext> {
             process.exit(-1)
         }
         
-        log.echo("Initializing UI...")
+        log.info("Initializing UI...")
         let selected_ui: IUI<any>
         switch (ui_name) {
             case "telegram":
@@ -67,9 +67,9 @@ export class AppCmdhub extends Application<BaseUIContext> {
     async Initialize(): Promise<void> {
         await super.Initialize()
 
-        log.echo(`Initializing Application with UI: ${this.ui.ContextType()}...`)
+        log.info(`Initializing Application with UI: ${this.ui.ContextType()}...`)
 
-        log.echo("Creating lock file for UI...")
+        log.info("Creating lock file for UI...")
         const locked = this.ui.lock(this.lockManager)
         if (!locked) {
             log.error("Application with same UI already running")

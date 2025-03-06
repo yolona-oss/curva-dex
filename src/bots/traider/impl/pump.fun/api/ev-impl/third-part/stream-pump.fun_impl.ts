@@ -41,7 +41,7 @@ export class PumpFunApi_PFStreamImpl extends BasePumpFunApi {
             PumpFunApi_PFStreamImpl.isSocketInited = true
             PumpFunApi_PFStreamImpl.pf_socket.onopen = () => {
                 PumpFunApi_PFStreamImpl.pf_socket.send("40")
-                log.echo("Socket open")
+                log.info("Socket open")
             }
             PumpFunApi_PFStreamImpl.pf_socket.onclose = (e) => {
                 if (e.code == 1000) return
@@ -74,7 +74,7 @@ export class PumpFunApi_PFStreamImpl extends BasePumpFunApi {
                     }
                     if (toParse != "") {
                         const session_data = JSON.parse(toParse) as SessionSetup
-                        log.echo(session_data)
+                        log.info(session_data)
                         return
                     }
 

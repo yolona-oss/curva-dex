@@ -340,7 +340,7 @@ export abstract class MasterTraderCtrl<
         if (del.length !== 1) {
             throw new Error(`MasterTraderCtrl::removeSlave() slave with id: "${slave.id}" not found`)
         }
-        log.echo(`MasterTraderCtrl::removeSlave() removed slave ${slave.id}`)
+        log.info(`MasterTraderCtrl::removeSlave() removed slave ${slave.id}`)
     }
 
     public async removeSlaveByWallet(wallet: IDEXWallet) {
@@ -350,7 +350,7 @@ export abstract class MasterTraderCtrl<
             await slaveToRemove.shutdown()
 
             this.slaves = this.slaves.filter(s => s.id !== searchId)
-            log.echo(`MasterTraderCtrl::removeSlave() removed slave ${searchId}`)
+            log.info(`MasterTraderCtrl::removeSlave() removed slave ${searchId}`)
         } else {
             log.error(`MasterTraderCtrl::removeSlave() slave with pubKey: "${wallet.publicKey}" not found`)
         }

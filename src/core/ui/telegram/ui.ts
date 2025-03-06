@@ -74,7 +74,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
                     return next();
                 }
             }
-            log.echo(cb_data.approveRequest + " " + ctx.from!.id)
+            log.info(cb_data.approveRequest + " " + ctx.from!.id)
             const botName = (await getConfig()).bot.name
             await ctx.replyWithMarkdownV2(`Welcome to ${botName}. To start using bot you need to be aproved by bot administrator.\n" +
 "Click on button for send approve request`,
@@ -144,7 +144,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
 
     private setCommandHandler(commands: IUICommandSimple[]) {
         commands.forEach(cmd => {
-            log.echo(`-- Assigning command: "${chalk.bold(cmd.command)}"`)
+            log.info(`-- Assigning command: "${chalk.bold(cmd.command)}"`)
             this.bot.command(cmd.command, async (ctx) => {
                 console.log("@COMM----------")
                 await this.handleCmd(cmd.command, ctx);
@@ -196,7 +196,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         const commands = this.cmdHandler.mapHandlersToUICommands().concat(tgCommands.map(cmd => cmd.command) as IUICommandProcessed[])
 
         this.verifyCommands(commands)
-        log.echo(`Commands verified ${chalk.green("successfully")}. Total commands: ${chalk.bold(commands.length)}`)
+        log.info(`Commands verified ${chalk.green("successfully")}. Total commands: ${chalk.bold(commands.length)}`)
 
         this.setCommandHandler(commands)
         this.setTextHandler()
@@ -255,7 +255,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
             let adminExisted = true;
             let admin = await Manager.findOne({ userId: Config.bot.admin_id })
             if (!admin) {
-                log.echo("Creating admin...")
+                log.info("Creating admin...")
                 adminExisted = false;
                 const defaultAvatar = await FilesWrapper.getDefaultAvatar()
                 if (!defaultAvatar) {
@@ -270,12 +270,12 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
                     useGreeting: true
                 })
             }
-            log.echo("Starting Telegram-bot service...")
+            log.info("Starting Telegram-bot service...")
             this.bot.launch(() => {
-                log.echo("Telegram-bot service launched!")
+                log.info("Telegram-bot service launched!")
             });
             if (adminExisted) {
-                log.echo("Sending welcome message to admins...")
+                log.info("Sending welcome message to admins...")
                 for (let manager of await Manager.find()) {
                     if (!manager.useGreeting) {
                         continue
@@ -284,7 +284,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
                     this.bot.telegram.sendSticker(manager.userId, stickers.happy);
                 }
             }
-            log.echo("** Telegram-bot service started");
+            log.info("** Telegram-bot service started");
         } catch(e) {
             throw new Error("TelegemUI::run() " + e);
         }
@@ -305,7 +305,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         }
         await this.cmdHandler.stop()
         this.bot.stop();
-        log.echo("** Telegram ui stopped");
+        log.info("** Telegram ui stopped");
     }
 
     private async notifyManagers(id: string|number, msg: string, stiker?: string) {

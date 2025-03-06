@@ -93,7 +93,7 @@ export class CLIUI extends WithInit implements IUI<CLIContext> {
             }
         });
 
-        log.echo("Starting CLI...")
+        log.info("Starting CLI...")
 
         this.rl.on('line', async (line) => {
             this.context.text = line;
@@ -118,6 +118,6 @@ export class CLIUI extends WithInit implements IUI<CLIContext> {
         }
         await this.cmdHandler.stop()
         this.isActive = false
-        log.echo(" -- CLI ui stopped");
+        log.info(" -- CLI ui stopped");
     }
 }

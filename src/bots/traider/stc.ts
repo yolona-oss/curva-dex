@@ -207,17 +207,17 @@ export abstract class SlaveTraderCtrl<
         }
 
         if (this.sequalizer && this.sequalizer.isRunning()) {
-            log.echo(`SlaveTraderCtrl::shutdown() removing queue for ${this.id}`)
+            log.info(`SlaveTraderCtrl::shutdown() removing queue for ${this.id}`)
             const { removed, kept } = this.sequalizer!.filterQueue(
                 t => t.id.includes(this.id))
-            log.echo(`SlaveTraderCtrl::shutdown() removed ${removed.length} tasks for ${this.id}`)
-            log.echo(`SlaveTraderCtrl::shutdown() kept ${kept.length} tasks for ${this.id}`)
+            log.info(`SlaveTraderCtrl::shutdown() removed ${removed.length} tasks for ${this.id}`)
+            log.info(`SlaveTraderCtrl::shutdown() kept ${kept.length} tasks for ${this.id}`)
 
             const success = await this.sequalizer.waitTasksWithIdMatch(this.id)
 
-            log.echo(`SlaveTraderCtrl::shutdown() awaited all tasks for ${this.id}. Await success: ${success}`)
+            log.info(`SlaveTraderCtrl::shutdown() awaited all tasks for ${this.id}. Await success: ${success}`)
         }
-        log.echo(`SlaveTraderCtrl::shutdown() saving metrics with trades count: ${this._metrics.Trades.length} for ${this.id}`)
+        log.info(`SlaveTraderCtrl::shutdown() saving metrics with trades count: ${this._metrics.Trades.length} for ${this.id}`)
         //this.saveMetrics()
     }
 

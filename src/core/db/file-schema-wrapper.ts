@@ -62,9 +62,9 @@ class Files {
                 "assets",
                 "manager-icon.png")
             if (!fs.existsSync(ico_path)) {
-                log.echo("Files::constructor() copying default manager icon...")
+                log.info("Files::constructor() copying default manager icon...")
                 if (!fs.existsSync(path.dirname(ico_path))) {
-                    log.echo("Files::copyDefaults() creating default manager icon directory...")
+                    log.info("Files::copyDefaults() creating default manager icon directory...")
                     fs.mkdirSync(path.dirname(ico_path), { recursive: true })
                 }
                 fs.copyFileSync(ico_static_path, ico_path)

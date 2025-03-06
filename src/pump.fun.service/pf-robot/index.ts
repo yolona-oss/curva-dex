@@ -233,10 +233,10 @@ export class PumpFunRobot extends (EventEmitter as new () => TypedEventEmitter<I
             for (const slave of slaves) {
                 const balance = await this.impl.walletManager.balance(slave.Wallet)
                 const nativeBalance = this.impl.walletManager.nativeCurrencyBalance(balance)!.amount
-                log.echo(`Slave ${slave.id} balance: ${nativeBalance}lamports\t${Number(nativeBalance)/LAMPORTS_PER_SOL}sol`)
+                log.info(`Slave ${slave.id} balance: ${nativeBalance}lamports\t${Number(nativeBalance)/LAMPORTS_PER_SOL}sol`)
 
                 const assets = balance.find(b => b.mint == this.config.targetAsset.mint)!.amount
-                log.echo(`Slave ${slave.id} asset balance:`, assets)
+                log.info(`Slave ${slave.id} asset balance:`, assets)
 
                 const spent = nativeBalance - BigInt(balanceRestSol)*BigInt(LAMPORTS_PER_SOL)
                 wait_ids.push(
@@ -254,7 +254,7 @@ export class PumpFunRobot extends (EventEmitter as new () => TypedEventEmitter<I
         const holders = this.slavesDict.hodlers
         const traiders = this.slavesDict.traiders
 
-        log.echo(`Initial buy for ${holders.length} holders and ${traiders.length} traiders`)
+        log.info(`Initial buy for ${holders.length} holders and ${traiders.length} traiders`)
         const holders_wait_ids = await __initBuy(holders,
             this.config.holders.resetAmountSol + this.config.globalBalance.restAmountSol)
         // REMOVED due to current version only supports volatile trades from tmp accounts

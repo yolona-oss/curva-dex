@@ -30,7 +30,7 @@ export class PumpFunMaster extends MasterTraderCtrl<PumpFunApi, PumpFunAssetType
         )
 
         if (asset.mint != BLANK_MINT_PREFIX) {
-            log.echo(`PumpFunMaster subscribing to ${asset.mint}`)
+            log.info(`PumpFunMaster subscribing to ${asset.mint}`)
             this.tradeApi.subscribeToAssetTrades(asset.mint, this.onTrade.bind(this))
         }
     }

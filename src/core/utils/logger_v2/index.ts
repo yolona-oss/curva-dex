@@ -9,7 +9,7 @@ export class Logger {
     ) { }
 
     public log(message: string) {
-        log.echo(`${this.bindingName}: ${message}`)
+        log.info(`${this.bindingName}: ${message}`)
     }
 
 }

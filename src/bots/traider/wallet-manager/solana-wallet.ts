@@ -164,7 +164,7 @@ export class SolanaWalletManager extends BaseWalletManager {
                     [srcWallet]
                 );
                 await this.connection.confirmTransaction(signature);
-                log.echo(`sign: ${signature} <|> Distributed ${amount} lamports to ${dst.publicKey}`)
+                log.info(`sign: ${signature} <|> Distributed ${amount} lamports to ${dst.publicKey}`)
                 return
             } catch (err: any) {
                 if (attempt === retries - 1) throw err;

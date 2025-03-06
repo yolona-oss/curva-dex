@@ -119,19 +119,19 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
 
     async stop() {
         for (const [userId, services] of this.activeServices) {
-            log.echo(" -- Stoping services for user: " + userId)
+            log.info(" -- Stoping services for user: " + userId)
             const terminatePromises = []
             for (const s of services) {
-                log.echo("  -- terminating service: " + s.name)
+                log.info("  -- terminating service: " + s.name)
                 await s.terminate()
                 terminatePromises.push(
                     new Promise(resolve => s.on("done", resolve))
                 )
             }
             await Promise.all(terminatePromises)
-            log.echo("  -- All services for user: " + userId + " stopped")
+            log.info("  -- All services for user: " + userId + " stopped")
         }
-        log.echo(" -- All services stopped")
+        log.info(" -- All services stopped")
     }
 
     public registerMany(commands: ICmdRegisterManyEntry<TContext>) {
@@ -433,10 +433,10 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
                 return
             }
             services.splice(services!.map(serv => serv.name).indexOf(serviceName), 1)
-            log.echo("-- Service done: " + serviceName)
+            log.info("-- Service done: " + serviceName)
             await ctx.reply(`Service ${serviceName} done. ${msg}`)
         })
-        log.echo("-- Starting service: " + serviceInstance.name)
+        log.info("-- Starting service: " + serviceInstance.name)
 
         try {
             await serviceInstance.Initialize()

@@ -22,7 +22,7 @@ export class SolanaProvider {
     private static instance: SolanaProvider
 
     private constructor() {
-        log.echo("SolanaProvider initialized with rpc end point: " + RPC_END_POINT)
+        log.info("SolanaProvider initialized with rpc end point: " + RPC_END_POINT)
         this.conn = new Connection(RPC_END_POINT, {
             commitment: DEFAULT_COMMITMENT,
             disableRetryOnRateLimit: false,
@@ -30,7 +30,7 @@ export class SolanaProvider {
             confirmTransactionInitialTimeout: CONFIRM_TRANSACTION_INITIAL_TIMEOUT
         });
         this.dummy_wallet = new NodeWallet(new Keypair())
-        log.echo("SolanaProvider initialized with dummy wallet: " + this.dummy_wallet.publicKey.toBase58())
+        log.info("SolanaProvider initialized with dummy wallet: " + this.dummy_wallet.publicKey.toBase58())
         //this.provider = new AnchorProvider(this.conn, )
     }
 
