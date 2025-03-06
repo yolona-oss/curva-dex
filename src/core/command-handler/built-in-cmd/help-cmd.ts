@@ -1,4 +1,4 @@
-import { CmdArgument, getCmdArgMetadata, IUICommandSimple } from "@core/ui/types/command"
+import { CmdArgument, getCmdArgMetadata, IUICommandProcessed, IUICommandSimple } from "@core/ui/types/command"
 import { BuiltInHelpCommandsEnum } from "../constants"
 import { MotherCmdHandler } from "../mother-cmd-handler"
 import { BuiltInCommand } from "../types/built-in-cmd"
@@ -18,28 +18,27 @@ Prev: ${cmdCb.prev ?? "None"}\n\
 }
 
 export const commonToString = <Ctx>(cmdName: string, cmdCb: ICmdCallback<Ctx>) => {
-    const argsStr = cmdCb.args?.map(a => a.name).join(", ")
+    const argsStr = cmdCb.args?.map(a => a.name).join(",\n")
     return `Command ${cmdName},\n\
 Description: ${cmdCb.description},\n\
-${argsStr ? `Args: ${argsStr}\n` : ""}\
+${argsStr ? `Args:\n${argsStr}\n` : ""}\
 Next: ${cmdCb.next?.join(", ") ?? "None"}\n\
 Prev: ${cmdCb.prev ?? "None"}\
 `
 }
 
-export const uiCommandsToString = (commands: IUICommandSimple[]): string => {
+export const uiCommandsToString = (commands: IUICommandProcessed[]): string => {
     return commands.map(v => {
         let argsStr: string = ""
         if (v.args) {
-            const meta = v.args
-            for (const key in meta) {
-                const arg = meta[key]
-                argsStr += `${key}: ${arg.description ?? "No description"}\n`
+            const args = v.args
+            for (const arg of args) {
+                argsStr += ` -- ${'<' + arg.name + '>' + (!arg.required ? " (optional)" : "")} ${arg.description ?? "No description"}\n`
             }
         }
         return `Command: ${v.command},\n\
 Description: ${v.description},\n\
-${argsStr ? `Args: ${argsStr}\n` : ""}\
+${argsStr ? `Arguments:\n${argsStr}\n` : ""}\
 `
     }).join("\n")
 }
