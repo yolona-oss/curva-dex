@@ -56,9 +56,9 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
         }
     }
 
-    private async configureFunctionDesc(command: string, cb: ICmdCallback<UICtx>, cmdHandler: MotherCmdHandler<UICtx>, ctx: UICtx): IBuilderCmdDesc {
-        const commonCbArgs = cb.args?.map(async (a) => ({
-            ctx: 'args',
+    private async configureFunctionDesc(command: string, cb: ICmdCallback<UICtx>, cmdHandler: MotherCmdHandler<UICtx>, ctx: UICtx): Promise<IBuilderCmdDesc> {
+        const promise = cb.args?.map(async (a) => ({
+            ctx: 'args' as ReadingCtxType,
             name: a.name,
             description: a.description,
             pairOptions: await exposeCmdArgumentDefOptions(command, a.pairOptions, cmdHandler, ctx.manager as IManager),
@@ -66,7 +66,7 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
             validator: a.validator
         })) ?? []
 
-        const args: IBuilderCmdArgDesc[] = await Promise.all(commonCbArgs)
+        const args = await Promise.all(promise)
         return {
             args: args
         }
