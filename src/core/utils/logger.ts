@@ -20,6 +20,7 @@ type ExtendedLog = {
     echo:  (...arg: any[]) => void
     error: (...arg: any[]) => void
     warn: (...arg: any[]) => void
+    trace: (...arg: any[]) => void
     lineSep: (symbol?: string) => void
 }
 let log = <ExtendedLog>function(...arg: any[]): void {
@@ -29,6 +30,12 @@ let log = <ExtendedLog>function(...arg: any[]): void {
         console.error(e)
     }
 }
+
+// TODO preserve multiline to output like:
+// [time]:[II] => msga uga buga
+//                resume buaa default   
+//                fdsfas dasf asdf asdf asd f
+// [time]:[II] => next log msg
 
 log.error = function(...arg: any[]) {
     log("ERROR:", ...arg)
@@ -44,6 +51,11 @@ log.warn = function(...arg: any[]) {
 log.echo = function(...arg: any[]) {
     log(...arg)
     console.log(logTime() + ':' + '[' + chalk.blue('II') + '] ->', ...arg)
+}
+
+log.trace = function(...arg: any[]) {
+    log("TRACE:", ...arg)
+    console.log(logTime() + ':' + '[' + chalk.green('TT') + '] ->', ...arg)
 }
 
 log.lineSep = function(symbol: string = '~', color: string = "cyan") {
