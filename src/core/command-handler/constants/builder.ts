@@ -17,6 +17,6 @@ export const defaultBuilderMarkupOptions: ICmdBuilderMarkupOption[] = [
     },
     {
         text: "Select reading context",
-        callback_data: DefaultBuilderCallbacks.cancel
+        callback_data: DefaultBuilderCallbacks.switchCtx
     }
 ]
