@@ -20,7 +20,7 @@ async function bootstrap() {
     const app = new AppCmdhub(ui, handler)
 
     app.setErrorInterceptor(function(error: Error, origin) {
-        console.log(`Origin: ${origin}`)
+        console.log(`Origin: ${origin}`, origin)
         log.error(`Internal error: ${error}`)
     })
     await app.Initialize()

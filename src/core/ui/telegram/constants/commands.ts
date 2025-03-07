@@ -1,9 +1,11 @@
-import { FilesWrapper } from '@core/db';
+import { FilesWrapper, Manager } from '@core/db';
 
 import { TelegramUI } from '../ui'
 import { TgCommand, TextContext } from '../types'
 import { shuffle } from '@core/utils/array';
 import { CmdArgument } from '@core/ui/types/command';
+import log from '@core/utils/logger';
+import { anyToString } from '@core/utils/misc';
 
 const nameDict = [
     "Valentin",
@@ -127,6 +129,31 @@ export const BuiltInTgUICommands: TgCommand[] = [
 
             await ctx.manager.updateOne({ $set: { useGreeting: (greeting === 'on') } });
             await ctx.reply("Startup greeting setted to: " + greeting)
+        }
+    },
+    {
+        command: "wipe_chat",
+        description: "Wipe all chat messages",
+        args: [],
+        exec: async function(this: TelegramUI, _, ctx: TextContext) {
+            const manager = await Manager.findById(ctx.manager.id)
+            if (manager) {
+                const history = await manager.getMessagesHistory()
+                for (const msg of history) {
+                    try {
+                        await ctx.deleteMessage(msg.message_id!)
+                    } catch (e) {
+                        log.error(`Wipe chat remove from ctx error: ${anyToString(e)}`)
+                    }
+                    try {
+                        await manager.deleteMessage(msg.message_id!)
+                    } catch (e) {
+                        log.error(`Wipe chat remove from history error: ${anyToString(e)}`)
+                    }
+                }
+            }
+
+            ctx.reply("Chat wiped")
         }
     }
 ]

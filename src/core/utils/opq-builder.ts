@@ -93,6 +93,9 @@ export class OPQBuilder implements IBuilder<OPQBuilderFinalizeType> {
         return this
     }
 
+    /**
+     * Add check option for key. If check failed, no value will be added to target
+     */
     addCheckOptionForKey(key: string, fn: ValidateFn) {
         let exists = this.checks.get(key) || []
         this.checks.set(key, [...exists, fn])

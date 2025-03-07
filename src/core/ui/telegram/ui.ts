@@ -16,8 +16,51 @@ import * as telegraf from 'telegraf'
 import chalk from 'chalk';
 import { anyToString } from '@core/utils/misc';
 import { IUICommandProcessed } from '../types/command';
+import { InlineKeyboardButton } from 'telegraf/typings/core/types/typegram';
+import { UiUnicodeSymbols } from '../ui-unicode-symbols';
+import { fromTgContext } from '@core/db/schemes/messages-history';
+
+function deepClone<T>(obj: T): T {
+    if (obj === null || typeof obj !== 'object') {
+        return obj;
+    }
+
+    if (typeof obj === 'function') {
+        // @ts-ignore
+        return obj.bind({}); // Clone the function
+    }
+
+    if (Array.isArray(obj)) {
+        const arrCopy = [] as any[];
+        for (const item of obj) {
+            arrCopy.push(deepClone(item));
+        }
+        return arrCopy as unknown as T;
+    }
+
+    const objCopy = {} as { [key: string]: any };
+    for (const key in obj) {
+        if (obj.hasOwnProperty(key)) {
+            objCopy[key] = deepClone(obj[key]);
+        }
+    }
+    return objCopy as T;
+}
+
+async function tg_deleteMesasge(bot: telegraf.Telegraf<TgContext>, message_id: number, chat_id: number) {
+    await bot.telegram.deleteMessage(chat_id, message_id);
+}
 
 export class TelegramUI extends WithInit implements IUI<TgContext> {
+
+    static UserIdFromCtx(ctx: TgContext): string {
+        const id = String(ctx.manager.userId)
+        if (!id || id.length == 0) {
+            throw new Error(`${this.caller.name}:=>:${this.name }: Cannot get user id from ctx: ${JSON.stringify(ctx, null, 2)}`)
+        }
+        return id
+    }
+
     public readonly bot: telegraf.Telegraf<TgContext>
     private isActive: boolean = false;
 
@@ -27,119 +70,6 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
     ) {
         super();
         this.bot = new telegraf.Telegraf(botApiKey);
-    }
-
-    ContextType(): AvailableUIsType {
-        return AvailableUIsEnum.Telegram
-    }
-
-    public lock(lockManager: LockManager): boolean {
-        return typeof lockManager.createLockFile(
-            crypto.hash("sha256", getInitialConfig().bot.token)
-        ) === 'string'
-    }
-
-    public unlock(lockManager: LockManager): boolean {
-        return lockManager.deleteLockFile(
-            LockManager.createLockFileName(
-                crypto.hash("sha256", getInitialConfig().bot.token)
-            )
-        )
-    }
-
-    isRunning(): boolean {
-        return this.isActive;
-    }
-
-    printCommands(): void {
-        for (const cmd of this.cmdHandler.mapHandlersToUICommands()) {
-            cmd;
-            //console.log(`${cmd.command} - ${cmd.description}`);
-            //cmd.args && cmd.args.length ? console.log(cmd.args) : void 0;
-            //console.log()
-        }
-    }
-
-    private async setupMiddleware() {
-        // Authorization
-        this.bot.use(async (ctx, next) => {
-            const manager = await Manager.findOne({ userId: ctx.from!.id })
-            if (manager) {
-                ctx.type = AvailableUIsEnum.Telegram
-                ctx.manager = manager;
-                return next();
-            } else if (ctx.updateType == 'callback_query') {
-                //@ts-ignore
-                if (ctx.update.callback_query.data.includes(cb_data.approveRequest)) {
-                    return next();
-                }
-            }
-            log.info(cb_data.approveRequest + " " + ctx.from!.id)
-            const botName = (await getConfig()).bot.name
-            await ctx.replyWithMarkdownV2(`Welcome to ${botName}. To start using bot you need to be aproved by bot administrator.\n" +
-"Click on button for send approve request`,
-                telegraf.Markup.inlineKeyboard([ [ { text: "Send", callback_data: cb_data.approveRequest + " " + ctx.from!.id  }, ] ]));
-        })
-    }
-
-    private async setupActions() {
-        this.bot.action(RegExp(cb_data.approveRequest + "*"), (ctx, next) => actions.approverequest.call(this, ctx, next));
-        this.bot.action(RegExp(cb_data.approveManager + "*"), (ctx, next) => actions.approvemanager.call(this, ctx, next));
-        this.bot.action(RegExp(cb_data.rejectManager + "*"),  (ctx, next) => actions.rejectmanager.call(this, ctx, next));
-        this.bot.action(RegExp("builder_*"), async (ctx) => {
-            console.log("~ACTI----------")
-            const action = String(ctx.match.input.slice("builder_".length));
-            console.log(action)
-            const res = await this.cmdHandler.handleCommand(action, ctx as any);
-            await this.commandResultReply(ctx, res);
-            await ctx.deleteMessage();
-        });
-    }
-
-    // NOTE: check text length for each btn and select correct perline for each row(after determine max line len)
-    private createKeyboard(markup: ICmdBuilderMarkupOption[], perLine = 3) {
-        let arr: Array<Array<ICmdBuilderMarkupOption>> = []
-        for (let i = 0; i < markup.length; i += perLine) {
-            arr.push(
-                markup.slice(i, i + perLine).map(m => 
-                    telegraf.Markup.button.callback(m.text, "builder_"+m.callback_data)
-                )
-            )
-        }
-        return arr
-    }
-
-    private async commandResultReply(ctx: telegraf.Context, response: ICmdHandlerResponce) {
-        const layout = response.markup ? this.createKeyboard(response.markup) : [];
-        let keyboard = telegraf.Markup.inlineKeyboard(layout)
-        if (response.text || response.markup) {
-            await ctx.reply(String(response.text), keyboard);
-        }
-    }
-
-    private setTextHandler() {
-        this.bot.on("text", async (ctx) => {
-            console.log("#TEXT----------")
-            const firstWord = ctx.text?.split(" ")[0]
-            const fullText = ctx.text ? ctx.text : ""
-            if (
-                firstWord &&
-                    firstWord.startsWith("/")
-            ) {
-                // deligate to native handler assigned with bot.command
-                console.log("#TEXT--DELIGATE")
-                const asCommand = firstWord.slice(1);
-                await this.handleCmd(asCommand, ctx);
-                return
-            }
-            try {
-                const response = await this.cmdHandler.handleCommand(fullText, ctx)
-                await this.commandResultReply(ctx, response);
-            } catch (e: any) {
-                await ctx.reply(`Internall error: ${anyToString(e)}`);
-                log.error(`Command "${firstWord}" "${ctx.manager.userId}" error: ${anyToString(e)}`, e);
-            }
-        })
     }
 
     private setCommandHandler(commands: IUICommandSimple[]) {
@@ -152,34 +82,35 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         })
     }
 
-    private async handleCmd(cmd: string, ctx: TgContext) {
-        try {
-            const response = await this.cmdHandler.handleCommand(cmd, ctx);
-            await this.commandResultReply(ctx, response);
-        } catch (e: any) {
-            await ctx.reply(`Internall error: ${anyToString(e)}`);
-            log.error(`Command "${cmd}" "${ctx.manager.userId}" error: ${anyToString(e)}`, e);
-        }
+    private async setupActions() {
+        this.bot.action(RegExp(cb_data.approveRequest + "*"), (ctx, next) => actions.approverequest.call(this, ctx, next));
+        this.bot.action(RegExp(cb_data.approveManager + "*"), (ctx, next) => actions.approvemanager.call(this, ctx, next));
+        this.bot.action(RegExp(cb_data.rejectManager + "*"),  (ctx, next) => actions.rejectmanager.call(this, ctx, next));
+
+        // handle builder buttons
+        this.bot.action(RegExp("builder_*"), async (ctx) => {
+            console.log("~ACTI----------")
+            const action = String(ctx.match.input.slice("builder_".length));
+            console.log(action)
+            const res = await this.cmdHandler.handleCommand(action, ctx as any);
+            await this.replyByCommandResult(ctx as any, res);
+            await ctx.deleteMessage();
+        });
     }
 
-    private registerTgComands() {
-        const tgCommands = BuiltInTgUICommands.map(
-            cmd => ({
-                command: {
-                    command: cmd.command,
-                    description: cmd.description,
-                    args: cmd.args
-                },
-                mixin: cmd.exec.bind(this)
-            }))
+    private setTextHandler() {
+        this.bot.on("text", async (ctx, next) => {
+            console.log("#TEXT----------")
+            const firstWord = ctx.text?.split(" ")[0]
+            const fullText = ctx.text ? ctx.text : ""
+            const asCommand = firstWord.slice(1);
+            const isCommandAlike = firstWord && firstWord.startsWith("/");
+            await this.handleCmd(isCommandAlike ? asCommand : fullText, ctx);
 
-        for (const tgCmd of tgCommands) {
-            this.cmdHandler.unBoundRegister(
-                tgCmd.command,
-                tgCmd.mixin as ICmdMixin<TgContext>
-            )
-        }
-        return tgCommands
+            if (next) {
+                return await next()
+            }
+        })
     }
 
     private async setupCommands() {
@@ -207,33 +138,103 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         this.setInitialized()
     }
 
-    private verifyCommands(commands: { command: string, description: string }[]) {
-        const maxCmdLength = 32
-        const maxDescLength = 256
-        const CmdAllowedSymbols = "A-Za-z0-9_";
-        const commandList = commands.map(cmd => cmd.command);
-        const descriptionList = commands.map(cmd => cmd.description);
+    private async setupReplyRedifinition() {
+        this.bot.use(async (ctx, next) => {
+            const originalReply = ctx.reply.bind(ctx);
 
-        for (const cmd of commandList) {
-            if (cmd.length > maxCmdLength) {
-                throw new Error(`Command "${cmd}" is too long. Max length is ${maxCmdLength}, command length is ${cmd.length}`)
-            }
-            if (cmd.match(new RegExp(`[^${CmdAllowedSymbols}]`))) {
-                throw new Error(`Command "${cmd}" contains invalid symbols`)
-            }
-        }
+            ctx.reply = async (...args: Parameters<telegraf.Context["reply"]>) => {
+                const message = args[0]?.toString();
 
-        let i = 0
-        for (const desc of descriptionList) {
-            if (desc.length > maxDescLength) {
-                throw new Error(`Description of command "${commandList[i]}" "${desc}" is too long. Max length is ${maxDescLength}, description length is ${desc.length}`)
+                const manager = await Manager.findById(ctx.manager.id)
+                const dto = fromTgContext(ctx)
+                await manager!.appendMessageHistory(dto)
+                console.log(dto)
+
+                return originalReply(...args); // Call the original reply function
+            };
+            await next()
+        })
+    }
+
+    private async setupAuth() {
+        // Authorization
+        this.bot.use(async (ctx, next) => {
+            const manager = await Manager.findOne({ userId: ctx.from!.id })
+            if (manager) {
+                ctx.type = AvailableUIsEnum.Telegram
+                ctx.manager = manager;
+                return await next();
+            } else if (ctx.updateType == 'callback_query') {
+                //@ts-ignore
+                if (ctx.update.callback_query.data.includes(cb_data.approveRequest)) {
+                    return next();
+                }
             }
-            i++
-        }
+            log.info(cb_data.approveRequest + " " + ctx.from!.id)
+            const botName = (await getConfig()).bot.name
+            await ctx.replyWithMarkdownV2(`Welcome to ${botName}. To start using bot you need to be aproved by bot administrator.\n" +
+"Click on button for send approve request`,
+                telegraf.Markup.inlineKeyboard([ [ { text: "Send", callback_data: cb_data.approveRequest + " " + ctx.from!.id  }, ] ]));
+        })
+    }
+
+    private async setupHistorySave() {
+        this.bot.on('message', async function(ctx, next) {
+            if (ctx.manager) {
+                const manager = await Manager.findById(ctx.manager.id)
+                if (manager) {
+                    await manager.appendMessageHistory({
+                        chatId: ctx.chat!.id,
+                        userId: manager.userId,
+                        message_id: ctx.message?.message_id,
+                        text: ctx.text ?? "",
+                        timestamp: ctx.message?.date ? ctx.message.date : undefined 
+                    })
+                }
+            } else if (ctx.message.from.is_bot) {
+                // TODO be pretty to use OPC :>
+                const manager = await Manager.findById(ctx.chat.id)
+                if (manager) {
+                    await manager.appendMessageHistory({
+                        chatId: ctx.chat!.id,
+                        userId: manager.userId,
+                        message_id: ctx.message?.message_id,
+                        text: ctx.text ?? "",
+                        timestamp: ctx.message?.date ? ctx.message.date : undefined 
+                    })
+                }
+            } else {
+                log.debug(`No manager in ctx for saving message history. user: ${ctx.from?.id}, chat: ${ctx.chat?.id}, message: ${ctx.message?.message_id}`)
+            }
+            return await next()
+        })
+
+        this.bot.on('edited_message', async function(ctx, next) {
+            ctx.editedMessage.sender_boost_count
+            const mngr = await Manager.findById(ctx.manager.id)
+            if (mngr) {
+                const chatId = ctx.chat.id
+                const message_id = ctx.editedMessage!.message_id
+                await mngr.appendMessageHistory({
+                    chatId: chatId,
+                    userId: mngr.userId,
+                    message_id: message_id,
+                    text: ctx.text ?? "",
+                })
+            } else {
+                log.debug(`No manager in ctx for editing history message. user: ${ctx.from?.id}, chat: ${ctx.chat?.id}`)
+            }
+            if (next) {
+                return await next()
+            }
+        })
     }
 
     private async setup() {
-        await this.setupMiddleware()
+        await this.setupAuth()
+        await this.setupHistorySave()
+        // VV this dont work somehow
+        //await this.setupReplyRedifinition()
         await this.setupCommands()
         await this.setupActions()
     }
@@ -288,6 +289,11 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         } catch(e) {
             throw new Error("TelegemUI::run() " + e);
         }
+
+        this.bot.catch(async function(err, ctx) {
+            await ctx.reply(`Internall tg-service error: ${anyToString(err)}`);
+        })
+
         this.isActive = true;
     }
 
@@ -308,6 +314,30 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         log.info("** Telegram ui stopped");
     }
 
+    // Append builtin telegram command to command handler
+
+    private registerTgComands() {
+        const tgCommands = BuiltInTgUICommands.map(
+            cmd => ({
+                command: {
+                    command: cmd.command,
+                    description: cmd.description,
+                    args: cmd.args
+                },
+                mixin: cmd.exec.bind(this)
+            }))
+
+        for (const tgCmd of tgCommands) {
+            this.cmdHandler.unBoundRegister(
+                tgCmd.command,
+                tgCmd.mixin as ICmdMixin<TgContext>
+            )
+        }
+        return tgCommands
+    }
+
+    // VV UTILITY VV
+
     private async notifyManagers(id: string|number, msg: string, stiker?: string) {
         await this.bot.telegram.sendMessage(id, msg);
         if (stiker) {
@@ -321,4 +351,106 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
             telegraf.Markup.button.callback("Decline", decline)
         ])
     }
+
+    private verifyCommands(commands: { command: string, description: string }[]) {
+        const maxCmdLength = 32
+        const maxDescLength = 256
+        const CmdAllowedSymbols = "A-Za-z0-9_";
+        const commandList = commands.map(cmd => cmd.command);
+        const descriptionList = commands.map(cmd => cmd.description);
+
+        for (const cmd of commandList) {
+            if (cmd.length > maxCmdLength) {
+                throw new Error(`Command "${cmd}" is too long. Max length is ${maxCmdLength}, command length is ${cmd.length}`)
+            }
+            if (cmd.match(new RegExp(`[^${CmdAllowedSymbols}]`))) {
+                throw new Error(`Command "${cmd}" contains invalid symbols`)
+            }
+        }
+
+        let i = 0
+        for (const desc of descriptionList) {
+            if (desc.length > maxDescLength) {
+                throw new Error(`Description of command "${commandList[i]}" "${desc}" is too long. Max length is ${maxDescLength}, description length is ${desc.length}`)
+            }
+            i++
+        }
+    }
+
+    // Commands handlers utility
+
+    // NOTE: check text length for each btn and select correct perline for each row(after determine max line len)
+    private createKeyboard(markup: ICmdBuilderMarkupOption[], perLine = 3) {
+        let arr: Array<Array<InlineKeyboardButton.CallbackButton>> = []
+        for (let i = 0; i < markup.length; i += perLine) {
+            arr.push(
+                markup.slice(i, i + perLine).filter(m => m.type != 'defaultMk').map(m => 
+                    telegraf.Markup.button.callback(
+                        m.isRead ? `${UiUnicodeSymbols.eye} ${m.text}` : m.text,
+                        "builder_"+m.callback_data
+                    )
+                )
+            )
+        }
+
+        const defaultMkArray: Array<InlineKeyboardButton.CallbackButton> = []
+        markup.filter(m => m.type == 'defaultMk').forEach(m => {
+            defaultMkArray.push(
+                telegraf.Markup.button.callback(`${UiUnicodeSymbols.gear} ${m.text}`, "builder_"+m.callback_data)
+            )
+        })
+        return arr.concat([defaultMkArray])
+    }
+
+    private async replyByCommandResult(ctx: TgContext, response: ICmdHandlerResponce) {
+        const layout = response.markup ? this.createKeyboard(response.markup) : [];
+        let keyboard = telegraf.Markup.inlineKeyboard(layout)
+        if (response.text || response.markup) {
+            await ctx.reply(String(response.text), keyboard);
+        }
+    }
+
+    private async handleCmd(cmd: string, ctx: TgContext) {
+        try {
+            const response = await this.cmdHandler.handleCommand(cmd, ctx);
+            await this.replyByCommandResult(ctx, response);
+        } catch (e: any) {
+            await ctx.reply(`TelegramUI::handleCmd error: ${anyToString(e)}`);
+            log.error(`Command "${cmd}" "${TelegramUI.UserIdFromCtx(ctx)}" error: ${anyToString(e)}`, e);
+        }
+    }
+
+    // VV Specials VV
+
+    ContextType(): AvailableUIsType {
+        return AvailableUIsEnum.Telegram
+    }
+
+    public lock(lockManager: LockManager): boolean {
+        return typeof lockManager.createLockFile(
+            crypto.hash("sha256", getInitialConfig().bot.token)
+        ) === 'string'
+    }
+
+    public unlock(lockManager: LockManager): boolean {
+        return lockManager.deleteLockFile(
+            LockManager.createLockFileName(
+                crypto.hash("sha256", getInitialConfig().bot.token)
+            )
+        )
+    }
+
+    isRunning(): boolean {
+        return this.isActive;
+    }
+
+    printCommands(): void {
+        for (const cmd of this.cmdHandler.mapHandlersToUICommands()) {
+            cmd;
+            //console.log(`${cmd.command} - ${cmd.description}`);
+            //cmd.args && cmd.args.length ? console.log(cmd.args) : void 0;
+            //console.log()
+        }
+    }
+
 }

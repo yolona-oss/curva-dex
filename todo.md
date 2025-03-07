@@ -1,3 +1,4 @@
+- REFACTORING ... ITS GARBAGE ... NEED TO OPC FIXES plz
 - get GF
 - rename all log commands accordingly its significance to logging levels
 - create live log: just html + js that poll from server / send empty msg and endit it with log updates
@@ -24,3 +25,5 @@
 - create classes for more OCP assess to db schemes
 
 - create singleton to manage piping building command option selection. and ...
+
+- save history of bot answers too

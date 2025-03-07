@@ -15,6 +15,7 @@ import {
     defaultBuilderMarkupOptions
 } from "./constants"
 import log from "@core/utils/logger"
+import { UiUnicodeSymbols } from "@core/ui"
 
 function toMarkup(opt: string, type: ICmdBuilderMarkupOptionType, cb_value = opt, isRead: boolean = false): ICmdBuilderMarkupOption {
     return {
@@ -128,6 +129,7 @@ export class CommandBuilder {
                 }
             }
         } else if (input === DefaultBuilderCallbacks.switchCtx) {
+            cur.state.readingValue = 'ctx'
             return {
                 done: false,
                 markup: toSwitchCtxMarkup(cur.avalibleCtxs, cur.state.readingCtx)
@@ -144,7 +146,7 @@ export class CommandBuilder {
             return {
                 done: false,
                 markup: {
-                    text: "Ctx switched to: " + input + ". Select argument name:",
+                    text: `${UiUnicodeSymbols.success} Ctx switched to: "${input}". Select argument name:`,
                     options: [
                         ...cur.descriptor.args.filter(arg => arg.ctx === input).map(arg => toMarkup(arg.name, "name")),
                         ...defaultBuilderMarkupOptions,
@@ -244,7 +246,7 @@ export class CommandBuilder {
             return {
                 done: false,
                 markup: {
-                    text: "Select argument name:",
+                    text: `${UiUnicodeSymbols.hammer} Select argument name:`,
                     options: [
                         ...cur.descriptor.args.filter(arg => arg.ctx === ctx).map(arg => toMarkup(arg.name, "name")),
                         ...defaultBuilderMarkupOptions,
@@ -259,6 +261,39 @@ export class CommandBuilder {
                 }
             }
         }
+    }
+
+    // ridiculous logic implementation of state machine :((
+    private handleInner(userId: string, _input: string): ICmdBuilderHandleResult {
+        const input = _input.toLowerCase().trim()
+        const cur = this.usersBuildingQueue.get(userId)
+        if (!cur) {
+            return {
+                done: true,
+                error: "No active build for user: " + userId,
+                markup: {
+                    text: `${UiUnicodeSymbols.cross} No active build for user: ${UiUnicodeSymbols.user} "${userId}"`,
+                }
+            }
+        }
+
+        if (cur.state.readingValue === 'ctx') {
+            return this.readCtxValue(cur, input)
+        }
+
+        if (this.isDefaultCb(input)) {
+            return this.readDefaultCb(cur, userId, input)
+        }
+
+        return this.readPairValue(cur, userId, input)
+    }
+
+    handle(userId: string, _input: string): ICmdBuilderHandleResult {
+        const res = this.handleInner(userId, _input)
+        if (res.done) {
+            this.stopBuild(userId)
+        }
+        return res
     }
 
     startBuild(userId: string, command: string, desc: IBuilderCmdDesc, contexts: ReadingCtxType[]): ICmdBuilderMarkup {
@@ -305,45 +340,12 @@ export class CommandBuilder {
         })
 
         return {
-            text: `Building command: "${command}".\nAvalible context: ${contexts.join(", ")}.\n${desc_str}`,
+            text: `${UiUnicodeSymbols.hammer} Run CmdBuilder\nBuilding command: "${command}".\nAvalible context: ${contexts.join(", ")}.\n${desc_str}`,
             options: [
                 ...initialCtxOptions.map(arg => toMarkup(arg.name, "name")),
                 ...defaultBuilderMarkupOptions,
             ]
         }
-    }
-
-    // ridiculous logic implementation of state machine :((
-    private handleInner(userId: string, _input: string): ICmdBuilderHandleResult {
-        const input = _input.toLowerCase().trim()
-        const cur = this.usersBuildingQueue.get(userId)
-        if (!cur) {
-            return {
-                done: true,
-                error: "No active build for user: " + userId,
-                markup: {
-                    text: "No active build for user: " + userId,
-                }
-            }
-        }
-
-        if (cur.state.readingValue === 'ctx') {
-            return this.readCtxValue(cur, input)
-        }
-
-        if (this.isDefaultCb(input)) {
-            return this.readDefaultCb(cur, userId, input)
-        }
-
-        return this.readPairValue(cur, userId, input)
-    }
-
-    handle(userId: string, _input: string): ICmdBuilderHandleResult {
-        const res = this.handleInner(userId, _input)
-        if (res.done) {
-            this.stopBuild(userId)
-        }
-        return res
     }
 }
 

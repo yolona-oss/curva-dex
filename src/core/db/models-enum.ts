@@ -1,5 +1,6 @@
 export enum DbModelsEnum {
     Managers = "managers",
     Accounts = "accounts",
-    Files = "files"
+    Files = "files",
+    MsgHistory = "message_history",
 }

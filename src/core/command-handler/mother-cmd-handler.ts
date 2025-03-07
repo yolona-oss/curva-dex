@@ -49,6 +49,9 @@ import 'reflect-metadata'
 
 import { BuiltInCommandNames, toRegister } from "./built-in-cmd";
 
+// NOTE: ITS TEMPORARY. ITS WILL BE REMOVED TO ANOTHER IMPL
+type WaitingUserInputType = "builderDeligate" | null
+
 // TODO RENAME IT!!! and split
 export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
     private callbacks: Map<string, ICmdCallback<TContext>> // name -> callback
@@ -190,6 +193,14 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
             },
         );
     }
+
+    WaitingInputFromUser(userId: string): WaitingUserInputType {
+        if (this.cmdBuilder.isUserOnBuild(userId)) {
+            return "builderDeligate"
+        } else {
+            return null
+        }
+    }
     
     get SequenceHandler() {
         return this.sequenceHandler!
@@ -289,9 +300,10 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
     getCallbackFromCommandName(command: string): ICmdCallback<TContext> {
         const cb = this.callbacks.get(command)
         if (!cb) {
+            log.debug(`${this.constructor.name}::getCallbackFromCommandName Command "${command}" not found`)
             throw {
                 success: false,
-                text: `Command ${command} not found.`
+                text: `Command "${command}" not found.`
             }
         }
         return cb as ICmdCallback<TContext>

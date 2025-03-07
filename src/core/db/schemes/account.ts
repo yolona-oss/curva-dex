@@ -106,7 +106,9 @@ export const AccountSchema: Schema<IAccount, {}, IAccountMethods> = new Schema(
                     this.modules.push({
                         module: module_name,
                         comment,
-                        data: {}
+                        data: {
+                            dummy: null
+                        }
                     })
                     desireModule = this.modules[this.modules.length - 1]
                 }

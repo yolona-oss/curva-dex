@@ -70,12 +70,12 @@ export abstract class Application<CtxType extends BaseUIContext> extends WithIni
     public setErrorInterceptor(handler: (error: Error, origin?: NodeJS.UncaughtExceptionOrigin) => void) {
         if (this._prevErrorHandler) {
             process.removeListener("uncaughtException", this._prevErrorHandler)
-            process.removeListener("rejectionHandled", this._prevErrorHandler)
+            process.removeListener("unhandledRejection", this._prevErrorHandler)
         }
 
         this._prevErrorHandler = handler
         process.on("uncaughtException", handler)
-        process.on("rejectionHandled", handler)
+        process.on("unhandledRejection", handler)
     }
 
     public removeLock(hash: string) {

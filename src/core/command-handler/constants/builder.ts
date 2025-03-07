@@ -1,9 +1,10 @@
 import { ICmdBuilderMarkupOption } from "../types/builder"
 
+// INFO: must be lower case
 export const DefaultBuilderCallbacks = {
     execute: "__execute",
     cancel: "__cancel",
-    switchCtx: "__switchCtx"
+    switchCtx: "__switchctx"
 }
 
 export const defaultBuilderMarkupOptions: ICmdBuilderMarkupOption[] = [

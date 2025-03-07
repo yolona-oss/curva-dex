@@ -59,7 +59,10 @@ export class AppCmdhub extends Application<BaseUIContext> {
                 }
             }
         }
-        clearScreen()
+
+        if (!getInitialConfig().dev_mode) {
+            clearScreen()
+        }
         printLogo()
         console.log(WELCOME_TEXT)
     }
@@ -82,9 +85,6 @@ export class AppCmdhub extends Application<BaseUIContext> {
     async run(): Promise<void> {
         await super.run()
 
-        if (getInitialConfig().dev_mode) {
-            return
-        }
         this.printBanner()
         this.printCommands()
     }
