@@ -27,3 +27,6 @@
 - create singleton to manage piping building command option selection. and ...
 
 - save history of bot answers too
+
+- add commands arguments chain handler validator
+- reimplemet account schema to common mongoose concept
