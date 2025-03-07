@@ -9,14 +9,17 @@ export const DefaultBuilderCallbacks = {
 export const defaultBuilderMarkupOptions: ICmdBuilderMarkupOption[] = [
     {
         text: "Execute",
+        type: "defaultMk",
         callback_data: DefaultBuilderCallbacks.execute
     },
     {
         text: "Cancel",
+        type: "defaultMk",
         callback_data: DefaultBuilderCallbacks.cancel
     },
     {
         text: "Select reading context",
+        type: "defaultMk",
         callback_data: DefaultBuilderCallbacks.switchCtx
-    }
+    },
 ]

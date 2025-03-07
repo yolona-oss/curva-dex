@@ -1,7 +1,11 @@
 import { BaseCommandArgumentDesc } from "@core/ui/types/command"
 
+export type ICmdBuilderMarkupOptionType = "name" | "value" | "defaultMk"
+
 export interface ICmdBuilderMarkupOption {
     text: string,
+    type: "name" | "value" | "defaultMk",
+    isRead?: boolean
     callback_data: string
 }
 
@@ -29,6 +33,7 @@ export type ReadingCtxType = "args" | "config" | "params" | "message"
 
 export interface IBuilderCmdArgReadResult {
     ctx: ReadingCtxType
+    isStandalone: boolean // true => name = value
     name: string
     value: string
 }

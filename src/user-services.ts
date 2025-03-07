@@ -2,7 +2,7 @@ import { BaseCommandService, IServiceSessionData } from '@core/command-handler'
 import { BLANK_USER_ID } from '@core/command-handler'
 import { BaseServiceConfig, BaseServiceInteractMessages, BaseServiceParameters, ServiceData } from '@core/command-handler/service-data'
 import { CmdArgument } from '@core/ui/types/command'
-import { genRandomNumberBetweenWithScatter } from '@utils/random'
+import { genRandomNumber, genRandomNumberBetweenWithScatter } from '@utils/random'
 import { sleep } from '@utils/time'
 
 const TestServiceName = 'test_service'
@@ -45,7 +45,15 @@ class TestServiceInteractMessages extends BaseServiceInteractMessages {
 }
 
 class TestServiceParameters extends BaseServiceParameters {
-
+    @CmdArgument({
+        required: false,
+        standalone: false,
+        pairOptions: async () => new Array(10).fill(0).map(() => genRandomNumber(3)),
+        defaultValue: "1",
+        validator: (arg) => !Number.isNaN(Number(arg)),
+        description: "Start value"
+    })
+    startValue?: string
 }
 
 interface TestServiceSessionData extends IServiceSessionData {
@@ -53,7 +61,7 @@ interface TestServiceSessionData extends IServiceSessionData {
 }
 
 export class TestService extends BaseCommandService<TestServiceSessionData, BaseServiceConfig, TestServiceParameters, TestServiceInteractMessages> {
-    private max = 1000n
+    private max = 5000n
     private i = 3n
 
     constructor(

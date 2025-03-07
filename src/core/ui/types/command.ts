@@ -51,9 +51,6 @@ export function getCmdArgMetadata<T>(
     target: any
 ): CommandArgumentMetadata<keyof T> {
     let metadataMap: Partial<Record<keyof T, BaseCommandArgumentDesc>> = {};
-    if (!target || !target.prototype) {
-        return {} as CommandArgumentMetadata<keyof T>;
-    }
     let proto = target.prototype || Object.getPrototypeOf(target);
 
     while (proto && proto !== Object.prototype) {
@@ -118,3 +115,73 @@ export interface IUICommand<ThisUI, CtxType> extends BaseCommand {
 
 export type IUICommandSimple = BaseCommand
 export type IUICommandProcessed = BaseCommand & {args?: (BaseCommandArgumentDesc&{name: string})[]}
+
+export function getCmdArgUndefMetadata<T extends CommandArgmuentKeyHolder>(target: T): CommandArgumentMetadata<keyof T> {
+    const metadataMap: Partial<Record<keyof T, BaseCommandArgumentDesc>> = {}
+    let currentTarget = target;
+    while (currentTarget !== null && currentTarget !== Object.prototype) {
+        const propertyKeys = Object.getOwnPropertyNames(currentTarget);
+        propertyKeys.forEach((propertyKey) => {
+            if (propertyKey === 'constructor' || typeof currentTarget[propertyKey] === 'function') {
+                return;
+            }
+            const metadata = Reflect.getMetadata(COMMAND_ARG_DESC_KEY, currentTarget, propertyKey);
+            if (metadata && !metadataMap[propertyKey]) {
+                metadataMap[propertyKey as keyof T] = metadata;
+            }
+        });
+        // Move up the prototype chain
+        currentTarget = Object.getPrototypeOf(currentTarget);
+    }
+    return metadataMap as CommandArgumentMetadata<keyof T>
+}
+
+//export function getCmdArgMetadata<T>(
+//  target: any
+//): CommandArgumentMetadata<keyof T> {
+//  let metadataMap: Partial<Record<keyof T, BaseCommandArgumentDesc>> = {};
+//  let proto = target.prototype || Object.getPrototypeOf(target);
+//
+//  while (proto && proto !== Object.prototype) {
+//    const metadata = Reflect.getMetadata(COMMAND_ARG_DESC_KEY, proto);
+//    if (metadata) {
+//      for (const key in metadata) {
+//        metadataMap[key as keyof T] = {
+//          ...metadata[key],
+//          ...metadataMap[key as keyof T],
+//        };
+//      }
+//    }
+//    proto = Object.getPrototypeOf(proto);
+//  }
+//
+//  return metadataMap as CommandArgumentMetadata<keyof T>;
+//}
+
+
+export function __getCmdArgMetadata<T extends CommandArgmuentKeyHolder>(target: any): CommandArgumentMetadata<keyof T> {
+    let metadataMap: Partial<Record<keyof T, BaseCommandArgumentDesc>> = {}
+    
+    let proto = target instanceof Object ? Object.getPrototypeOf(target) : target
+
+    while (proto && proto !== Object.prototype) {
+        const properties = new Set([
+            ...Object.getOwnPropertyNames(proto),
+            ...Object.keys(target)
+        ])
+
+        for (const propertyKey of properties) {
+            const metadata = Reflect.getMetadata(COMMAND_ARG_DESC_KEY, proto, propertyKey)
+            if (metadata) {
+                metadataMap[propertyKey as keyof T] = {
+                    ...metadataMap[propertyKey],
+                    ...metadata
+                }
+            }
+        }
+
+        proto = Object.getPrototypeOf(proto)
+    }
+
+    return metadataMap as CommandArgumentMetadata<keyof T>
+}

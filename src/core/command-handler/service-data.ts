@@ -3,20 +3,16 @@ import { genRandomString } from "@core/utils/random";
 import { sessionIdValidator, sessionOptsWithRand } from "./utils/misc";
 
 import 'reflect-metadata'
-import { CmdArgument, CommandArgmuentKeyHolder, CommandArgumentMetadata, getCmdArgMetadata } from "@core/ui/types/command";
+import { CmdArgument, CommandArgmuentKeyHolder, CommandArgumentMetadata, getCmdArgMetadata, getCmdArgUndefMetadata } from "@core/ui/types/command";
 
 export function toDescriptor<T extends CommandArgmuentKeyHolder>(instance: T): CommandArgumentMetadata<keyof T> {
     return getCmdArgMetadata(instance)
 }
 
-class BaseDataStore {
-    constructor() { }
+export abstract class BaseServiceConfig {
 }
 
-export abstract class BaseServiceConfig extends BaseDataStore {
-}
-
-export class BaseServiceParameters extends BaseDataStore {
+export class BaseServiceParameters {
     @CmdArgument({
         required: false,
         standalone: false,
@@ -25,7 +21,7 @@ export class BaseServiceParameters extends BaseDataStore {
         validator: sessionIdValidator,
         description: "Session id to restore state from."
     })
-    sessionId?: string
+    sessionId?: String
 
     @CmdArgument({
         required: false,
@@ -35,24 +31,24 @@ export class BaseServiceParameters extends BaseDataStore {
         validator: sessionIdValidator,
         description: "Session id to restore state from."
     })
-    s?: string
+    s?: String
 }
 
-export class BaseServiceInteractMessages extends BaseDataStore {
+export class BaseServiceInteractMessages {
     @CmdArgument({
         required: false,
         description: "Echo message",
         standalone: false,
         defaultValue: "R U GAY?"
     })
-    echo!: string
+    echo!: String
 }
 
 export class ServiceData<
-        TConfig extends BaseServiceConfig = BaseServiceConfig,
-        TParams extends BaseServiceParameters = BaseServiceParameters,
-        TMessages extends BaseServiceInteractMessages = BaseServiceInteractMessages
-    >
+TConfig extends BaseServiceConfig = BaseServiceConfig,
+TParams extends BaseServiceParameters = BaseServiceParameters,
+TMessages extends BaseServiceInteractMessages = BaseServiceInteractMessages
+>
 {
     constructor(
         public config: TConfig,

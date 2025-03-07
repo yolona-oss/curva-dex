@@ -6,24 +6,29 @@ import {
     ICmdBuildResult,
     ICmdBuilderHandleResult,
     IBuilderCmdDesc,
-    ReadingCtxType
+    ReadingCtxType,
+    ICmdBuilderMarkupOptionType,
+    IBuilderCmdArgReadResult
 } from "./types"
 import {
     DefaultBuilderCallbacks,
     defaultBuilderMarkupOptions
 } from "./constants"
+import log from "@core/utils/logger"
 
-function toMarkup(opt: string): ICmdBuilderMarkupOption {
+function toMarkup(opt: string, type: ICmdBuilderMarkupOptionType, cb_value = opt, isRead: boolean = false): ICmdBuilderMarkupOption {
     return {
         text: opt,
-        callback_data: opt
+        type: type,
+        isRead,
+        callback_data: cb_value
     }
 }
 
-function toSwitchCtxMarkup(ctxs: ReadingCtxType[]) {
+function toSwitchCtxMarkup(ctxs: ReadingCtxType[], current: ReadingCtxType): ICmdBuilderMarkup {
     return {
-        text: "Switch reading context.",
-        options: ctxs.map(ctx => toMarkup(ctx))
+        text: "Switch to reading context. Current context: " + current,
+        options: ctxs.map(ctx => toMarkup(ctx, "value", ctx, false))
     }
 }
 
@@ -37,6 +42,28 @@ export class CommandBuilder {
     constructor() {
 
     }
+
+    //userBuildString(userId: string, command: string): string {
+    //    if (!this.isUserOnBuild(userId)) {
+    //        return ""
+    //    }
+    //
+    //    const readArgToStr = (arg: IBuilderCmdArgReadResult) => {
+    //        switch (arg.ctx) {
+    //            case "args":
+    //
+    //                break;
+    //            case "config":
+    //                break;
+    //            case "params":
+    //                break;
+    //            case "message":
+    //                break;
+    //        }
+    //    }
+    //    const bstate = this.usersBuildingQueue.get(userId)!
+    //
+    //}
 
     isUserOnBuild(userId: string) {
         if (this.usersBuildingQueue.has(userId)) {
@@ -62,7 +89,179 @@ export class CommandBuilder {
         }
     }
 
-    startBuild(userId: string, command: string, desc: IBuilderCmdDesc, contexts: ReadingCtxType[] = ['args']): ICmdBuilderMarkup {
+    private isAllRead(bs: ICmdBuildingState) {
+        const { read } = bs.state
+
+        for (const darg of bs.descriptor.args) {
+            if (!read.find(arg => arg.name === darg.name && (darg.pairOptions ? arg.value != "" && arg.value : true))) {
+                return false
+            }
+        }
+
+        return true
+    }
+
+    private isDefaultCb(input: string) {
+        return [
+            DefaultBuilderCallbacks.cancel,
+            DefaultBuilderCallbacks.execute,
+            DefaultBuilderCallbacks.switchCtx
+        ].includes(input)
+    }
+
+    private readDefaultCb(cur: ICmdBuildingState, userId: string, input: string) {
+        if (input === DefaultBuilderCallbacks.cancel) {
+            this.stopBuild(userId)
+            return {
+                done: true,
+                markup: {
+                    text: "Build canceled",
+                }
+            }
+        } else if (input === DefaultBuilderCallbacks.execute) {
+            const res = this.build(userId)
+            return {
+                done: true,
+                built: res ? res : undefined,
+                markup: {
+                    text: res ? "Build success" : "Build failed",
+                }
+            }
+        } else if (input === DefaultBuilderCallbacks.switchCtx) {
+            return {
+                done: false,
+                markup: toSwitchCtxMarkup(cur.avalibleCtxs, cur.state.readingCtx)
+            }
+        } else {
+            throw "Unknown default callback: " + input
+        }
+    }
+
+    private readCtxValue(cur: ICmdBuildingState, input: string) {
+        if (cur.avalibleCtxs.includes(input as any)) {
+            cur.state.readingCtx = input as ReadingCtxType
+            cur.state.readingValue = 'name'
+            return {
+                done: false,
+                markup: {
+                    text: "Ctx switched to: " + input + ". Select argument name:",
+                    options: [
+                        ...cur.descriptor.args.filter(arg => arg.ctx === input).map(arg => toMarkup(arg.name, "name")),
+                        ...defaultBuilderMarkupOptions,
+                    ]
+                }
+            }
+        } else {
+            return {
+                done: true,
+                markup: {
+                    text: "Unknown ctx: " + input + ". Exiting...",
+                }
+            }
+        }
+    }
+
+    private readPairValue(cur: ICmdBuildingState, userId: string, input: string) {
+        const ctx = cur.state.readingCtx
+        const readType = cur.state.readingValue
+
+        if (readType === 'name') {
+            const argDesc = cur.descriptor.args.find(arg => arg.name.toLowerCase() === input.toLowerCase())
+            if (!argDesc) {
+                return {
+                    done: true,
+                    markup: {
+                        text: `Unknown argument name: "${input}". Avalible names(ctx: ${ctx}): ${cur.descriptor.args.filter(arg => arg.ctx === ctx).map(arg => arg.name)}. Exiting...`,
+                    }
+                }
+            }
+
+            let markup: ICmdBuilderMarkup = {
+                text: "",
+            }
+            if (!argDesc.pairOptions && argDesc.standalone) { // no input
+                cur.state.readingValue = 'name'
+                markup = {
+                    text: "Select next:",
+                    options: [
+                        ...cur.descriptor.args.filter(arg => arg.ctx === ctx).map(arg => toMarkup(arg.name, "name")),
+                        ...defaultBuilderMarkupOptions,
+                    ]
+                }
+            } else {
+                cur.state.readingValue = 'value'
+                markup = {
+                    text: "Select argument value or type own:",
+                    options: [
+                        ...argDesc.pairOptions?.map(opt => toMarkup(opt, "value"))??[],
+                        ...defaultBuilderMarkupOptions,
+                    ]
+                }
+            }
+
+            cur.state.read.push({
+                ctx,
+                name: input,
+                value: argDesc.standalone ? input : '',
+                isStandalone: argDesc.standalone
+            })
+
+            return {
+                done: false,
+                markup
+            }
+        } else if (readType === 'value') {
+            if (cur.state.read.length === 0) {
+                return {
+                    done: true,
+                    markup: {
+                        text: "Error: Reading value before selected argument name. Exiting...",
+                    }
+                }
+            }
+            const argRead = cur.state.read[cur.state.read.length - 1]
+            if (argRead) { // to not override: && argRead.value === null
+                argRead.value = input
+            }
+            cur.state.readingValue = 'name'
+
+            // is last value
+            if (this.isAllRead(cur)) {
+                const res = this.build(userId)
+                if (res) {
+                    return {
+                        done: true,
+                        built: res,
+                        markup: {
+                            text: "Build success",
+                        }
+                    }
+                } else {
+                    log.warn("Build failed when all values read")
+                }
+            }
+
+            return {
+                done: false,
+                markup: {
+                    text: "Select argument name:",
+                    options: [
+                        ...cur.descriptor.args.filter(arg => arg.ctx === ctx).map(arg => toMarkup(arg.name, "name")),
+                        ...defaultBuilderMarkupOptions,
+                    ]
+                }
+            }
+        } else {
+            return {
+                done: true,
+                markup: {
+                    text: `State error: Unknown reading state: "${readType}". Exiting...`
+                }
+            }
+        }
+    }
+
+    startBuild(userId: string, command: string, desc: IBuilderCmdDesc, contexts: ReadingCtxType[]): ICmdBuilderMarkup {
         if (this.usersBuildingQueue.has(userId)) {
             throw "User already has active build."
         }
@@ -91,25 +290,27 @@ export class CommandBuilder {
 
         const initialCtxOptions = desc.args.filter(arg => arg.ctx === initialCtx)
 
+        const args = desc.args.filter(v => v.ctx === 'args')
+        const msgs = desc.args.filter(v => v.ctx === 'message')
+        const params = desc.args.filter(v => v.ctx === 'params')
+        const configs = desc.args.filter(v => v.ctx === 'config')
+
+        let desc_str = ""
+        const stroke = (str: string, pair: string) => `${pair[0]}${str}${pair[1]}`;
+
+        [args, msgs, params, configs].forEach(descType => {
+            desc_str += descType.map(v =>
+                ` - ${stroke(v.name, v.required ? "<>" : "[]")} - ${v.description ?? "No description"}`
+            ).join('\n') + "\n";
+        })
+
         return {
-            text: `Start building for: "${command}", inital ctx: ${initialCtx}. Select argument name:`,
+            text: `Building command: "${command}".\nAvalible context: ${contexts.join(", ")}.\n${desc_str}`,
             options: [
-                ...initialCtxOptions.map(arg => toMarkup(arg.name)),
+                ...initialCtxOptions.map(arg => toMarkup(arg.name, "name")),
                 ...defaultBuilderMarkupOptions,
             ]
         }
-    }
-
-    private isAllRead(bs: ICmdBuildingState) {
-        const { read } = bs.state
-
-        for (const darg of bs.descriptor.args) {
-            if (!read.find(arg => arg.name === darg.name && (darg.pairOptions ? arg.value != "" && arg.value : true))) {
-                return false
-            }
-        }
-        
-        return true
     }
 
     // ridiculous logic implementation of state machine :((
@@ -127,146 +328,14 @@ export class CommandBuilder {
         }
 
         if (cur.state.readingValue === 'ctx') {
-            if (cur.avalibleCtxs.includes(input as any)) {
-                cur.state.readingCtx = input as ReadingCtxType
-                cur.state.readingValue = 'name'
-                return {
-                    done: false,
-                    markup: {
-                        text: "Ctx switched to: " + input + ". Select argument name:",
-                        options: [
-                            ...cur.descriptor.args.filter(arg => arg.ctx === input).map(arg => toMarkup(arg.name)),
-                            ...defaultBuilderMarkupOptions,
-                        ]
-                    }
-                }
-            } else {
-                return {
-                    done: true,
-                    markup: {
-                        text: "Unknown ctx: " + input + ". Exiting...",
-                    }
-                }
-            }
+            return this.readCtxValue(cur, input)
         }
 
-        if (input === DefaultBuilderCallbacks.cancel) {
-            this.stopBuild(userId)
-            return {
-                done: true,
-                markup: {
-                    text: "Build canceled",
-                }
-            }
+        if (this.isDefaultCb(input)) {
+            return this.readDefaultCb(cur, userId, input)
         }
 
-        if (input === DefaultBuilderCallbacks.execute) {
-            const res = this.build(userId)
-            return {
-                done: true,
-                built: res ? res : undefined,
-                markup: {
-                    text: res ? "Build success" : "Build failed",
-                }
-            }
-        }
-
-        if (input === DefaultBuilderCallbacks.switchCtx) {
-            return {
-                done: false,
-                markup: toSwitchCtxMarkup(cur.avalibleCtxs)
-            }
-        }
-
-        const ctx = cur.state.readingCtx
-        const readType = cur.state.readingValue
-        if (readType === 'name') {
-            const argDesc = cur.descriptor.args.find(arg => arg.name.toLowerCase() === input.toLowerCase())
-            if (!argDesc) {
-                return {
-                    done: true,
-                    markup: {
-                        text: `Unknown argument name: "${input}". Avalible names(ctx: ${ctx}): ${cur.descriptor.args.filter(arg => arg.ctx === ctx).map(arg => arg.name)}. Exiting...`,
-                    }
-                }
-            }
-
-            let markup: ICmdBuilderMarkup = {
-                text: "",
-            }
-            if (!argDesc.pairOptions) { // no input
-                cur.state.readingValue = 'name'
-                markup = {
-                    text: "Select next:",
-                    options: [
-                        ...cur.descriptor.args.filter(arg => arg.ctx === ctx).map(arg => toMarkup(arg.name)),
-                        ...defaultBuilderMarkupOptions,
-                    ]
-                }
-            } else {
-                cur.state.readingValue = 'value'
-                markup = {
-                    text: "Select argument value or type own:",
-                    options: [
-                        ...argDesc.pairOptions.map(opt => toMarkup(opt)),
-                        ...defaultBuilderMarkupOptions,
-                    ]
-                }
-            }
-
-            cur.state.read.push({ctx, name: input, value: ''})
-
-            return {
-                done: false,
-                markup
-            }
-        } else if (readType === 'value') {
-            if (cur.state.read.length === 0) {
-                return {
-                    done: true,
-                    markup: {
-                        text: "No arguments to read. Exiting...",
-                    }
-                }
-            }
-            const argRead = cur.state.read[cur.state.read.length - 1]
-            if (argRead) { // to not override: && argRead.value === null
-                argRead.value = input
-            }
-            cur.state.readingValue = 'name'
-
-            // is last value
-            if (this.isAllRead(cur)) {
-                const res = this.build(userId)
-                if (res) {
-                    return {
-                        done: true,
-                        built: res,
-                        markup: {
-                            text: "Build success",
-                        }
-                    }
-                }
-            }
-
-            return {
-                done: false,
-                markup: {
-                    text: "Select argument name:",
-                    options: [
-                        ...cur.descriptor.args.filter(arg => arg.ctx === ctx).map(arg => toMarkup(arg.name)),
-                        ...defaultBuilderMarkupOptions,
-                    ]
-                }
-            }
-        } else {
-            return {
-                done: true,
-                markup: {
-                    text: "Unknown reading value type: " + readType
-                }
-            }
-        }
+        return this.readPairValue(cur, userId, input)
     }
 
     handle(userId: string, _input: string): ICmdBuilderHandleResult {

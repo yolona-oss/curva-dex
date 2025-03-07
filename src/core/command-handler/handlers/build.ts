@@ -5,6 +5,7 @@ import { AbstractCmdHandler, ICmdHandlerRequest, ICmdHandlerResponce, BaseUICont
 import { IManager, Manager } from "@core/db";
 import { CommandBuilder } from "../command-builder";
 import { MotherCmdHandler } from "../mother-cmd-handler";
+import log from "@core/utils/logger";
 
 // TODO add completion for builtin commands
 
@@ -138,9 +139,13 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
             return builderRes
         }
 
-        const buildSetupRes = await this.startNewBuild(userId, command, args, uiCtx, builder, currentCmdHandler)
-        if (buildSetupRes) {
-            return buildSetupRes
+        try {
+            const buildSetupRes = await this.startNewBuild(userId, command, args, uiCtx, builder, currentCmdHandler)
+            if (buildSetupRes) {
+                return buildSetupRes
+            }
+        } catch(e: any) {
+            log.trace(`Cannot start build command: "${command}"`, e)
         }
 
         return await super.handle(request)
