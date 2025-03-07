@@ -40,28 +40,32 @@ let log = <ExtendedLog>function(...arg: any[]): void {
 
 log.error = function(...arg: any[]) {
     log("ERROR:", ...arg)
-
-    console.error(logTime() + ':' + '[' + chalk.red('EE') + '] ->', ...arg)
+    const prefix = logTime() + ':' + '[' + chalk.red('EE') + '] ->'
+    console.error(prefix, ...arg)
 }
 
 log.warn = function(...arg: any[]) {
     log("WARNING:", ...arg)
-    console.warn(logTime() + ':' + '[' + chalk.yellow('WW') + '] ->', ...arg)
+    const prefix = logTime() + ':' + '[' + chalk.yellow('WW') + '] ->'
+    console.warn(prefix, ...arg)
 }
 
 log.info = function(...arg: any[]) {
     log(...arg)
-    console.log(logTime() + ':' + '[' + chalk.blue('II') + '] ->', ...arg)
+    const prefix = logTime() + ':' + '[' + chalk.blue('II') + '] ->'
+    console.log(prefix, ...arg)
 }
 
 log.debug = function(...arg: any[]) {
     log("DEBUG:", ...arg)
-    console.log(logTime() + ':' + '[' + chalk.magenta('DD') + '] ->', ...arg)
+    const prefix = logTime() + ':' + '[' + chalk.magenta('DD') + '] ->'
+    console.log(prefix, ...arg)
 }
 
 log.trace = function(...arg: any[]) {
     log("TRACE:", ...arg)
-    console.log(logTime() + ':' + '[' + chalk.green('TT') + '] ->', ...arg)
+    const prefix = logTime() + ':' + '[' + chalk.green('TT') + '] ->'
+    console.log(prefix, ...arg)
 }
 
 log.lineSep = function(symbol: string = '~', color: string = "cyan") {

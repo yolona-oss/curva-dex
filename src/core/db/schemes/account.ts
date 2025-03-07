@@ -78,7 +78,9 @@ const ModuleSchema: Schema<IModuledData> = new Schema({
     module: { type: String, required: true },
     comment: { type: String, required: false, default: '' },
     data: { type: Schema.Types.Mixed, required: true },
-});
+}, {
+        timestamps: true
+    });
 
 export const MODULE_NAMES_INDEXER = "__module_list__"
 export const MODULE_NAME_DELIMITER = "::"
@@ -98,6 +100,8 @@ export const AccountSchema: Schema<IAccount, {}, IAccountMethods> = new Schema(
                     throw new Error(`Module name "${MODULE_NAMES_INDEXER}" is reserved`)
                 }
 
+                //if (!Array.isArray(this.modules)) this.modules = [];
+
                 if (comment === '') {
                     comment = module_name
                 }
@@ -113,14 +117,14 @@ export const AccountSchema: Schema<IAccount, {}, IAccountMethods> = new Schema(
                     desireModule = this.modules[this.modules.length - 1]
                 }
 
+
                 if (!desireModule.data) {
                     desireModule.data = {}
                 }
 
-                await addToIndexer.bind(this)(module_name)
+                await addToIndexer.bind(this)(module_name);
 
                 assignToCustomPath(desireModule.data, path, payload)
-                console.log(desireModule)
                 await this.save()
                 return this
             },
@@ -194,21 +198,21 @@ export const AccountSchema: Schema<IAccount, {}, IAccountMethods> = new Schema(
     }
 );
 
-AccountSchema.pre<IAccount>('save', function(next) {
+AccountSchema.pre<IAccount>('save', function (next) {
     if (this.isNew) {
         if (!Array.isArray(this.modules)) {
-            this.modules = []
+            this.modules = [];
         }
-        this.modules.push({
-            module: MODULE_NAMES_INDEXER,
-            comment: `Linked modules list`,
-            data: {
-                list_modules: []
-            }
-        })
-    }
 
-    if (next && next instanceof Function) {
-        next()
+        if (!this.modules.find(m => m.module === MODULE_NAMES_INDEXER)) {
+            this.modules.push({
+                module: MODULE_NAMES_INDEXER,
+                comment: `Linked modules list`,
+                data: { list_modules: [] }
+            });
+        }
     }
-})
+    if (next && typeof next === "function") {
+        next();
+    }
+});

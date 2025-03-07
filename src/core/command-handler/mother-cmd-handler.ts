@@ -280,13 +280,19 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
             log.error(`While processing command "${command}" passed arguments, command not found`)
             return true // maybe dispatch exception?
         }
-        if (cmd.execMixin instanceof Function || !(cmd.execMixin instanceof BaseCommandService)) {
+        if (cmd.execMixin instanceof Function) {
             if (!cmd.args || cmd.args.length === 0) {
                 return true
             }
+
             const requiredArgs = cmd.args.filter(a => a.required)
             const requiredArgNames = requiredArgs.map(a => a.name)
-            return isEqual_Deep(requiredArgNames, passedArgs)
+            return passedArgs.length >= requiredArgs.length
+            //console.log("Required VVV")
+            //console.log(requiredArgNames)
+            //console.log("Passed VVV")
+            //console.log(passedArgs)
+            //return isEqual_Deep(requiredArgNames, passedArgs)
         } else {
             // services always neet to be configured
             return false
@@ -454,16 +460,16 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
             await serviceInstance.Initialize()
             userServices.push(serviceInstance)
             serviceInstance.run()
+            return {
+                success: true,
+                text: `Service ${serviceName} started.`
+            }
         } catch(e: any) {
             log.error(`Error starting service ${serviceName}: ${anyToString(e)}`, e)
             return {
                 success: false,
                 text: `Error starting service ${serviceName}: ${anyToString(e)}` 
             }
-        }
-        return {
-            success: true,
-            text: `Service ${serviceName} started.`
         }
     }
 
@@ -522,4 +528,4 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
             console.log(`${name}:`, cb)
         }
     }
-}
+    }

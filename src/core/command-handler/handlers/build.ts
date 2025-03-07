@@ -86,6 +86,8 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
     }
 
     private async startNewBuild(userId: string, command: string, args: string[], ctx: UICtx, builder: CommandBuilder, cmdHandler: MotherCmdHandler<UICtx>): Promise<ICmdHandlerResponce|void> {
+        console.log(`Checking for availability to start build: ${command}`)
+        console.log(`Command: `, command, `Args: `, args)
         if (!cmdHandler.isAllArgsPassed(command, args)) {
             const cb = cmdHandler.getCallbackFromCommandName(command)
             const { isService } = this.getCbConfig(cb, cmdHandler, userId)
