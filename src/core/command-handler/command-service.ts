@@ -6,15 +6,10 @@ import { IRunnable } from "@core/types/runnable";
 import TypedEventEmitter, { EventMap } from 'typed-emitter'
 import EventEmitter from 'events'
 import { assignToCustomPath, isEmpty } from "@utils/object";
-import {
-    BLANK_SERVICE_NAME,
-    CreateDefaultServiceSessionData,
-    BLANK_SERVICE_SESSION_ID,
-    MODULE_SESSION_ID_MARK,
-} from "./constants";
+import { BLANK_SERVICE_NAME, } from "./constants";
 
 import 'reflect-metadata';
-import { BaseServiceConfig, BaseServiceInteractMessages, BaseServiceParameters, ServiceData, toDescriptor } from "./service-data";
+import { BaseCmdServiceConfig, BaseCmdServiceInteractMessages, BaseCmdServiceParameters, CmdServiceData, toDescriptor } from "./service-data";
 import { IServiceSessionData } from "./types";
 import { CommandArgumentMetadata } from "@core/ui/types/command";
 
@@ -27,9 +22,9 @@ interface IBaseCmdService_EvMap<T = string> extends EventMap {
 
 export abstract class BaseCommandService<
         TSessionData extends IServiceSessionData,
-        TConfig extends BaseServiceConfig = BaseServiceConfig,
-        TParams extends BaseServiceParameters = BaseServiceParameters,
-        TInteractMessages extends BaseServiceInteractMessages = BaseServiceInteractMessages
+        TConfig extends BaseCmdServiceConfig = BaseCmdServiceConfig,
+        TParams extends BaseCmdServiceParameters = BaseCmdServiceParameters,
+        TInteractMessages extends BaseCmdServiceInteractMessages = BaseCmdServiceInteractMessages
     >
     extends (EventEmitter as new () => TypedEventEmitter<IBaseCmdService_EvMap>)
     implements IRunnable
@@ -37,13 +32,13 @@ export abstract class BaseCommandService<
     private _isInited = false
     private _isRunning: boolean = false
 
-    protected data: ServiceData<TConfig, TParams, TInteractMessages>
+    protected data: CmdServiceData<TConfig, TParams, TInteractMessages>
 
     protected session_data: Partial<TSessionData> & IServiceSessionData
 
     constructor(
         protected userId: string, // the user who execute this service
-        serviceData: ServiceData<TConfig, TParams, TInteractMessages>,
+        serviceData: CmdServiceData<TConfig, TParams, TInteractMessages>,
         public readonly name: string = BLANK_SERVICE_NAME,
     ) {
         super()
@@ -55,7 +50,7 @@ export abstract class BaseCommandService<
     protected abstract runWrapper(): Promise<void>
     protected abstract terminateWrapper(): Promise<void>
     abstract receiveMsg(msg: string, args: string[]): Promise<void>
-    abstract clone(userId: string, serviceData?: ServiceData, newName?: string): BaseCommandService<TSessionData>
+    abstract clone(userId: string, serviceData?: CmdServiceData, newName?: string): BaseCommandService<TSessionData>
 
     sendMsg(msg: string) {
         this.emit("message", msg)
@@ -110,6 +105,7 @@ export abstract class BaseCommandService<
     }
 
     async initSession() {
+
         // load config and session data
 
         const user = (await Manager.findOne({userId: this.userId}))!;

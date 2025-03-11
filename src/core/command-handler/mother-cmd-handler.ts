@@ -25,7 +25,7 @@ import { isContainsAll, isEqual_Deep } from "@core/utils/array";
 import { anyToString } from "@core/utils/misc";
 import { Account, Manager } from "@core/db";
 import { BLANK_SERVICE_SESSION_ID, MODULE_SESSION_ID_MARK } from "./constants";
-import { ServiceData } from "./service-data";
+import { CmdServiceData } from "./service-data";
 import { BaseCommandArgumentDesc, getCmdArgMetadata, IUICommandProcessed } from "@core/ui/types/command";
 
 import {
@@ -286,8 +286,8 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
             }
 
             const requiredArgs = cmd.args.filter(a => a.required)
-            const requiredArgNames = requiredArgs.map(a => a.name)
             return passedArgs.length >= requiredArgs.length
+            //const requiredArgNames = requiredArgs.map(a => a.name)
             //console.log("Required VVV")
             //console.log(requiredArgNames)
             //console.log("Passed VVV")
@@ -436,7 +436,7 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
             messages = Object.assign(conf, { [m.name]: m.value })
         }
 
-        new ServiceData(conf as any, params as any, messages as any)
+        new CmdServiceData(conf as any, params as any, messages as any)
         const serviceInstance = exe.clone(userId, undefined)
 
         const userServices = this.UserActiveServices(userId)

@@ -11,8 +11,7 @@ export const Manager = mongoose.model<IManager, ManagerModelType>(DbModelsEnum.M
 export const File = mongoose.model<IFile>(DbModelsEnum.Files, FileSchema)
 export { FilesWrapper } from './file-schema-wrapper'
 
-import { AccountModelType } from './schemes/account'
-export const Account = mongoose.model<IAccount, AccountModelType>(DbModelsEnum.Accounts, AccountSchema)
+export { Account } from './schemes/account'
 
 import { IMsgHistory, MsgHistorySchema } from './schemes/messages-history'
 export const MsgHistory = mongoose.model<IMsgHistory>(DbModelsEnum.MsgHistory, MsgHistorySchema)

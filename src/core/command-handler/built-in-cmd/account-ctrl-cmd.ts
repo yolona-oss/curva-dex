@@ -14,7 +14,7 @@ async function getAllUserModules(accountId: string): Promise<string[]> {
         return []
     }
 
-    return account.modules.map(o => o.module)
+    return account.modules.map(o => o.name)
 }
 
 class SetVariableArgs {
@@ -61,7 +61,7 @@ const SetVariableCommand: BuiltInCommand = {
         console.log(`SetVariableCommand: ${module_name}, ${path}, ${value}`)
         await account.setModuleData(module_name, path, value)
         await account.save()
-        console.log(account.modules.find(m => m.module === module_name))
+        console.log(account.modules.find(m => m.name === module_name))
         await ctx.reply(`Variable "${path}" set to "${value}" on module "${module_name}"`)
     }
 }

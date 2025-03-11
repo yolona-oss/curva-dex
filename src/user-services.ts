@@ -1,13 +1,13 @@
 import { BaseCommandService, IServiceSessionData } from '@core/command-handler'
 import { BLANK_USER_ID } from '@core/command-handler'
-import { BaseServiceConfig, BaseServiceInteractMessages, BaseServiceParameters, ServiceData } from '@core/command-handler/service-data'
+import { BaseCmdServiceConfig, BaseCmdServiceInteractMessages, BaseCmdServiceParameters, CmdServiceData } from '@core/command-handler/service-data'
 import { CmdArgument } from '@core/ui/types/command'
 import { genRandomNumber, genRandomNumberBetweenWithScatter } from '@utils/random'
 import { sleep } from '@utils/time'
 
 const TestServiceName = 'test_service'
 
-class TestServiceInteractMessages extends BaseServiceInteractMessages {
+class TestServiceInteractMessages extends BaseCmdServiceInteractMessages {
     @CmdArgument({
         required: false,
         standalone: true,
@@ -44,7 +44,7 @@ class TestServiceInteractMessages extends BaseServiceInteractMessages {
     setmax?: number
 }
 
-class TestServiceParameters extends BaseServiceParameters {
+class TestServiceParameters extends BaseCmdServiceParameters {
     @CmdArgument({
         required: false,
         standalone: false,
@@ -60,16 +60,16 @@ interface TestServiceSessionData extends IServiceSessionData {
     prev_max?: number
 }
 
-export class TestService extends BaseCommandService<TestServiceSessionData, BaseServiceConfig, TestServiceParameters, TestServiceInteractMessages> {
+export class TestService extends BaseCommandService<TestServiceSessionData, BaseCmdServiceConfig, TestServiceParameters, TestServiceInteractMessages> {
     private max = 5000n
     private i = 3n
 
     constructor(
         userId: string = BLANK_USER_ID,
-        serviceData?: ServiceData<BaseServiceConfig, BaseServiceParameters, TestServiceInteractMessages>,
+        serviceData?: CmdServiceData<BaseCmdServiceConfig, BaseCmdServiceParameters, TestServiceInteractMessages>,
         name: string = TestServiceName
     ) {
-        serviceData = serviceData ?? new ServiceData({}, new TestServiceParameters(), new TestServiceInteractMessages())
+        serviceData = serviceData ?? new CmdServiceData({}, new TestServiceParameters(), new TestServiceInteractMessages())
         super(userId, serviceData, name)
     }
 
@@ -94,7 +94,7 @@ export class TestService extends BaseCommandService<TestServiceSessionData, Base
         }
     }
 
-    clone(userId: string, serviceData?: ServiceData, newName?: string): BaseCommandService<TestServiceSessionData> {
+    clone(userId: string, serviceData?: CmdServiceData, newName?: string): BaseCommandService<TestServiceSessionData> {
         return new TestService(userId, serviceData, newName)
     }
 

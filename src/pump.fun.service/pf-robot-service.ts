@@ -6,7 +6,7 @@ import { PumpFunRobot } from "./pf-robot";
 import { BLANK_USER_ID } from "@core/command-handler";
 import { IMTCStateSave } from "@bots/traider/mtc";
 import { PumpFunAssetType } from "@bots/traider/impl/pump.fun";
-import { BaseServiceInteractMessages, ServiceData } from "@core/command-handler/service-data";
+import { BaseCmdServiceInteractMessages, CmdServiceData } from "@core/command-handler/service-data";
 
 export const serviceName = 'pump_fun'
 export const serviceDescription = `Customizable servie for the pump.fun dex simulation activity and automated trading by setting a strategy schema.`
@@ -60,7 +60,7 @@ export class PumpFunService extends BaseCommandService<IPFServiceSessionData, IP
 
     constructor(
         userId: string = BLANK_USER_ID,
-        serviceData: ServiceData = new ServiceData({}, {}, new BaseServiceInteractMessages()),
+        serviceData: CmdServiceData = new CmdServiceData({}, {}, new BaseCmdServiceInteractMessages()),
         name: string = serviceName
     ) {
         super(
@@ -70,7 +70,7 @@ export class PumpFunService extends BaseCommandService<IPFServiceSessionData, IP
         )
     }
 
-    clone(userId: string, serviceData: ServiceData, newName: string = serviceName) {
+    clone(userId: string, serviceData: CmdServiceData, newName: string = serviceName) {
         return new PumpFunService(userId, serviceData, newName)
     }
 
