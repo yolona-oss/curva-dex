@@ -1,7 +1,7 @@
 import { getConfig, getInitialConfig } from '@core/config'
 import { AvailableUIsEnum, AvailableUIsType, IUI, IUICommandSimple } from '@core/ui/types';
 import { FilesWrapper, Manager } from '@core/db';
-import { ICmdBuilderMarkupOption, ICmdHandlerResponce, ICmdMixin, MotherCmdHandler } from '@core/command-handler';
+import { ICmdBuilderMarkupOption, ICmdHandlerResponce, ICmdMixin, CHComposer } from '@core/command-handler';
 import { WithInit } from '@core/types/with-init';
 
 import { BuiltInTgUICommands } from './constants/commands';
@@ -39,7 +39,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
 
     constructor(
         botApiKey: string,
-        public readonly cmdHandler: MotherCmdHandler<TgContext>
+        public readonly chComposer: CHComposer<TgContext>
     ) {
         super();
         this.bot = new telegraf.Telegraf(botApiKey);
@@ -64,8 +64,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         this.bot.action(RegExp("builder_*"), async (ctx) => {
             console.log("~ACTI----------")
             const action = String(ctx.match.input.slice("builder_".length));
-            console.log(action)
-            const res = await this.cmdHandler.handleCommand(action, ctx as any);
+            const res = await this.chComposer.handleCommand(action, ctx as any);
             await this.replyByCommandResult(ctx as any, res);
             await ctx.deleteMessage();
         });
@@ -91,13 +90,13 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
             throw new Error("TelegemUI::init() already inited")
         }
 
-        if (!this.cmdHandler.isInitialized()) {
+        if (!this.chComposer.isInitialized()) {
             throw new Error("TelegemUI::init() command handler not inited")
         }
 
         // apply builtin tg commands to cmd handler
         const tgCommands = this.registerTgComands()
-        const commands = this.cmdHandler.mapHandlersToUICommands().concat(tgCommands.map(cmd => cmd.command) as IUICommandProcessed[])
+        const commands = this.chComposer.mapHandlersToUICommands().concat(tgCommands.map(cmd => cmd.command) as IUICommandProcessed[])
 
         this.verifyCommands(commands)
         log.info(`Commands verified ${chalk.green("successfully")}. Total commands: ${chalk.bold(commands.length)}`)
@@ -121,7 +120,6 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
                 const manager = await Manager.findById(ctx.manager.id)
                 const dto = fromTgContext(ctx)
                 await manager!.appendMessageHistory(dto)
-                console.log(dto)
 
                 return originalReply(...args); // Call the original reply function
             };
@@ -263,7 +261,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         }
 
         this.bot.catch(async function(err, ctx) {
-            await ctx.reply(`Internall tg-service error: ${anyToString(err)}`);
+            await ctx.reply(`${UiUnicodeSymbols.error} Internall tg-service error:\n -- ${anyToString(err)}`);
         })
 
         this.isActive = true;
@@ -281,7 +279,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
             if (!manager.useGreeting) { continue }
             await this.notifyManagers(manager.userId, `${UiUnicodeSymbols.info} Service going offline`)
         }
-        await this.cmdHandler.stopAllServices()
+        await this.chComposer.stopAllServices()
         this.bot.stop();
         log.info("** Telegram ui stopped");
     }
@@ -300,7 +298,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
             }))
 
         for (const tgCmd of tgCommands) {
-            this.cmdHandler.unBoundRegister(
+            this.chComposer.unBoundRegister(
                 tgCmd.command,
                 tgCmd.mixin as ICmdMixin<TgContext>
             )
@@ -384,7 +382,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
 
     private async handleCmd(cmd: string, ctx: TgContext) {
         try {
-            const response = await this.cmdHandler.handleCommand(cmd, ctx);
+            const response = await this.chComposer.handleCommand(cmd, ctx);
             await this.replyByCommandResult(ctx, response);
         } catch (e: any) {
             await ctx.reply(`TelegramUI::handleCmd error: ${anyToString(e)}`);
@@ -417,7 +415,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
     }
 
     printCommands(): void {
-        for (const cmd of this.cmdHandler.mapHandlersToUICommands()) {
+        for (const cmd of this.chComposer.mapHandlersToUICommands()) {
             cmd;
             //console.log(`${cmd.command} - ${cmd.description}`);
             //cmd.args && cmd.args.length ? console.log(cmd.args) : void 0;

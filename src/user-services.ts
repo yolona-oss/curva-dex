@@ -78,7 +78,7 @@ export class TestService extends BaseCommandService<TestServiceSessionData, Base
 
     constructor(
         userId: string = BLANK_USER_ID,
-        input: Partial<CmdServiceData<BaseCmdServiceConfig, BaseCmdServiceParameters, TestServiceInteractMessages>>,
+        input: Partial<CmdServiceData<BaseCmdServiceConfig, BaseCmdServiceParameters, TestServiceInteractMessages>> = {},
         name: string = TestServiceName
     ) {
         super(userId, defaultTestServiceData, input, name)

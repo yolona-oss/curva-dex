@@ -6,14 +6,12 @@ import { UiUnicodeSymbols } from "@core/ui"
 export class HandleCallbackExecution<Ctx extends BaseUIContext> extends AbstractCmdHandler<Ctx> {
 
     public async handle(request: ICmdHandlerRequest<Ctx>): Promise<ICmdHandlerResponce> {
-        console.log("HANDLE", this.constructor.name)
-
-        const { command, uiCtx, userId, args, currentCmdHandler } = request
+        const { command, uiCtx, userId, args, composer } = request
 
         let res
         try {
-            const built = await currentCmdHandler.CommandBuilder.parseCompeteInput(userId, command, args.join(' '), uiCtx, currentCmdHandler)
-            res = await currentCmdHandler.CommandExecutor.execute(userId, command, built.args, uiCtx)
+            const built = await composer.CommandBuilder.parseCompeteInput(userId, command, args.join(' '), uiCtx, composer)
+            res = await composer.CommandExecutor.execute(userId, command, built.args, uiCtx)
         } catch (e: any) {
             log.error("Command execution error: " + anyToString(e))
             return {

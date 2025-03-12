@@ -1,11 +1,11 @@
 import log from "@core/utils/logger"
 import { BuiltInSeqCommandsEnum } from "../constants"
-import { MotherCmdHandler } from "../mother-cmd-handler"
+import { CHComposer } from "../ch-composer"
 import { BuiltInCommand } from "../types/built-in-cmd"
 import { anyToString } from "@core/utils/misc"
 import { BaseUIContext } from "@core/ui"
 
-async function handle(this: MotherCmdHandler<any>, ctx: BaseUIContext, cmd: string) {
+async function handle(this: CHComposer<any>, ctx: BaseUIContext, cmd: string) {
     const userId = String(ctx.manager!.userId)
     try {
         const res = this.SequenceHandler.handle(userId, cmd)
@@ -26,7 +26,7 @@ async function handle(this: MotherCmdHandler<any>, ctx: BaseUIContext, cmd: stri
 const NextInSeqCommand: BuiltInCommand = {
     command: BuiltInSeqCommandsEnum.NEXT_COMMAND,
     description: "Proceed in current command sequnce.",
-    exec: async function(this: MotherCmdHandler<any>, _: string[], ctx) {
+    exec: async function(this: CHComposer<any>, _: string[], ctx) {
         await handle.bind(this)(ctx, BuiltInSeqCommandsEnum.NEXT_COMMAND)
     }
 }
@@ -36,7 +36,7 @@ const NextInSeqCommand: BuiltInCommand = {
 const BackInSeqCommand: BuiltInCommand = {
     command: BuiltInSeqCommandsEnum.BACK_COMMAND,
     description: "Go back in current command sequnce.",
-    exec: async function(this: MotherCmdHandler<any>, _: string[], ctx) {
+    exec: async function(this: CHComposer<any>, _: string[], ctx) {
         await handle.bind(this)(ctx, BuiltInSeqCommandsEnum.BACK_COMMAND)
     }
 }
@@ -46,7 +46,7 @@ const BackInSeqCommand: BuiltInCommand = {
 const CancelSeqCommand: BuiltInCommand = {
     command: BuiltInSeqCommandsEnum.CANCEL_COMMAND,
     description: "Cancel current command sequnce.",
-    exec: async function(this: MotherCmdHandler<any>, _: string[], ctx) {
+    exec: async function(this: CHComposer<any>, _: string[], ctx) {
         await handle.bind(this)(ctx, BuiltInSeqCommandsEnum.CANCEL_COMMAND)
     }
 }

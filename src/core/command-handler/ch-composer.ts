@@ -54,8 +54,7 @@ import { HandleCommandAlias } from "./handlers/alias";
 // NOTE: ITS TEMPORARY. ITS WILL BE REMOVED TO ANOTHER IMPL
 type WaitingUserInputType = "builderDeligate" | null
 
-// TODO RENAME IT!!! and split
-export class MotherCmdHandler<UIContextType extends BaseUIContext> extends WithInit {
+export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
     /** @description Per user active services */
     private activeServices: Map<string, Array<BaseCommandService<any>>> // userId -> services
     private callbacks: Map<string, ICmdCallback<UIContextType>> // name -> callback
@@ -92,7 +91,7 @@ export class MotherCmdHandler<UIContextType extends BaseUIContext> extends WithI
 
         try {
             return await this.chain.handle({
-                currentCmdHandler: this,
+                composer: this,
                 command: command,
                 userId: String(_userId),
                 ownerId: String(ctx.manager!._id),
@@ -236,7 +235,7 @@ export class MotherCmdHandler<UIContextType extends BaseUIContext> extends WithI
             throw `Service ${serviceName} of user ${userId} not active`
         }
 
-        const services = this.activeServices.get(userId)!
+        const services = this.UserActiveServices(userId)
         try {
             await services.find(serv => serv.name === serviceName)!.terminate()
         } catch (e: any) {

@@ -14,7 +14,6 @@ import { DEFAULT_ACCOUNT_SESSION_NAME } from "@core/db/schemes/account/session";
 import { Extender } from "@core/utils/extender";
 
 import 'reflect-metadata';
-import { assignToCustomPath } from "@core/utils/object";
 import { UiUnicodeSymbols } from "@core/ui";
 
 interface IBaseCmdService_EvMap<T = string> extends EventMap {

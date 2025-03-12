@@ -18,7 +18,7 @@ export class CLIUI extends WithInit implements IUI<CLIContext> {
     private cmds: string[]
 
     constructor(
-        public readonly cmdHandler: MotherCmdHandler<CLIContext>
+        public readonly chComposer: MotherCmdHandler<CLIContext>
     ) {
         super()
         this.context = {
@@ -30,7 +30,7 @@ export class CLIUI extends WithInit implements IUI<CLIContext> {
                 console.log('[' + new Date().toLocaleTimeString("ru") + ']' + "[CLI] < " + message);
             }
         };
-        this.cmds = this.cmdHandler.mapHandlersToUICommands().map(cmd => cmd.command)
+        this.cmds = this.chComposer.mapHandlersToUICommands().map(cmd => cmd.command)
         console.log(this.cmds)
         this.setInitialized()
     }
@@ -100,7 +100,7 @@ export class CLIUI extends WithInit implements IUI<CLIContext> {
             const [command, ...args] = line.split(' ');
             this.context.userSession.data.args = args; // Save args in context
 
-            const response = await this.cmdHandler!.handleCommand(command, this.context);
+            const response = await this.chComposer!.handleCommand(command, this.context);
             if (response.text) {
                 this.context.reply(String(response.text));
             }
@@ -116,7 +116,7 @@ export class CLIUI extends WithInit implements IUI<CLIContext> {
         if (this.rl) {
             this.rl.close()
         }
-        await this.cmdHandler.stopAllServices()
+        await this.chComposer.stopAllServices()
         this.isActive = false
         log.info(" -- CLI ui stopped");
     }

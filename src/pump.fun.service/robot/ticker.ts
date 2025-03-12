@@ -4,7 +4,7 @@ import { SlaveDictionary } from "./slave-dict";
 import { randomizeWithScatter } from "@core/utils/random";
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { MTC_OfferBuilder } from "@bots/traider/mtc-offer-builder";
-import { IPumpFunRobotConfig } from "../pf-config";
+import { IPumpFunRobotConfig } from "../config";
 import { writeJsonData } from "@core/utils/fs";
 
 type PerformTradeRet = {

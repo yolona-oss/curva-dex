@@ -1,6 +1,6 @@
 import { CmdArgument } from "@core/ui/types/command"
 import { BuiltInAliasCommandsEnum } from "../constants"
-import { MotherCmdHandler } from "../mother-cmd-handler"
+import {CHComposer } from "../ch-composer"
 import { BuiltInCommand } from "../types/built-in-cmd"
 import { CmdAlias } from "@core/db"
 import { UiUnicodeSymbols } from "@core/ui"
@@ -31,7 +31,7 @@ const AliasCommand: BuiltInCommand = {
     command: BuiltInAliasCommandsEnum.ALIAS_COMMAND,
     description: "Print help for concreet command",
     args: AliasArgs,
-    exec: async function(this: MotherCmdHandler<any>, args: string[], ctx) {
+    exec: async function(this: CHComposer<any>, args: string[], ctx) {
         const aliasName = args[0]
         const commandStr = args.slice(1).join(" ")
         const owner_id = ctx.manager!._id
@@ -64,7 +64,7 @@ const UnaliasCommand: BuiltInCommand = {
     command: BuiltInAliasCommandsEnum.UNALIAS_COMMAND,
     description: "Unalias command",
     args: UnAliasArgs,
-    exec: async function(this: MotherCmdHandler<any>, args: string[], ctx) {
+    exec: async function(this: CHComposer<any>, args: string[], ctx) {
         const aliasName = args[0]
         const owner_id = ctx.manager!._id
 
@@ -81,7 +81,7 @@ const ListAliases: BuiltInCommand = {
     command: BuiltInAliasCommandsEnum.LIST_ALIASES_COMMAND,
     description: "Show all user aliases",
     args: [],
-    exec: async function(this: MotherCmdHandler<any>, _: string[], ctx) {
+    exec: async function(this: CHComposer<any>, _: string[], ctx) {
         const owner_id = ctx.manager!._id
 
         const aliases = await CmdAlias.find({owner_id})

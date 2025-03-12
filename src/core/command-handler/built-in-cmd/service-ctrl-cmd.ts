@@ -2,8 +2,7 @@ import { CmdArgument } from "@core/ui/types/command"
 import { BuiltInServiceCommandsEnum } from "../constants"
 import { ICmdService } from "../types"
 import { BuiltInCommand } from "../types/built-in-cmd"
-import { MotherCmdHandler } from "../mother-cmd-handler"
-import log from "@core/utils/logger"
+import { CHComposer } from "../ch-composer"
 import { anyToString } from "@core/utils/misc"
 import { UiUnicodeSymbols } from "@core/ui"
 
@@ -24,7 +23,7 @@ const ServiceStopCommand: BuiltInCommand = {
     command: BuiltInServiceCommandsEnum.STOP_COMMAND,
     description: "Stop service with passed name <service-name>.",
     args: ServiceStopArgs,
-    exec: async function(this: MotherCmdHandler<any>, args: string[], ctx) {
+    exec: async function(this: CHComposer<any>, args: string[], ctx) {
         const userId = String(ctx.manager!.userId)
         const serviceName = args[0]
         try {
@@ -54,12 +53,12 @@ const ServiceRunCommand: BuiltInCommand = {
     command: BuiltInServiceCommandsEnum.RUN_COMMAND,
     description: "Run service with passed name <service-name>. NOCONFIG!!!",
     args: ServiceRunArgs,
-    exec: async function(this: MotherCmdHandler<any>, args: string[], ctx) {
+    exec: async function(this: CHComposer<any>, args: string[], ctx) {
         const userId = String(ctx.manager!.userId)
         const serviceName = args[0]
 
         try {
-            const res = await this.execute(userId, serviceName, [], ctx)
+            const res = await this.CommandExecutor.execute(userId, serviceName, [], ctx)
             await ctx.reply(`Service ${serviceName} started: ${res}`)
         } catch(e: any) {
             await ctx.reply(`Service ${serviceName} termination error: ${anyToString(e)}.`)
@@ -75,8 +74,8 @@ class ServiceSendMsgArgs {
         required: true,
         standalone: true,
         description: "Service name to send message",
-        pairOptions: async (_, handler, owner) => {
-            return handler.UserActiveServices(String(owner.userId)).map(s => s.name)
+        pairOptions: async function(_, composer, owner): Promise<string[]> {
+            return composer.UserActiveServices(String(owner.userId)).map(s => s.name)
         }
     })
     service!: String
@@ -115,17 +114,17 @@ const ServiceSendMsgCommand: BuiltInCommand = {
     command: BuiltInServiceCommandsEnum.SEND_MSG_COMMAND,
     description: "Send message to service with passed name <service-name> and <message> with optional args.",
     args: ServiceSendMsgArgs,
-    exec: async function(this: MotherCmdHandler<any>, args: string[], ctx) {
+    exec: async function(this: CHComposer<any>, args: string[], ctx) {
         const userId = String(ctx.manager!.userId)
         const serviceName = args[0]
         const messageName = args[1]
         const messageArgs = args.slice(2)
         try {
-            const service = this.UserActiveServices(userId).find(s => s.name === serviceName)
-            if (!service) {
+            const activeService = this.UserActiveServices(userId).find(s => s.name === serviceName)
+            if (!activeService) {
                 throw `Service ${serviceName} not found`
             }
-            const res = await service.receiveMsg(messageName, messageArgs)
+            const res = await activeService.receiveMsg(messageName, messageArgs)
             await ctx.reply(`Message ${messageName} sent: ${res}`)
         } catch(e: any) {
             await ctx.reply(`Message ${messageName} sending error: ${anyToString(e)}.`)

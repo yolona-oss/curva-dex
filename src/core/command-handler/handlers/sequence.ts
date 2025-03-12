@@ -5,18 +5,16 @@ import log from '@utils/logger'
 
 export class HandleSequenceCommand<Ctx extends BaseUIContext> extends AbstractCmdHandler<Ctx> {
     public async handle(request: ICmdHandlerRequest<Ctx>): Promise<ICmdHandlerResponce> {
-        console.log("HANDLE SEQUENCE CMD")
+        const { command, userId, composer } = request
 
-        const { command, userId, currentCmdHandler } = request
-
-        const cb = currentCmdHandler.getCallbackFromCommandName(command)
+        const cb = composer.getCallbackFromCommandName(command)
         if (!cb.seqBounded) {
             return await super.handle(request)
         }
 
         let res
         let err
-        const sequenceHandler = currentCmdHandler.SequenceHandler
+        const sequenceHandler = composer.SequenceHandler
         try {
             res = sequenceHandler.handle(userId, command)
         } catch (e: any) {

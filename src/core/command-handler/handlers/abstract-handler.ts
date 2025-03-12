@@ -14,12 +14,12 @@ export abstract class AbstractCmdHandler<Ctx extends BaseUIContext> implements I
     }
 
     async handle(request: ICmdHandlerRequest<Ctx>): Promise<ICmdHandlerResponce> {
-        console.log("HANDLE", this.constructor.name)
         if (this.next) {
+            console.log(this.next.constructor.name, "handle")
             return await this.next.handle(request)
         }
 
-        console.log("LAST HANDLER")
+        console.log("-- CmdHandler chain end --")
         return { success: false, text: "No handler" }
     }
 }

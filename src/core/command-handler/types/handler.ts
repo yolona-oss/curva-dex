@@ -4,7 +4,7 @@ import { WithNeighbors } from "@core/types/with-neighbors"
 import { BaseCommandService } from "../command-service"
 import { BaseUIContext, IUICommandSimple } from "@core/ui"
 import { ICmdBuilderMarkupOption } from "./builder"
-import { MotherCmdHandler } from "../mother-cmd-handler"
+import { CHComposer } from "../ch-composer"
 import { Chain, IChainHandler } from "@core/utils/chain"
 import { BaseCommandArgumentDesc } from "@core/ui/types/command"
 
@@ -37,7 +37,7 @@ export interface ICmdHandlerExecResult {
 
 export type ICmdHandlerResponce = ICmdHandlerExecResult
 export interface ICmdHandlerRequest<Ctx extends BaseUIContext> {
-    currentCmdHandler: MotherCmdHandler<Ctx>,
+    composer: CHComposer<Ctx>,
     command: string,
     uiCtx: Ctx,
     userId: string,

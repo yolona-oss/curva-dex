@@ -17,7 +17,7 @@ import {
 import log from "@core/utils/logger"
 import { BaseUIContext, UiUnicodeSymbols } from "@core/ui"
 import { CommandBuilderDescCompiler } from "./command-builder-desc-compiler"
-import { MotherCmdHandler } from "./mother-cmd-handler"
+import { CHComposer } from "./ch-composer"
 
 function toMarkup(opt: string, type: ICmdBuilderMarkupOptionType, cb_value = opt, isRead: boolean = false): ICmdBuilderMarkupOption {
     return {
@@ -46,9 +46,9 @@ export class CommandBuilder {
 
     }
 
-    static selectReadingContexts<UICtx extends BaseUIContext>(command: string, userId: string, handler: MotherCmdHandler<UICtx>): ReadingCtxType[] {
-        const isService = handler.isService(command)
-        const isActive = handler.isServiceActive(userId, command)
+    static selectReadingContexts<UICtx extends BaseUIContext>(command: string, userId: string, chComposer: CHComposer<UICtx>): ReadingCtxType[] {
+        const isService = chComposer.isService(command)
+        const isActive = chComposer.isServiceActive(userId, command)
 
         return isService ?
             isActive ?
@@ -420,7 +420,7 @@ export class CommandBuilder {
         }
     }
 
-    public async parseCompeteInput<UICtx extends BaseUIContext>(userId: string, command: string, input: string, ctx: UICtx, mother: MotherCmdHandler<UICtx>): Promise<ICmdBuildResult> {
+    public async parseCompeteInput<UICtx extends BaseUIContext>(userId: string, command: string, input: string, ctx: UICtx, chComposer: CHComposer<UICtx>): Promise<ICmdBuildResult> {
         const chips: string[] = []
         const regex = /[^\s"]+|"([^"]*)"/g
         let match: RegExpExecArray | null
@@ -437,8 +437,8 @@ export class CommandBuilder {
         }
 
         const compiler = new CommandBuilderDescCompiler<UICtx>()
-        const descs = await compiler.compile(command, userId, mother, ctx)
-        this.startBuild(userId, command, descs, CommandBuilder.selectReadingContexts(command, userId, mother))
+        const descs = await compiler.compile(command, userId, chComposer, ctx)
+        this.startBuild(userId, command, descs, CommandBuilder.selectReadingContexts(command, userId, chComposer))
         let buildingRes
         for (const chip of chips) {
             buildingRes = this.handle(userId, chip)

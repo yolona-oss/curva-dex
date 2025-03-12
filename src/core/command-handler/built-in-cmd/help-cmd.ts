@@ -1,6 +1,6 @@
-import { CmdArgument, getCmdArgMetadata, IUICommandProcessed, IUICommandSimple } from "@core/ui/types/command"
+import { CmdArgument, IUICommandProcessed } from "@core/ui/types/command"
 import { BuiltInHelpCommandsEnum } from "../constants"
-import { MotherCmdHandler } from "../mother-cmd-handler"
+import { CHComposer } from "../ch-composer"
 import { BuiltInCommand } from "../types/built-in-cmd"
 import { ICmdCallback, ICmdService } from "../types"
 import { anyToString } from "@core/utils/misc"
@@ -49,7 +49,7 @@ ${argsStr ? `${UiUnicodeSymbols.gear} Arguments:\n${argsStr}\n` : ""}\
 const CommonHelp: BuiltInCommand = {
     command: BuiltInHelpCommandsEnum.HELP_COMMAND,
     description: "List all available commands.",
-    exec: async function(this: MotherCmdHandler<any>, _: string[], ctx) {
+    exec: async function(this: CHComposer<any>, _: string[], ctx) {
         const commands = this.mapHandlersToUICommands()
         const commandsStr = uiCommandsToString(commands)
         await ctx.reply(commandsStr)
@@ -64,7 +64,7 @@ class ConcreetHelpArgs {
         standalone: true,
         description: "Command name",
         defaultValue: "help",
-        pairOptions: async (_: string, handler: MotherCmdHandler<any>) => {
+        pairOptions: async (_: string, handler: CHComposer<any>) => {
             return handler.mapHandlersToUICommands().map(c => c.command)
         }
     })
@@ -75,7 +75,7 @@ const ConcreetHelp: BuiltInCommand = {
     command: BuiltInHelpCommandsEnum.CHELP_COMMAND,
     description: "Print help for concreet command",
     args: ConcreetHelpArgs,
-    exec: async function(this: MotherCmdHandler<any>, args: string[], ctx) {
+    exec: async function(this: CHComposer<any>, args: string[], ctx) {
         const command = args[0]
 
         try {

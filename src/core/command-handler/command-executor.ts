@@ -1,17 +1,16 @@
 import { BaseUIContext, UiUnicodeSymbols } from "@core/ui"
-import { MotherCmdHandler } from "./mother-cmd-handler"
-import { IBuilderCmdArgReadResult, ICmdFunction, ICmdHandlerExecResult, ICmdService } from "./types"
+import { CHComposer } from "./ch-composer"
+import { IBuilderCmdArgReadResult, ICmdFunction, ICmdService } from "./types"
 import log from "@core/utils/logger"
 import { anyToString } from "@core/utils/misc"
-import { CmdServiceData } from "./service-data"
 
 export class CommandExecutor<TContext extends BaseUIContext> {
     constructor(
-        protected mother: MotherCmdHandler<TContext>,
+        protected composer: CHComposer<TContext>,
     ) { }
 
     async execute(userId: string, command: string, args: IBuilderCmdArgReadResult[], ctx: TContext) {
-        const cb = this.mother.getCallbackFromCommandName(command)
+        const cb = this.composer.getCallbackFromCommandName(command)
         if (cb.execMixin instanceof Function) {
             return await this.runFunction(userId, command, args, ctx)
         } else {
@@ -20,13 +19,13 @@ export class CommandExecutor<TContext extends BaseUIContext> {
     }
 
     async runFunction(_: string, command: string, readArgs: IBuilderCmdArgReadResult[], ctx: TContext) {
-        const cb = this.mother.getCallbackFromCommandName(command)
+        const cb = this.composer.getCallbackFromCommandName(command)
 
         try {
             const commandArgs = readArgs.filter(a => a.ctx === "args" && a.value).map(a => a.value) as string[]
             const exec = cb.execMixin as ICmdFunction<TContext>
-            if (this.mother.isBuiltInCommand(command)) {
-                exec.bind(this.mother)
+            if (this.composer.isBuiltInCommand(command)) {
+                exec.bind(this.composer)
             }
             const res = await exec(commandArgs, ctx)
             if (res && res.error) {
@@ -75,14 +74,14 @@ export class CommandExecutor<TContext extends BaseUIContext> {
     }
 
     async runService(userId: string, serviceName: string, readArgs: IBuilderCmdArgReadResult[], ctx: TContext) {
-        if (this.mother.isServiceActive(userId, serviceName)) {
+        if (this.composer.isServiceActive(userId, serviceName)) {
             return {
                 success: false,
                 text: `Service ${serviceName} already active.`
             }
         }
 
-        const cb = this.mother.getCallbackFromCommandName(serviceName)
+        const cb = this.composer.getCallbackFromCommandName(serviceName)
         if (!cb || (cb.execMixin instanceof Function)) {
             return {
                 success: false,
@@ -100,13 +99,13 @@ export class CommandExecutor<TContext extends BaseUIContext> {
         }
         const serviceInstance = exe.clone(userId, inputData)
 
-        const userServices = this.mother.UserActiveServices(userId)
+        const userServices = this.composer.UserActiveServices(userId)
 
         serviceInstance.on("message", async (message: string) => {
             await ctx.reply(message)
         })
         serviceInstance.on('done', async (msg: string = "") => {
-            const services = this.mother.UserActiveServices(userId)
+            const services = this.composer.UserActiveServices(userId)
             if (!services) {
                 log.error(`No active services for user ${userId}`)
                 return

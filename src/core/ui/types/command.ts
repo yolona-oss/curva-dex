@@ -1,4 +1,4 @@
-import { BaseCommandService, MotherCmdHandler } from "@core/command-handler"
+import { BaseCommandService, CHComposer } from "@core/command-handler"
 import { IManager } from "@core/db"
 import { BaseUIContext } from ".."
 
@@ -10,7 +10,7 @@ export const COMMAND_ARG_DESC_KEY = Symbol('descriptor:command-argument');
 //      e.g. for command set variable: set service_123 var1 path_to_some __jopa__. if pipe service name to next option selection we can asses to service config scope.
 
 type SetterPattern = (...args: any[]) => Promise<string[]>
-export type CmdArgumentOptionSetter = (cmdName: string, o: MotherCmdHandler<any>, manager: IManager) => Promise<string[]>
+export type CmdArgumentOptionSetter = (cmdName: string, composer: CHComposer<any>, manager: IManager) => Promise<string[]>
 export type CmdArgumentPairOptionsType<OptionsSetter extends SetterPattern = CmdArgumentOptionSetter> = string[]|OptionsSetter
 
 export interface BaseCommandArgumentDesc {
@@ -77,7 +77,7 @@ export type CommandArgumentDefenition = Record<string, any> // with metadata att
 export async function exposeCmdArgumentDefOptions<CtxType extends BaseUIContext = any>(
     cmdName: string,
     options: CmdArgumentPairOptionsType<CmdArgumentOptionSetter>|undefined,
-    handler: MotherCmdHandler<CtxType>,
+    handler: CHComposer<CtxType>,
     manager: IManager
 ) {
     if (options instanceof Function) {

@@ -1,58 +1,14 @@
-import { BaseCommandService, IServiceSessionData } from "@core/command-handler";
+import { BaseCommandService } from "@core/command-handler";
 
-import { IPumpFunRobotConfig, defaultCfg } from "./pf-config";
+import { IPumpFunRobotConfig, defaultCfg } from "./config";
 
-import { PumpFunRobot } from "./pf-robot";
+import { PumpFunRobot } from "./robot";
 import { BLANK_USER_ID } from "@core/command-handler";
 import { IMTCStateSave } from "@bots/traider/mtc";
 import { PumpFunAssetType } from "@bots/traider/impl/pump.fun";
 import { BaseCmdServiceInteractMessages, CmdServiceData } from "@core/command-handler/service-data";
+import { IPumpFunRobotSessionState } from "./robot/state";
 
-export const serviceName = 'pump_fun'
-export const serviceDescription = `Customizable servie for the pump.fun dex simulation activity and automated trading by setting a strategy schema.`
-
-export class serviceArgs {
-
-}
-
-//interface IPumpFunRobotParameters extends IDefaultServiceParametersOpts {
-//    dryRun?: boolean
-//}
-
-interface IPFServiceSessionData extends IServiceSessionData {
-    state: IPumpFunRobotSessionState
-    master_state_save: IMTCStateSave<PumpFunAssetType>
-}
-
-/**
- * From up to down order 
- *          |
- *          V
- *
- * 1. inited - input parsed and config loaded
- * 2. distribute - all slaves distributed
- * 3. initial_buy - all initial buys done
- * 4. ready - all preparing ops done and 
- * 5. run - main loop
- * 6. end - nothing to do
- *
- * ...
- *
- * pause - pause the robot
- */
-export type IPumpFunRobotSessionState = "ready" | "inited" | "distribute" | "initial_buy" | "end" | "run" | "pause"
-
-export const stateTransiteMap: Record<IPumpFunRobotSessionState, IPumpFunRobotSessionState[]> = {
-    'inited': ['distribute', 'end'],
-    'distribute': ['initial_buy', 'end'],
-    'initial_buy': ['run', 'end'],
-    'ready': ['run', 'end'],
-    'run': ['pause', 'end'],
-    'end': ['inited'],
-    'pause': ['run', 'end'],
-}
-
-export type IPumpFunRobotMessageReceiveType = "pause" | "resume" | "stop" | "sell-all"
 
 export class PumpFunService extends BaseCommandService<IPFServiceSessionData, IPumpFunRobotConfig> {
 
@@ -60,18 +16,19 @@ export class PumpFunService extends BaseCommandService<IPFServiceSessionData, IP
 
     constructor(
         userId: string = BLANK_USER_ID,
-        serviceData: CmdServiceData = new CmdServiceData({}, {}, new BaseCmdServiceInteractMessages()),
+        inputData: Partial<PFServiceData> = {},
         name: string = serviceName
     ) {
         super(
             userId,
-            serviceData,
+            pfDefaultData,
+            inputData,
             name,
         )
     }
 
-    clone(userId: string, serviceData: CmdServiceData, newName: string = serviceName) {
-        return new PumpFunService(userId, serviceData, newName)
+    clone(userId: string, inputData: Partial<PFServiceData> = {}, newName: string = serviceName) {
+        return new PumpFunService(userId, inputData, newName)
     }
 
     async receiveMsg(msg: string, __: string[]): Promise<void> {

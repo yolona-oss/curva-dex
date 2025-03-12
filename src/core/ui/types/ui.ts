@@ -1,4 +1,4 @@
-import { MotherCmdHandler } from "@core/command-handler"
+import { CHComposer } from "@core/command-handler"
 import { IRunnable } from "@core/types/runnable"
 import { WithInit } from "@core/types/with-init"
 import { BaseUIContext } from "./context"
@@ -6,7 +6,7 @@ import { AvailableUIsType } from "./index"
 import { LockManager } from "@utils/lock-manager"
 
 export interface IUI<CtxType extends BaseUIContext> extends IRunnable, WithInit {
-    readonly cmdHandler: MotherCmdHandler<CtxType>
+    readonly chComposer: CHComposer<CtxType>
 
     ContextType(): AvailableUIsType
     

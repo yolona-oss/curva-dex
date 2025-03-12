@@ -1,12 +1,12 @@
-import { CmdArgument, getCmdArgMetadata, getCmdArgUndefMetadata } from "@core/ui/types/command"
+import { CmdArgument } from "@core/ui/types/command"
 import { BuiltInAccountCommandsEnum } from "../constants"
-import { Account, AccountModule, Manager } from "@core/db"
+import { Account, Manager } from "@core/db"
 import log from "@core/utils/logger"
 import { BuiltInCommand } from "../types/built-in-cmd"
-import { MotherCmdHandler } from "../mother-cmd-handler"
+import { CHComposer } from "../ch-composer"
 
 import "reflect-metadata";
-import { assignToCustomPath, extractValueFromObject, removeFieldFromObject } from "@core/utils/object"
+import { extractValueFromObject } from "@core/utils/object"
 import { UiUnicodeSymbols } from "@core/ui"
 
 async function getAllUserModules(accountId: string): Promise<string[]> {
@@ -51,7 +51,7 @@ const SetVariableCommand: BuiltInCommand = {
     command: BuiltInAccountCommandsEnum.SET_VARIABLE,
     description: "Create or update variable for user execution context",
     args: SetVariableArgs,
-    exec: async function(this: MotherCmdHandler<any>, args: string[], ctx) {
+    exec: async function(this: CHComposer<any>, args: string[], ctx) {
         const userId = String(ctx.manager!.userId)
         const user = await Manager.findOne({userId: Number(userId)})
         const account = await Account.findById(user!.account)
@@ -97,7 +97,7 @@ const RemoveVariableCommand: BuiltInCommand = {
     command: BuiltInAccountCommandsEnum.REMOVE_VARIABLE,
     description: "Remove variable for user execution context",
     args: RemoveVariableArgs,
-    exec: async function(this: MotherCmdHandler<any>, args: string[], ctx) {
+    exec: async function(this: CHComposer<any>, args: string[], ctx) {
         const userId = String(ctx.manager!.userId)
         const user = await Manager.findOne({userId: Number(userId)})
         const account = await Account.findById(user!.account)
@@ -140,7 +140,7 @@ const GetVariableCommand: BuiltInCommand = {
     command: BuiltInAccountCommandsEnum.GET_VARIABLE,
     description: "Get variable for user execution context",
     args: GetVariableArgs,
-    exec: async function(this: MotherCmdHandler<any>, args: string[], ctx) {
+    exec: async function(this: CHComposer<any>, args: string[], ctx) {
         const userId = String(ctx.manager!.userId)
         const user = await Manager.findOne({userId: Number(userId)})
         const account = await Account.findById(user!.account)

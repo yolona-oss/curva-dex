@@ -1,6 +1,6 @@
 import { AbstractCmdHandler, ICmdHandlerRequest, ICmdHandlerResponce, BaseUIContext } from "./abstract-handler";
 import { CommandBuilder } from "../command-builder";
-import { MotherCmdHandler } from "../mother-cmd-handler";
+import { CHComposer } from "../ch-composer";
 import log from "@core/utils/logger";
 import { CommandBuilderDescCompiler } from "../command-builder-desc-compiler";
 import { IBuilderCmdDesc } from "../types";
@@ -9,21 +9,20 @@ import { IBuilderCmdDesc } from "../types";
 
 export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHandler<UICtx> {
 
-    private async startNewBuild(userId: string, command: string, args: string[], ctx: UICtx, builder: CommandBuilder, cmdHandler: MotherCmdHandler<UICtx>): Promise<ICmdHandlerResponce|void> {
-        console.log(`Checking for availability to start build: ${command}`)
-        console.log(`Command: `, command, `Args: `, args)
-        if (!cmdHandler.isAllArgsPassed(command, args)) {
-            const avalibleCtxs = CommandBuilder.selectReadingContexts(command, userId, cmdHandler)
+    private async startNewBuild(userId: string, command: string, args: string[], ctx: UICtx, builder: CommandBuilder, chComposer: CHComposer<UICtx>): Promise<ICmdHandlerResponce|void> {
+        log.trace(`Checking for availability to start build: ${command}`)
+        log.trace(`Command: `, command, `Args: `, args)
+        if (!chComposer.isAllArgsPassed(command, args)) {
+            const avalibleCtxs = CommandBuilder.selectReadingContexts(command, userId, chComposer)
 
             const descCompiler = new CommandBuilderDescCompiler<UICtx>()
             let desc: IBuilderCmdDesc = await descCompiler.compile(
                 command,
                 userId,
-                cmdHandler,
+                chComposer,
                 ctx
             )
 
-            console.log(`Build setup ${JSON.stringify(desc, null, 4)}`)
             const res = builder.startBuild(userId, command, desc, avalibleCtxs)
 
             return {
@@ -35,13 +34,13 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
         return
     }
 
-    private async handleBuildProcess(userId: string, command: string, ctx: UICtx, builder: CommandBuilder, cmdHandler: MotherCmdHandler<UICtx>): Promise<ICmdHandlerResponce|void> {
+    private async handleBuildProcess(userId: string, command: string, ctx: UICtx, builder: CommandBuilder, chComposer: CHComposer<UICtx>): Promise<ICmdHandlerResponce|void> {
         if (builder.isUserOnBuild(userId)) {
             const res = builder.handle(userId, command)
 
             if (res.built) {
-                console.log("@-- cmd build done --@")
-                return await cmdHandler.CommandExecutor.execute(userId, res.built.command, res.built.args, ctx)
+                log.trace("@-- cmd build done --@")
+                return await chComposer.CommandExecutor.execute(userId, res.built.command, res.built.args, ctx)
             }
 
             return {
@@ -54,18 +53,16 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
     }
 
     public async handle(request: ICmdHandlerRequest<UICtx>): Promise<ICmdHandlerResponce> {
-        console.log("HANDLE", this.constructor.name)
+        const { command, userId, uiCtx, args, composer } = request
 
-        const { command, userId, uiCtx, args, currentCmdHandler } = request
-
-        const builder = currentCmdHandler.CommandBuilder
-        const builderRes = await this.handleBuildProcess(userId, command, uiCtx, builder, currentCmdHandler)
+        const builder = composer.CommandBuilder
+        const builderRes = await this.handleBuildProcess(userId, command, uiCtx, builder, composer)
         if (builderRes) {
             return builderRes
         }
 
         try {
-            const buildSetupRes = await this.startNewBuild(userId, command, args, uiCtx, builder, currentCmdHandler)
+            const buildSetupRes = await this.startNewBuild(userId, command, args, uiCtx, builder, composer)
             if (buildSetupRes) {
                 return buildSetupRes
             }

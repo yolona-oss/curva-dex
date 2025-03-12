@@ -2,11 +2,11 @@ import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { TradeArchImplRegistry, ITradeArchImpl, BuiltInTradeArchNames, SolanaWalletManager } from "@bots/traider";
 import { IPumpFun_TxEventName, IPumpFun_TxEventPayload } from "@bots/traider/impl/pump.fun";
 import { PumpFunApi, PumpFunAssetType, PumpFunMaster, PumpFunSlave } from "@bots/traider/impl/pump.fun"
-import { IPumpFunRobotConfig } from "./../pf-config";
+import { IPumpFunRobotConfig } from "./../config";
 import TypedEventEmitter, { EventMap } from 'typed-emitter'
 import EventEmitter from 'events'
 import { IMTCStateSave } from "@bots/traider/mtc";
-import { IPumpFunRobotSessionState, stateTransiteMap } from "../pf-robot-service";
+import { IPumpFunRobotSessionState, stateTransiteMap } from "./state";
 
 import { SlaveDictionary } from "./slave-dict";
 import { PFTicker, PFTickerCtx } from "./ticker";

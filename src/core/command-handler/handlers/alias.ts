@@ -7,8 +7,7 @@ import { CmdAlias } from "@core/db"
 export class HandleCommandAlias<Ctx extends BaseUIContext> extends AbstractCmdHandler<Ctx> {
 
     public async handle(request: ICmdHandlerRequest<Ctx>): Promise<ICmdHandlerResponce> {
-        console.log("HANDLE", this.constructor.name)
-        const { command, currentCmdHandler, uiCtx, ownerId } = request
+        const { command, composer, uiCtx, ownerId } = request
 
         const aliasDoc = await CmdAlias.findOne({owner_id: ownerId, alias: command})
         if (!aliasDoc) {
@@ -19,15 +18,15 @@ export class HandleCommandAlias<Ctx extends BaseUIContext> extends AbstractCmdHa
         const commandSplit = commandStr.split(" ")
         const commandName = commandSplit[0]
         const commandArg = commandSplit.slice(1).join(" ")
-        if (!currentCmdHandler.isCommandRegistered(commandName)) {
+        if (!composer.isCommandRegistered(commandName)) {
             return {
                 success: false,
                 text: `Aliased(${aliasDoc.alias}) command "${commandName}" is not registered.`
             }
         }
         try {
-            const built = await currentCmdHandler.CommandBuilder.parseCompeteInput(request.userId, commandName, commandArg, uiCtx, currentCmdHandler)
-            return await currentCmdHandler.CommandExecutor.execute(request.userId, commandStr, built.args, uiCtx)
+            const built = await composer.CommandBuilder.parseCompeteInput(request.userId, commandName, commandArg, uiCtx, composer)
+            return await composer.CommandExecutor.execute(request.userId, commandStr, built.args, uiCtx)
         } catch (e: any) {
             log.error("Command execution error: " + anyToString(e))
             return {
