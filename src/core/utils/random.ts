@@ -3,7 +3,7 @@ import crypto from "crypto"
 export const isNumberPositive = (v: number) => v > 0
 
 export const genRandomString = (length: number = 15) => Math.random().toString(36).substring(2, length)
-export const genRandomNumber = (length: number = 15) => Math.floor(Math.random() * length)
+export const genRandomNumber = (length: number = 15) => genRandomNumberBetween(10 ** (length - 1), 10 ** length)
 
 export function genRandomNumberBetween<T extends number | bigint>(min: T, max: T): T {
     if (typeof min === "bigint" && typeof max === "bigint") {
@@ -11,7 +11,10 @@ export function genRandomNumberBetween<T extends number | bigint>(min: T, max: T
         const randomBigInt = crypto.getRandomValues(new BigUint64Array(1))[0] % range;
         return min + randomBigInt as T;
     } else if (typeof min === "number" && typeof max === "number") {
-        return Math.floor(Math.random() * (max - min + 1)) + min as T;
+        const array = new Uint32Array(1);
+        const randomInt = crypto.getRandomValues(array);
+        return randomInt[0] % (max - min + 1) + min as T;
+        //return Math.floor(Math.random() * (max - min + 1)) + min as T;
     } else {
         throw new Error("Invalid types for min and max. They must both be either number or bigint.");
     }

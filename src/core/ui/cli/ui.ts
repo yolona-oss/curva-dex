@@ -116,7 +116,7 @@ export class CLIUI extends WithInit implements IUI<CLIContext> {
         if (this.rl) {
             this.rl.close()
         }
-        await this.cmdHandler.stop()
+        await this.cmdHandler.stopAllServices()
         this.isActive = false
         log.info(" -- CLI ui stopped");
     }

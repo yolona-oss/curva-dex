@@ -5,25 +5,26 @@ import { BuiltInCommand } from "../types/built-in-cmd"
 import { ICmdCallback, ICmdService } from "../types"
 import { anyToString } from "@core/utils/misc"
 import { BaseCommandService } from "../command-service"
+import { UiUnicodeSymbols } from "@core/ui"
 
 export const serviceToString = <Ctx>(cmdName: string, cmdCb: ICmdCallback<Ctx>) => {
     const executor = cmdCb.execMixin as ICmdService
-    return `Service ${cmdName},\n
-Description: ${cmdCb.description},\n
-Params: ${JSON.stringify(executor.paramsDescriptor(), null, 4)},\n
-Config: ${JSON.stringify(executor.configDescriptor(), null, 4)},\n
-Next: ${cmdCb.next?.join(", ") ?? "None"}\n\
-Prev: ${cmdCb.prev ?? "None"}\n\
+    return `Service /${cmdName},\n
+${UiUnicodeSymbols.magnifierGlass} Description: ${cmdCb.description},\n
+${UiUnicodeSymbols.gear} Params: ${JSON.stringify(executor.paramsDescriptor(), null, 4)},\n
+${UiUnicodeSymbols.gear} Config: ${JSON.stringify(executor.configDescriptor(), null, 4)},\n
+${UiUnicodeSymbols.magnifierGlass} Next: ${cmdCb.next?.join(", ") ?? "None"}\n\
+${UiUnicodeSymbols.magnifierGlass} Prev: ${cmdCb.prev ?? "None"}\n\
 `
 }
 
 export const commonToString = <Ctx>(cmdName: string, cmdCb: ICmdCallback<Ctx>) => {
     const argsStr = cmdCb.args?.map(a => a.name).join(",\n")
     return `Command ${cmdName},\n\
-Description: ${cmdCb.description},\n\
-${argsStr ? `Args:\n${argsStr}\n` : ""}\
-Next: ${cmdCb.next?.join(", ") ?? "None"}\n\
-Prev: ${cmdCb.prev ?? "None"}\
+${UiUnicodeSymbols.magnifierGlass} Description: ${cmdCb.description},\n\
+${argsStr ? `${UiUnicodeSymbols.gear} Args:\n${argsStr}\n` : ""}\
+${UiUnicodeSymbols.magnifierGlass} Next: ${cmdCb.next?.join(", ") ?? `${UiUnicodeSymbols.cross} None`}\n\
+${UiUnicodeSymbols.magnifierGlass} Prev: ${cmdCb.prev ?? `${UiUnicodeSymbols.cross} None`}\
 `
 }
 
@@ -33,12 +34,12 @@ export const uiCommandsToString = (commands: IUICommandProcessed[]): string => {
         if (v.args) {
             const args = v.args
             for (const arg of args) {
-                argsStr += ` -- ${'<' + arg.name + '>' + (!arg.required ? " (optional)" : "")} ${arg.description ?? "No description"}\n`
+                argsStr += ` -- ${'<' + arg.name + '>' + (!arg.required ? ` (${UiUnicodeSymbols.question} optional)` : "")} ${arg.description ?? `${UiUnicodeSymbols.cross} No description`}\n`
             }
         }
-        return `Command: ${v.command},\n\
-Description: ${v.description},\n\
-${argsStr ? `Arguments:\n${argsStr}\n` : ""}\
+        return `Command: /${v.command},\n\
+${UiUnicodeSymbols.magnifierGlass} Description: ${v.description},\n\
+${argsStr ? `${UiUnicodeSymbols.gear} Arguments:\n${argsStr}\n` : ""}\
 `
     }).join("\n")
 }
@@ -86,7 +87,7 @@ const ConcreetHelp: BuiltInCommand = {
             if (e && typeof e === 'object' && 'success' in e) {
                 await ctx.reply(e.text)
             }
-            await ctx.reply(`Unknown error: ${anyToString(e)}`)
+            await ctx.reply(`${UiUnicodeSymbols.error} Unknown error:\n -- ${anyToString(e)}`)
         }
     }
 }

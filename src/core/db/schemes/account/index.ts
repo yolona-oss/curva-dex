@@ -1,3 +1,3 @@
 export { type IAccount, type AccountModelType, AccountSchema, Account } from './account'
-export { type IAccountModule, AccountModuleSchema, AccountModule  } from './module'
-export { type IAccountSession, AccountSession, AccountSessionSchema } from './session'
+export { type IAccountModule, AccountModuleSchema, AccountModule, type IAccountModuleCreateDto } from './module'
+export { type IAccountSession, type IAccountSessionCtrl, AccountSession, AccountSessionSchema, type IAccountSessionCreateDto } from './session'

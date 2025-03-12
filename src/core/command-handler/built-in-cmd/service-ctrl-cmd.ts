@@ -5,6 +5,7 @@ import { BuiltInCommand } from "../types/built-in-cmd"
 import { MotherCmdHandler } from "../mother-cmd-handler"
 import log from "@core/utils/logger"
 import { anyToString } from "@core/utils/misc"
+import { UiUnicodeSymbols } from "@core/ui"
 
 class ServiceStopArgs {
     @CmdArgument({
@@ -28,9 +29,9 @@ const ServiceStopCommand: BuiltInCommand = {
         const serviceName = args[0]
         try {
             const res = await this.terminateService(userId, serviceName)
-            await ctx.reply(`Service ${serviceName} terminated: ${res}`)
+            await ctx.reply(`${UiUnicodeSymbols.success} Service "${serviceName}" terminated: ${res}`)
         } catch(e: any) {
-            await ctx.reply(`Service ${serviceName} termination error: ${anyToString(e)}.`)
+            throw `${UiUnicodeSymbols.error} Service "${serviceName}" termination error:\n -- ${anyToString(e)}.`
         }
     }
 }

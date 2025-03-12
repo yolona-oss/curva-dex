@@ -41,6 +41,7 @@ export interface ICmdHandlerRequest<Ctx extends BaseUIContext> {
     command: string,
     uiCtx: Ctx,
     userId: string,
+    ownerId: string,
     args: string[]
 }
 export type ICmdHandler<Ctx extends BaseUIContext> = IChainHandler<ICmdHandlerRequest<Ctx>, ICmdHandlerResponce>

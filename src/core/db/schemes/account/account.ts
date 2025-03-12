@@ -1,9 +1,10 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Schema, Document, Model, QueryWithHelpers, HydratedDocumentFromSchema } from 'mongoose';
 import { DbModelsEnum } from '@core/db/models-enum';
 
-import { AccountModule, IAccountModule } from './module';
+import { AccountModuleHydratedDocument, AccountModule, AccountModuleModelType, AccountModuleSchema, IAccountModule } from './module';
 
 import "reflect-metadata";
+import { HydratedDocument } from 'mongoose';
 
 export interface IAccount extends Document {
     owner_id: Schema.Types.ObjectId
@@ -11,12 +12,17 @@ export interface IAccount extends Document {
 }
 
 interface IAccountMethods {
-    getModules(): Promise<IAccountModule[]>,
-    getModuleByName(): Promise<IAccountModule|undefined>
-    deleteModule(): Promise<IAccount>
+    getModules(): Promise<AccountModuleHydratedDocument[]>,
+    getModuleByName(name: string): Promise<AccountModuleHydratedDocument|undefined>
+    getModuleByNameOrCreate(name: string): Promise<{isNew: boolean, account_module: AccountModuleHydratedDocument}>
+    deleteModule(name: string): Promise<IAccount>
 }
 
-export type AccountModelType = Model<IAccount, {}, IAccountMethods>
+export interface AccountQueryHelpers {
+    //byOwnerUserId(userId: string): QueryWithHelpers<HydratedDocument<AccountModelType>, HydratedDocument<IAccount>, AccountQueryHelpers>
+}
+
+export type AccountModelType = Model<IAccount, AccountQueryHelpers, IAccountMethods>
 
 export const AccountSchema: Schema<IAccount, AccountModelType> = new Schema(
     {
@@ -25,22 +31,30 @@ export const AccountSchema: Schema<IAccount, AccountModelType> = new Schema(
     },
     {
         query: {
-            findByOwnerId: async function (owner_id: Schema.Types.ObjectId) {
-                return await this.where({ owner_id })
-            },
-            findModulesByOwnerId: async function (owner_id: Schema.Types.ObjectId) {
-                const doc = await this
-                    .where({ owner_id })
-                    .populate<{module_ids: IAccountModule[]}>('module_ids')
-                return doc.module_ids
-            },
         },
         methods: {
-            getModules: async function(): Promise<IAccountModule[]> {
-                return (await this.populate<{module_ids: IAccountModule[]}>('module_ids')).module_ids
+            getModules: async function(): Promise<AccountModuleHydratedDocument[]> {
+                return ((await this.populate<{module_ids: IAccountModule[]}>('module_ids'))?.module_ids ?? []) as AccountModuleHydratedDocument[]
             },
-            getModuleByName: async function(name: string): Promise<IAccountModule|undefined> {
-                return (await this.populate<{module_ids: IAccountModule[]}>('module_ids')).module_ids.find(m => m.name === name)
+            getModuleByName: async function(name: string): Promise<AccountModuleHydratedDocument|undefined> {
+                return (await this.populate<{module_ids: IAccountModule[]}>('module_ids')).module_ids.find(m => m.name === name) as AccountModuleHydratedDocument|undefined
+            },
+            getModuleByNameOrCreate: async function(name: string): Promise<{isNew: boolean, account_module: AccountModuleHydratedDocument}> {
+                const exists_module = (await this.populate<{module_ids: IAccountModule[]}>('module_ids')).module_ids.find(m => m.name === name)
+                if (exists_module) {
+                    return {
+                        account_module: exists_module as AccountModuleHydratedDocument,
+                        isNew: false
+                    }
+                } else {
+                    const new_module = await AccountModule.create({ name, account_id: this._id })
+                    this.module_ids.push(new_module.id)
+                    await this.save()
+                    return {
+                        account_module: new_module as AccountModuleHydratedDocument,
+                        isNew: true
+                    }
+                }
             },
             deleteModule: async function(name: string): Promise<IAccount> {
                 const data_module = (await this.populate<{module_ids: IAccountModule[]}>('module_ids')).module_ids.find(m => m.name === name)

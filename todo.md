@@ -29,4 +29,5 @@
 - save history of bot answers too
 
 - add commands arguments chain handler validator
-- reimplemet account schema to common mongoose concept
++ reimplemet account schema to common mongoose concept
+- add to handle positional arguments of commands

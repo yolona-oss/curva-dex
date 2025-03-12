@@ -1,107 +1,30 @@
-import { BaseCommandArgumentDesc, exposeCmdArgumentDefOptions } from "@core/ui/types/command";
-import { BaseCommandService } from "../command-service";
-import { ICmdCallback, ICmdService, IBuilderCmdDesc, IBuilderCmdArgDesc, ReadingCtxType } from "../types";
 import { AbstractCmdHandler, ICmdHandlerRequest, ICmdHandlerResponce, BaseUIContext } from "./abstract-handler";
-import { IManager, Manager } from "@core/db";
 import { CommandBuilder } from "../command-builder";
 import { MotherCmdHandler } from "../mother-cmd-handler";
 import log from "@core/utils/logger";
+import { CommandBuilderDescCompiler } from "../command-builder-desc-compiler";
+import { IBuilderCmdDesc } from "../types";
 
 // TODO add completion for builtin commands
 
 export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHandler<UICtx> {
 
-    private getCbConfig(cb: ICmdCallback<UICtx>, handler: MotherCmdHandler<UICtx>, userId: string) {
-        const isService = cb.execMixin instanceof BaseCommandService
-        const isActive = isService ? handler.isServiceActive(userId, cb.execMixin.name) : false
-
-        return {
-            isService,
-            isActive,
-        }
-    }
-
-    private selectCtxs(cb: ICmdCallback<UICtx>, userId: string, handler: MotherCmdHandler<UICtx>): ReadingCtxType[] {
-        const { isService, isActive } = this.getCbConfig(cb, handler, userId)
-
-        return isService ?
-            isActive ?
-                ['message'] :
-                ['params', 'config'] :
-            ['args']
-    }
-
-    private async configureServiceDesc(service: ICmdService, userId: string, cmdHandler: MotherCmdHandler<UICtx>, isActive: boolean): Promise<IBuilderCmdDesc> {
-        const manager = await Manager.findOne({ userId })!
-
-        const serviceArgCtx: ReadingCtxType[] = ['params', 'config', 'message']
-        const builderArgs: IBuilderCmdArgDesc[] = new Array()
-        for (const ctxName of serviceArgCtx) {
-            const descriptor: Record<string, BaseCommandArgumentDesc> = service[ctxName === 'message' ? 'receiveMsgDescriptor' : ctxName === 'config' ? 'configDescriptor' : 'paramsDescriptor']()
-            console.log(`Descriptor: ${service.name}:${ctxName}`, JSON.stringify(descriptor, null, 4))
-
-            for (const key in descriptor) {
-                const options = descriptor[key].pairOptions ?
-                    await exposeCmdArgumentDefOptions(service.name, descriptor[key].pairOptions, cmdHandler, manager as IManager)
-                    :
-                    undefined;
-                builderArgs.push({
-                    ...descriptor[key],
-                    ctx: ctxName,
-                    pairOptions: options,
-                    name: key
-                })
-            }
-        }
-        return {
-            args: isActive ? builderArgs.filter(a => a.ctx === 'message') : builderArgs.filter(a => a.ctx !== 'message')
-        }
-    }
-
-    private async configureFunctionDesc(command: string, cb: ICmdCallback<UICtx>, cmdHandler: MotherCmdHandler<UICtx>, ctx: UICtx): Promise<IBuilderCmdDesc> {
-        const promise = cb.args?.map(async (a) => ({
-            ctx: 'args' as ReadingCtxType,
-            name: a.name,
-            description: a.description,
-            pairOptions: await exposeCmdArgumentDefOptions(command, a.pairOptions, cmdHandler, ctx.manager as IManager),
-            standalone: a.standalone,
-            validator: a.validator
-        })) ?? []
-
-        const args = await Promise.all(promise)
-        return {
-            args: args
-        }
-    }
-
-    // TODO set configreAs types in other place and disperce to all code base
-    private async configureDescriptors(configureAs: "function" | "service", userId: string, cb: ICmdCallback<UICtx>, command: string, cmdHandler: MotherCmdHandler<UICtx>, ctx: UICtx): Promise<IBuilderCmdDesc> {
-        switch (configureAs) {
-            case "function":
-                return this.configureFunctionDesc(command, cb as ICmdCallback<UICtx>, cmdHandler, ctx)
-            case "service":
-                const { isActive } = this.getCbConfig(cb, cmdHandler, String(ctx.manager!.userId))
-                return await this.configureServiceDesc(cb.execMixin as ICmdService, userId, cmdHandler, isActive)
-        }
-    }
-
     private async startNewBuild(userId: string, command: string, args: string[], ctx: UICtx, builder: CommandBuilder, cmdHandler: MotherCmdHandler<UICtx>): Promise<ICmdHandlerResponce|void> {
         console.log(`Checking for availability to start build: ${command}`)
         console.log(`Command: `, command, `Args: `, args)
         if (!cmdHandler.isAllArgsPassed(command, args)) {
-            const cb = cmdHandler.getCallbackFromCommandName(command)
-            const { isService } = this.getCbConfig(cb, cmdHandler, userId)
-            const ctxs = this.selectCtxs(cb, userId, cmdHandler)
+            const avalibleCtxs = CommandBuilder.selectReadingContexts(command, userId, cmdHandler)
 
-            const configureAs = isService ?
-                "service" : "function"
-
-            let desc: IBuilderCmdDesc = await this.configureDescriptors(
-                configureAs, userId, cb, command, cmdHandler, ctx
+            const descCompiler = new CommandBuilderDescCompiler<UICtx>()
+            let desc: IBuilderCmdDesc = await descCompiler.compile(
+                command,
+                userId,
+                cmdHandler,
+                ctx
             )
 
             console.log(`Build setup ${JSON.stringify(desc, null, 4)}`)
-            const res = builder.startBuild(userId, command, desc, ctxs)
+            const res = builder.startBuild(userId, command, desc, avalibleCtxs)
 
             return {
                 success: true,
@@ -118,7 +41,7 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
 
             if (res.built) {
                 console.log("@-- cmd build done --@")
-                return await cmdHandler.execute(userId, res.built.command, res.built.args, ctx)
+                return await cmdHandler.CommandExecutor.execute(userId, res.built.command, res.built.args, ctx)
             }
 
             return {

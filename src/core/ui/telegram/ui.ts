@@ -20,33 +20,6 @@ import { InlineKeyboardButton } from 'telegraf/typings/core/types/typegram';
 import { UiUnicodeSymbols } from '../ui-unicode-symbols';
 import { fromTgContext } from '@core/db/schemes/messages-history';
 
-function deepClone<T>(obj: T): T {
-    if (obj === null || typeof obj !== 'object') {
-        return obj;
-    }
-
-    if (typeof obj === 'function') {
-        // @ts-ignore
-        return obj.bind({}); // Clone the function
-    }
-
-    if (Array.isArray(obj)) {
-        const arrCopy = [] as any[];
-        for (const item of obj) {
-            arrCopy.push(deepClone(item));
-        }
-        return arrCopy as unknown as T;
-    }
-
-    const objCopy = {} as { [key: string]: any };
-    for (const key in obj) {
-        if (obj.hasOwnProperty(key)) {
-            objCopy[key] = deepClone(obj[key]);
-        }
-    }
-    return objCopy as T;
-}
-
 async function tg_deleteMesasge(bot: telegraf.Telegraf<TgContext>, message_id: number, chat_id: number) {
     await bot.telegram.deleteMessage(chat_id, message_id);
 }
@@ -281,8 +254,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
                     if (!manager.useGreeting) {
                         continue
                     }
-                    await this.bot.telegram.sendMessage(manager.userId, "Service now online");
-                    this.bot.telegram.sendSticker(manager.userId, stickers.happy);
+                    await this.notifyManagers(manager.userId, `${UiUnicodeSymbols.info} Service now online`);
                 }
             }
             log.info("** Telegram-bot service started");
@@ -306,10 +278,10 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         await Manager.updateMany({ online: true }, { online: false });
         let managers = await Manager.find();
         for (let manager of managers) {
-            if (!manager.useGreeting) { continue } // skip
-            await this.notifyManagers(manager.userId, "Service going offline", stickers.verySad)
+            if (!manager.useGreeting) { continue }
+            await this.notifyManagers(manager.userId, `${UiUnicodeSymbols.info} Service going offline`)
         }
-        await this.cmdHandler.stop()
+        await this.cmdHandler.stopAllServices()
         this.bot.stop();
         log.info("** Telegram ui stopped");
     }

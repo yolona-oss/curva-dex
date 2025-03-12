@@ -1,11 +1,17 @@
-import { BaseCommandService, IServiceSessionData } from '@core/command-handler'
+import { BaseCommandService } from '@core/command-handler'
 import { BLANK_USER_ID } from '@core/command-handler'
 import { BaseCmdServiceConfig, BaseCmdServiceInteractMessages, BaseCmdServiceParameters, CmdServiceData } from '@core/command-handler/service-data'
 import { CmdArgument } from '@core/ui/types/command'
-import { genRandomNumber, genRandomNumberBetweenWithScatter } from '@utils/random'
+import { genRandomNumber, genRandomNumberBetween, genRandomNumberBetweenWithScatter } from '@utils/random'
 import { sleep } from '@utils/time'
 
 const TestServiceName = 'test_service'
+
+type TestServiceDataType = CmdServiceData<
+    BaseCmdServiceConfig,
+    TestServiceParameters,
+    TestServiceInteractMessages
+>
 
 class TestServiceInteractMessages extends BaseCmdServiceInteractMessages {
     @CmdArgument({
@@ -41,14 +47,14 @@ class TestServiceInteractMessages extends BaseCmdServiceInteractMessages {
         standalone: false,
         description: "Set max value",
     })
-    setmax?: number
+    setmax?: string
 }
 
 class TestServiceParameters extends BaseCmdServiceParameters {
     @CmdArgument({
         required: false,
         standalone: false,
-        pairOptions: async () => new Array(10).fill(0).map(() => genRandomNumber(3)),
+        pairOptions: async () => new Array(10).fill(0).map(() => genRandomNumber(genRandomNumberBetween(1, 3)).toString()),
         defaultValue: "1",
         validator: (arg) => !Number.isNaN(Number(arg)),
         description: "Start value"
@@ -56,7 +62,13 @@ class TestServiceParameters extends BaseCmdServiceParameters {
     startValue?: string
 }
 
-interface TestServiceSessionData extends IServiceSessionData {
+const defaultTestServiceData: TestServiceDataType = new CmdServiceData<BaseCmdServiceConfig, TestServiceParameters, TestServiceInteractMessages>(
+    {},
+    new TestServiceParameters(),
+    new TestServiceInteractMessages()
+)
+
+interface TestServiceSessionData {
     prev_max?: number
 }
 
@@ -66,11 +78,10 @@ export class TestService extends BaseCommandService<TestServiceSessionData, Base
 
     constructor(
         userId: string = BLANK_USER_ID,
-        serviceData?: CmdServiceData<BaseCmdServiceConfig, BaseCmdServiceParameters, TestServiceInteractMessages>,
+        input: Partial<CmdServiceData<BaseCmdServiceConfig, BaseCmdServiceParameters, TestServiceInteractMessages>>,
         name: string = TestServiceName
     ) {
-        serviceData = serviceData ?? new CmdServiceData({}, new TestServiceParameters(), new TestServiceInteractMessages())
-        super(userId, serviceData, name)
+        super(userId, defaultTestServiceData, input, name)
     }
 
     private isPaused = false
@@ -94,12 +105,12 @@ export class TestService extends BaseCommandService<TestServiceSessionData, Base
         }
     }
 
-    clone(userId: string, serviceData?: CmdServiceData, newName?: string): BaseCommandService<TestServiceSessionData> {
-        return new TestService(userId, serviceData, newName)
+    clone(userId: string, input: Partial<TestServiceDataType>, newName?: string): BaseCommandService<TestServiceSessionData> {
+        return new TestService(userId, input, newName)
     }
 
     async runWrapper() {
-        this.emit('message', `Start with ${this.i}, target value ${this.max}, prev target: ${this.session_data.prev_max ?? 0}`)
+        this.emit('message', `Start with ${this.i}, target value ${this.max}, prev target: ${this.data.sessionData.prev_max ?? 0}`)
         while (true) {
             if (!super.isRunning()) {
                 break

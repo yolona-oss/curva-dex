@@ -1,4 +1,5 @@
-import { File } from '@core/db'
+import { DefaultAssets, File } from '@core/db'
+import { DefaultAssetsEnum } from '@core/db/schemes/default-assets'
 import { getConfig, getInitialConfig } from '@core/config'
 import { genRandomString } from '@utils/random'
 import log from '@utils/logger'
@@ -8,17 +9,7 @@ import download from 'download'
 import * as fs from 'fs'
 import path from 'path'
 
-// TODO create associative mongoose model
-const tmpDb = './index.json'
-
-const defaultAvatarName = "default-avatar"
-
-const defaults = [
-    {
-        name: defaultAvatarName,
-        path: "static/manager-icon.png",
-    }
-]
+import { defaultAssets } from './defaultAssets.json'
 
 class Files {
     private static defaultsInited: boolean = false
@@ -27,26 +18,41 @@ class Files {
         this.copyDefaults();
     }
 
-    private async checkDefaults() {
-        const createDefault = async (name: string, path: string) => {
-            const m_doc = await File.create({
-                mime: "image/png",
-                path,
-                group: "static",
-            })
-            this.appendTmpDB({
+    private async createDefaultEntry(name: string, path: string) {
+        const file_doc = await File.create({
+            mime: "image/png",
+            path,
+            group: "static",
+        })
+
+        const existsDefaultAssetEntry = await DefaultAssets.findOne({name})
+        if (existsDefaultAssetEntry) {
+            await DefaultAssets.updateOne(
+                { name },
+                { $set: { file_id: file_doc.id } }
+            )
+        } else {
+            await DefaultAssets.create({
                 name,
-                id: m_doc.id
+                file_id: file_doc.id
             })
         }
 
-        const cfg = getInitialConfig()
-        const tmpDb = this.parseTmpDB()
+    }
 
-        for (const def of defaults) {
-            const entry = tmpDb.find(d => d.name === def.name)
+    private async checkDefaults() {
+        const cfg = getInitialConfig()
+
+        const registredDefaultAssets = await DefaultAssets.find()
+        for (const asset of defaultAssets) {
+            const entry = registredDefaultAssets.find(d => d.name === asset.name)
             if (!entry) {
-                await createDefault(def.name, path.join(cfg.server.fileStorage.path, def.path))
+                await this.createDefaultEntry(asset.name, path.join(cfg.server.fileStorage.path, asset.path))
+            } else {
+                const file = await this.getFile(String(entry.file_id))
+                if (!file) {
+                    await this.createDefaultEntry(asset.name, path.join(cfg.server.fileStorage.path, asset.path))
+                }
             }
         }
     }
@@ -72,21 +78,6 @@ class Files {
         } catch (e) {
             throw new Error(`Files::constructor() cannot copy default manager icon! ${JSON.stringify(e,null,4)} ${e}`)
         }
-    }
-
-    private parseTmpDB(): { name: string, id: string }[] {
-        let obj
-        try {
-            obj = JSON.parse(fs.readFileSync(tmpDb).toString())
-        } finally {
-            return obj ?? []
-        }
-    }
-
-    private appendTmpDB(d: { name: string, id: string }) {
-        let current = this.parseTmpDB()
-        current.push(d)
-        fs.writeFileSync(tmpDb, JSON.stringify(current, null, 4))
     }
 
     async getFile(id: string) {
@@ -125,15 +116,20 @@ class Files {
             Files.defaultsInited = true
         }
 
-        const entry = this.parseTmpDB().find(f => f.name === name)
+        let entry = await DefaultAssets.findOne({name})
         if (!entry) {
-            throw new Error("Files::getDefault() cannot find default file!")
+            await this.createDefaultEntry(name, path.join(getInitialConfig().server.fileStorage.path, "static", name))
+            entry = (await DefaultAssets.findOne({name}))!
         }
-        return await this.getFile(entry.id)
+        return await this.getFile(String(entry.file_id))
     }
 
     async getDefaultAvatar() {
-        return await this.getDefault(defaultAvatarName)
+        const entry = defaultAssets.find(d => d.name === DefaultAssetsEnum.avatar)
+        if (!entry) {
+            throw new Error("Files::getDefaultAvatar() cannot find default avatar!")
+        }
+        return await this.getDefault(entry.name)
     }
 }
 

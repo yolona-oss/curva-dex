@@ -7,7 +7,6 @@ import { PumpFunService,
     serviceDescription as pumpServiceDescription,
     serviceArgs as pumpServiceArgs
 } from './pump.fun.service'
-import { CmdArgument } from "@core/ui/types/command"
 
 export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegisterManyEntry<Ctx> {
     return [

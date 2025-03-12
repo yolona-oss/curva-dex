@@ -2,13 +2,13 @@ export * from './account-ctrl-cmd'
 export * from './service-ctrl-cmd'
 export * from './help-cmd'
 export * from './sequence-cmd'
+export * from './cmd-alias-ctlr'
 
 import { BaseUIContext } from '@core/ui'
 import { BuiltInSeqCommandsEnum, BuiltInHelpCommandsEnum, BuiltInAccountCommandsEnum, BuiltInServiceCommandsEnum } from '../constants'
 import { ICmdRegisterEntry } from '../types'
 import { BuiltInCommand } from '../types/built-in-cmd'
 import { MotherCmdHandler } from '../mother-cmd-handler'
-import { getCmdArgMetadata } from '@core/ui/types/command'
 
 export const BuiltInCommandNames: string[] = Object.values(BuiltInSeqCommandsEnum)
                                                 .concat(Object.values(BuiltInHelpCommandsEnum))

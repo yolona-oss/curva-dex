@@ -1,7 +1,7 @@
 import log from "@core/utils/logger"
 import { AbstractCmdHandler, BaseUIContext, ICmdHandlerRequest, ICmdHandlerResponce } from "./abstract-handler"
-
-// TODO reaimplement with fn execution loginc inside cmd handler
+import { anyToString } from "@core/utils/misc"
+import { UiUnicodeSymbols } from "@core/ui"
 
 export class HandleCallbackExecution<Ctx extends BaseUIContext> extends AbstractCmdHandler<Ctx> {
 
@@ -10,63 +10,22 @@ export class HandleCallbackExecution<Ctx extends BaseUIContext> extends Abstract
 
         const { command, uiCtx, userId, args, currentCmdHandler } = request
 
+        let res
         try {
-            const cb = currentCmdHandler.getCallbackFromCommandName(command)
-            const userServices = currentCmdHandler.ActiveServices.get(userId)
-
-            if (!userServices) {
-                currentCmdHandler.ActiveServices.set(userId, [])
-            }
-
-            if (typeof cb.execMixin === 'function') { // simple command
-                const res = await cb.execMixin(args, uiCtx)
-                return {
-                    success: res?.error ? false : true,
-                    text: res?.error ?? undefined
-                }
-            } else if (cb.execMixin) { // service exe command
-                //const serviceName = cb.fn.name
-                const serviceName = command
-
-                if (userServices!.map(serv => serv.name).includes(serviceName)) {
-                    return {
-                        success: false,
-                        text: `Service ${serviceName} already active.`
-                    }
-                }
-
-                const serviceInstance = cb.execMixin.clone(userId)
-
-                serviceInstance.on("message", async (message: string) => {
-                    await uiCtx.reply(message)
-                })
-                serviceInstance.on('done', async (msg: string = "") => {
-                    const services = userServices
-                    if (!services) {
-                        log.error(`No active services for user ${userId}`)
-                        return
-                    }
-                    services.splice(services!.map(serv => serv.name).indexOf(serviceName), 1)
-                    log.info("-- Service done: " + serviceName)
-                    await uiCtx.reply(`Service ${serviceName} done. ${msg}`)
-                })
-                log.info("-- Starting service: " + serviceInstance.name)
-
-                await serviceInstance.Initialize()
-                userServices!.push(serviceInstance)
-                serviceInstance.run()
-            }
+            const built = await currentCmdHandler.CommandBuilder.parseCompeteInput(userId, command, args.join(' '), uiCtx, currentCmdHandler)
+            res = await currentCmdHandler.CommandExecutor.execute(userId, command, built.args, uiCtx)
         } catch (e: any) {
-            if (e && typeof e === 'object' && 'success' in e) {
-                return e as ICmdHandlerResponce
-            }
-
-            log.error("Command exe&setup error: " + e) // TODO naming
-            const msg = e instanceof Error ? e.message : e
+            log.error("Command execution error: " + anyToString(e))
             return {
                 success: false,
-                text: String(msg)
+                text: `${UiUnicodeSymbols.error} Command ${UiUnicodeSymbols.arrowRight} "${command}" execution error:\n -- ${anyToString(e) || UiUnicodeSymbols.warning  + " unknown error"}`
             }
+        }
+
+        if (res.success) {
+            return res
+        } else {
+            uiCtx.reply(`${UiUnicodeSymbols.error} Command ${UiUnicodeSymbols.arrowRight} "${command}" failed:\n -- ${UiUnicodeSymbols.warning} ${res.text ?? UiUnicodeSymbols.warning  + " unknown error"}`)
         }
 
         return await super.handle(request)

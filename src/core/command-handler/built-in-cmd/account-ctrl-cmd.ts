@@ -1,11 +1,13 @@
 import { CmdArgument, getCmdArgMetadata, getCmdArgUndefMetadata } from "@core/ui/types/command"
 import { BuiltInAccountCommandsEnum } from "../constants"
-import { Account, Manager } from "@core/db"
+import { Account, AccountModule, Manager } from "@core/db"
 import log from "@core/utils/logger"
 import { BuiltInCommand } from "../types/built-in-cmd"
 import { MotherCmdHandler } from "../mother-cmd-handler"
 
 import "reflect-metadata";
+import { assignToCustomPath, extractValueFromObject, removeFieldFromObject } from "@core/utils/object"
+import { UiUnicodeSymbols } from "@core/ui"
 
 async function getAllUserModules(accountId: string): Promise<string[]> {
     const account = await Account.findById(accountId)
@@ -14,7 +16,7 @@ async function getAllUserModules(accountId: string): Promise<string[]> {
         return []
     }
 
-    return account.modules.map(o => o.name)
+    return (await account.getModules()).map(m => m.name)
 }
 
 class SetVariableArgs {
@@ -59,22 +61,13 @@ const SetVariableCommand: BuiltInCommand = {
 
         const [module_name, path, value] = args
         console.log(`SetVariableCommand: ${module_name}, ${path}, ${value}`)
-        await account.setModuleData(module_name, path, value)
-        await account.save()
-        console.log(account.modules.find(m => m.name === module_name))
+        const { account_module } = await account.getModuleByNameOrCreate(module_name)
+        account_module.set(`data.${path}`, value)
+        await account_module.save()
+        console.log(account_module.data)
         await ctx.reply(`Variable "${path}" set to "${value}" on module "${module_name}"`)
     }
 }
-
-//console.log(getCmdArgMetadata(SetVariableArgs.prototype))
-//console.log(getCmdArgMetadata(new SetVariableArgs()));
-//console.log(getCmdArgMetadata(SetVariableArgs));
-//for (const key in SetVariableCommand.args) {
-//    const data = SetVariableCommand.args[key]
-//    console.log(`-- CMD: ${SetVariableCommand.command}, ${key}: ${data}`)
-//
-//}
-//process.exit(0)
 
 /////////////////////////
 
@@ -109,12 +102,17 @@ const RemoveVariableCommand: BuiltInCommand = {
         const user = await Manager.findOne({userId: Number(userId)})
         const account = await Account.findById(user!.account)
         if (!account) {
-            throw `Account ${user!.account} not found. User: ${userId}`
+            throw `${UiUnicodeSymbols.error} Account "${user!.account}" ${UiUnicodeSymbols.magnifierGlass} not found.\nUser: ${UiUnicodeSymbols.user} "${userId}"`
         }
 
         const [module_name, path] = args
-        await account.unsetModuleData(module_name, path)
-        await ctx.reply(`Variable ${path} removed`)
+        const account_module = await account.getModuleByName(module_name)
+        if (!account_module) {
+            throw `${UiUnicodeSymbols.error} Module "${module_name}" ${UiUnicodeSymbols.magnifierGlass} not found.`
+        }
+        account_module.set(`data.${path}`, undefined)
+        await account_module.save()
+        await ctx.reply(`Field ${UiUnicodeSymbols.arrowRight} "${path}" removed`)
     }
 }
 
@@ -151,8 +149,14 @@ const GetVariableCommand: BuiltInCommand = {
         }
 
         const [module_name, path] = args
-        const value = await account.getModuleData(module_name, path)
-        await ctx.reply(`Variable ${path} value: ${value}`)
+        const account_module = await account.getModuleByName(module_name)
+        if (!account_module) {
+            throw `Module ${UiUnicodeSymbols.arrowRight} "${module_name}" not found`
+        }
+
+        const value = extractValueFromObject(account_module.data, path)
+
+        await ctx.reply(`${UiUnicodeSymbols.magnifierGlass} Data found: "${path}" = "${value}"`)
     }
 }
 

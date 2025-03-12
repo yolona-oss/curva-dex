@@ -2,7 +2,7 @@ import { Account, FilesWrapper, MsgHistory } from '@core/db';
 import { DbModelsEnum } from '@core/db/models-enum';
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import { IMsgHistory, IMsgHistoryDto } from './messages-history';
-import { OPQBuilder } from '@core/utils/opq-builder';
+import log from '@core/utils/logger';
 
 export interface IManager extends Document {
     userId: number;
@@ -82,7 +82,16 @@ ManagerSchema.pre('save', async function (next) {
             this.avatar = (await FilesWrapper.getDefaultAvatar())!.id
         }
         if (!this.account) {
-            this.account = (await Account.create({ modules: [] })).id
+            log.info(`Checking account exists for manager "${this.userId}"...`)
+            const existingAccount = await Account.findOne({ owner_id: this._id })
+            if (!existingAccount) {
+                log.info(`Creating account from manager "${this.userId}"...`)
+                const newAccount = await Account.create({ owner_id: this._id, module_ids: [] })
+                if (!newAccount) {
+                    next(new Error("account not created"))
+                }
+                this.account = newAccount.id
+            }
         }
     } catch (e: any) {
         next(e)

@@ -1,6 +1,6 @@
 import { WithInit } from "@core/types/with-init";
 import { validateWithNeighborsMap } from "@core/types/with-neighbors";
-import { BaseUIContext, IUICommandSimple } from "@core/ui/types";
+import { BaseUIContext } from "@core/ui/types";
 
 import log from '@utils/logger'
 
@@ -15,17 +15,12 @@ import {
     ICmdHandlerExecResult,
     ICmdMixin,
     ICmdRegisterManyEntry,
-    IBuilderCmdArgReadResult,
-    ICmdService,
-    ICmdFunction
 } from "./types";
 import { CommandBuilder } from "./command-builder";
 import { HandleCallbackExecution, HandleCmdBuilder, HandleSequenceCommand } from "./handlers";
-import { isContainsAll, isEqual_Deep } from "@core/utils/array";
+import { isContainsAll } from "@core/utils/array";
 import { anyToString } from "@core/utils/misc";
-import { Account, Manager } from "@core/db";
-import { BLANK_SERVICE_SESSION_ID, MODULE_SESSION_ID_MARK } from "./constants";
-import { CmdServiceData } from "./service-data";
+import { Account, IAccountSession, Manager } from "@core/db";
 import { BaseCommandArgumentDesc, getCmdArgMetadata, IUICommandProcessed } from "@core/ui/types/command";
 
 import {
@@ -43,26 +38,32 @@ import {
 
     ConcreetHelp,
     CommonHelp,
+
+    AliasCommand,
+    UnaliasCommand,
+    ListAliases
 } from "./built-in-cmd";
 
 import 'reflect-metadata'
 
 import { BuiltInCommandNames, toRegister } from "./built-in-cmd";
+import { CommandExecutor } from "./command-executor"
+import { UiUnicodeSymbols } from "@core/ui";
+import { HandleCommandAlias } from "./handlers/alias";
 
 // NOTE: ITS TEMPORARY. ITS WILL BE REMOVED TO ANOTHER IMPL
 type WaitingUserInputType = "builderDeligate" | null
 
 // TODO RENAME IT!!! and split
-export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
-    private callbacks: Map<string, ICmdCallback<TContext>> // name -> callback
-    private sequenceHandler?: SequenceHandler
-    /**
-     * @description Per user active services
-     */
+export class MotherCmdHandler<UIContextType extends BaseUIContext> extends WithInit {
+    /** @description Per user active services */
     private activeServices: Map<string, Array<BaseCommandService<any>>> // userId -> services
+    private callbacks: Map<string, ICmdCallback<UIContextType>> // name -> callback
+    private sequenceHandler?: SequenceHandler
     private cmdBuilder: CommandBuilder
+    private cmdExecutor: CommandExecutor<UIContextType>
 
-    private chain: ICommandHandlerChain<TContext>
+    private chain: ICommandHandlerChain<UIContextType>
 
     constructor() {
         super()
@@ -70,78 +71,49 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         this.callbacks = new Map()
         this.activeServices = new Map()
         this.cmdBuilder = new CommandBuilder()
+        this.cmdExecutor = new CommandExecutor(this)
 
-        this.chain.use(new HandleCmdBuilder<TContext>)
-        this.chain.use(new HandleSequenceCommand<TContext>)
-        this.chain.use(new HandleCallbackExecution<TContext>)
+        this.chain.use(new HandleCommandAlias<UIContextType>)
+        this.chain.use(new HandleCmdBuilder<UIContextType>)
+        this.chain.use(new HandleSequenceCommand<UIContextType>)
+        this.chain.use(new HandleCallbackExecution<UIContextType>)
     }
 
-    done() {
-        this.registerMany([
-            toRegister<TContext>(SetVariableCommand as any, this),
-            toRegister<TContext>(RemoveVariableCommand as any, this),
-            toRegister<TContext>(GetVariableCommand as any, this),
+    public async handleCommand(command: string, ctx: UIContextType): Promise<ICmdHandlerExecResult> {
+        const args = this.getArgs(ctx.text!)
+        const _userId = ctx.manager?.userId
 
-            toRegister<TContext>(ServiceStopCommand as any, this),
-            toRegister<TContext>(ServiceRunCommand as any, this),
-            toRegister<TContext>(ServiceSendMsgCommand as any, this),
-
-            toRegister<TContext>(NextInSeqCommand as any, this),
-            toRegister<TContext>(BackInSeqCommand as any, this),
-            toRegister<TContext>(CancelSeqCommand as any, this),
-
-            toRegister<TContext>(ConcreetHelp as any, this),
-            toRegister<TContext>(CommonHelp as any, this),
-        ])
-
-        const cbNames = this.callbacks.keys().toArray()
-        if (!isContainsAll(cbNames, BuiltInCommandNames)) {
-            throw new Error("CommandHandler::done() not all built-in commands registered");
-        }
-
-        if (!validateWithNeighborsMap(this.callbacks)) {
-            throw new Error("CommandHandler::done() invalid callbacks map");
-        }
-
-        const targets: string[] = Array.from(this.callbacks.keys())
-        const naighbors: ICmdCallback<TContext>[] = Array.from(this.callbacks.values())
-        this.sequenceHandler = new SequenceHandler(
-            Array.from(
-                targets.map((v, i) =>
-                    ({
-                        target: v,
-                        next: naighbors[i].next,
-                        prev: naighbors[i].prev
-                    })
-                )
-            )
-        )
-
-        this.setInitialized()
-    }
-
-    async stop() {
-        for (const [userId, services] of this.activeServices) {
-            log.info(" -- Stoping services for user: " + userId)
-            const terminatePromises = []
-            for (const s of services) {
-                log.info("  -- terminating service: " + s.name)
-                await s.terminate()
-                terminatePromises.push(
-                    new Promise(resolve => s.on("done", resolve))
-                )
+        if (!_userId) {
+            return {
+                success: false,
+                text: ` ${UiUnicodeSymbols.error} No user id.`
             }
-            await Promise.all(terminatePromises)
-            log.info("  -- All services for user: " + userId + " stopped")
         }
-        log.info(" -- All services stopped")
+
+        try {
+            return await this.chain.handle({
+                currentCmdHandler: this,
+                command: command,
+                userId: String(_userId),
+                ownerId: String(ctx.manager!._id),
+                args,
+                uiCtx: ctx
+            })
+        } catch(e: any) {
+            log.error(anyToString(e))
+            let text = ` ${UiUnicodeSymbols.error} Command handling error:\n -- ${anyToString(e)}`
+            return {
+                success: false,
+                text
+            }
+        }
     }
 
-    public registerMany(commands: ICmdRegisterManyEntry<TContext>) {
+    public registerMany(commands: ICmdRegisterManyEntry<UIContextType>) {
         commands.forEach(cmd => this.register(cmd.command, cmd.mixin))
     }
 
-    public register(command: ICmdHandlerCommand, mixin: ICmdMixin<TContext>) {
+    public register(command: ICmdHandlerCommand, mixin: ICmdMixin<UIContextType>) {
         if (this.isInitialized()) {
             throw new Error("Not permitted to register command after init");
         }
@@ -153,7 +125,7 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
     /**
     * @description All command registred with this method not allowed to use in sequence
     */
-    unBoundRegister(command: ICmdHandlerCommand, mixin: ICmdMixin<TContext>) {
+    unBoundRegister(command: ICmdHandlerCommand, mixin: ICmdMixin<UIContextType>) {
         this.validateCmdName(command.command)
         this.registerWrapper(command, mixin, false)
     }
@@ -167,7 +139,7 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         //}
     }
 
-    private registerWrapper(command: ICmdHandlerCommand, mixin: ICmdMixin<TContext>, bounded = true) {
+    private registerWrapper(command: ICmdHandlerCommand, mixin: ICmdMixin<UIContextType>, bounded = true) {
         let argsDesc: (BaseCommandArgumentDesc&{name: string})[] = []
         if (command.args) {
             const _args = command.args
@@ -194,6 +166,86 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         );
     }
 
+    done() {
+        this.registerMany([
+            toRegister<UIContextType>(SetVariableCommand as any, this),
+            toRegister<UIContextType>(RemoveVariableCommand as any, this),
+            toRegister<UIContextType>(GetVariableCommand as any, this),
+
+            toRegister<UIContextType>(ServiceStopCommand as any, this),
+            toRegister<UIContextType>(ServiceRunCommand as any, this),
+            toRegister<UIContextType>(ServiceSendMsgCommand as any, this),
+
+            toRegister<UIContextType>(NextInSeqCommand as any, this),
+            toRegister<UIContextType>(BackInSeqCommand as any, this),
+            toRegister<UIContextType>(CancelSeqCommand as any, this),
+
+            toRegister<UIContextType>(ConcreetHelp as any, this),
+            toRegister<UIContextType>(CommonHelp as any, this),
+
+            toRegister<UIContextType>(AliasCommand as any, this),
+            toRegister<UIContextType>(UnaliasCommand as any, this),
+            toRegister<UIContextType>(ListAliases as any, this),
+        ])
+
+        const cbNames = this.callbacks.keys().toArray()
+        if (!isContainsAll(cbNames, BuiltInCommandNames)) {
+            throw new Error("CommandHandler::done() not all built-in commands registered");
+        }
+
+        if (!validateWithNeighborsMap(this.callbacks)) {
+            throw new Error("CommandHandler::done() invalid callbacks map");
+        }
+
+        const targets: string[] = Array.from(this.callbacks.keys())
+        const naighbors: ICmdCallback<UIContextType>[] = Array.from(this.callbacks.values())
+        this.sequenceHandler = new SequenceHandler(
+            Array.from(
+                targets.map((v, i) =>
+                    ({
+                        target: v,
+                        next: naighbors[i].next,
+                        prev: naighbors[i].prev
+                    })
+                )
+            )
+        )
+
+        this.setInitialized()
+    }
+
+    async stopAllServices() {
+        for (const [userId, services] of this.activeServices) {
+            log.info(" -- Stoping services for user: " + userId)
+            const terminatePromises = []
+            for (const s of services) {
+                log.info("  -- terminating service: " + s.name)
+                await s.terminate()
+                terminatePromises.push(
+                    new Promise(resolve => s.on("done", resolve))
+                )
+            }
+            await Promise.all(terminatePromises)
+            log.info("  -- All services for user: " + userId + " stopped")
+        }
+        log.info(" -- All services stopped")
+    }
+
+    async terminateService(userId: string, serviceName: string) {
+        if (!this.isServiceActive(userId, serviceName)) {
+            throw `Service ${serviceName} of user ${userId} not active`
+        }
+
+        const services = this.activeServices.get(userId)!
+        try {
+            await services.find(serv => serv.name === serviceName)!.terminate()
+        } catch (e: any) {
+            throw `Service ${serviceName} terminate error: ${anyToString(e)}`
+        }
+        this.RemoveUserAcitveService(userId, serviceName)
+    }
+
+
     WaitingInputFromUser(userId: string): WaitingUserInputType {
         if (this.cmdBuilder.isUserOnBuild(userId)) {
             return "builderDeligate"
@@ -201,77 +253,13 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
             return null
         }
     }
-    
-    get SequenceHandler() {
-        return this.sequenceHandler!
-    }
 
-    get CommandBuilder() {
-        return this.cmdBuilder
-    }
-
-    get ActiveServices() {
-        return this.activeServices
-    }
-
-    UserActiveServices(userId: string): Array<BaseCommandService<any>> {
-        const s = this.activeServices.get(userId)
-        if (!s) {
-            this.activeServices.set(userId, [])
-        }
-        return s!
-    }
-
-    RemoveUserAcitveService(userId: string, serviceName: string) {
-        const s = this.activeServices.get(userId)
-        if (!s) {
-            throw `User ${userId} active services store not initialized`
-        }
-        const instance = s.find(serv => serv.name === serviceName)
-        if (!instance) {
-            throw `User ${userId} active service ${serviceName} not found`
-        }
-        s.splice(s.indexOf(instance), 1)
-    }
-
-    async UserServiceSessions(userId: string, serviceName: string): Promise<string[]> {
-        const cb = this.getCallbackFromCommandName(serviceName)
-        if (cb.execMixin instanceof Function) {
-            return []
-        } else {
-            const blank = BLANK_SERVICE_SESSION_ID
-            const m = await Manager.findOne({ userId })
-            const a = await Account.findOne({ _id: m!.account })
-            const session_modules_names = await a?.getLinkedModules(serviceName)
-            
-            if (!session_modules_names || !a) {
-                return [blank]
-            }
-
-            const session_ids: string[] = []
-            for (const name of session_modules_names) {
-                const split = a.splitModuleName(name)
-                for (const s of split) {
-                    if (s.startsWith(MODULE_SESSION_ID_MARK)) {
-                        session_ids.push(s.slice(MODULE_SESSION_ID_MARK.length))
-                    }
-                }
-            }
-
-            if (!session_ids.includes(blank)) {
-                session_ids.push(blank)
-            }
-
-            return session_ids
-        }
-    }
-
-    isServiceActive(userId: string, serviceName: string) {
-        const services = this.activeServices.get(userId)
-        if (!services) {
+    public isService(name: string): boolean {
+        const cb = this.getCallbackFromCommandName(name)
+        if (!cb) {
             return false
         }
-        return services.map(s => s.name).includes(serviceName)
+        return cb.execMixin instanceof BaseCommandService
     }
 
     isAllArgsPassed(command: string, passedArgs: string[]): boolean {
@@ -303,187 +291,91 @@ export class MotherCmdHandler<TContext extends BaseUIContext> extends WithInit {
         return BuiltInCommandNames.includes(command)
     }
 
-    getCallbackFromCommandName(command: string): ICmdCallback<TContext> {
+    isCommandRegistered(command: string) {
+        return this.callbacks.has(command)
+    }
+
+    get CommandExecutor() {
+        return this.cmdExecutor
+    }
+    
+    get SequenceHandler() {
+        return this.sequenceHandler!
+    }
+
+    get CommandBuilder() {
+        return this.cmdBuilder
+    }
+
+    get ActiveServices() {
+        return this.activeServices
+    }
+
+    UserActiveServices(userId: string): Array<BaseCommandService<any>> {
+        const s = this.activeServices.get(userId)
+        if (!s) {
+            this.activeServices.set(userId, [])
+        }
+        return this.activeServices.get(userId)!
+    }
+
+    RemoveUserAcitveService(userId: string, serviceName: string) {
+        const s = this.activeServices.get(userId)
+        if (!s) {
+            throw `User "${userId}" active services store not initialized`
+        }
+        const instance = s.find(serv => serv.name === serviceName)
+        if (!instance) {
+            throw `User "${userId}" active service "${serviceName}" not found`
+        }
+        s.splice(s.indexOf(instance), 1)
+    }
+
+    async UserServiceSessions(userId: string, serviceName: string): Promise<string[]> {
+        const cb = this.getCallbackFromCommandName(serviceName)
+        if (cb.execMixin instanceof Function) {
+            return []
+        } else {
+            const owner = await Manager.findOne({userId})
+            if (!owner) {
+                return []
+            }
+            const account = await Account.findOne({owner_id: owner._id})
+            if (!account) {
+                return []
+            }
+
+            const data_module = await account.getModuleByName(serviceName)
+            if (!data_module) {
+                return []
+            }
+
+            const sessions = (await data_module.populate<{session_ids: IAccountSession[]}>('session_ids')).session_ids
+            
+            return sessions.map(s => s.name)
+        }
+    }
+
+    isServiceActive(userId: string, serviceName: string) {
+        const services = this.activeServices.get(userId)
+        if (!services) {
+            return false
+        }
+        return services.map(s => s.name).includes(serviceName)
+    }
+
+    getCallbackFromCommandName(command: string): ICmdCallback<UIContextType> {
         const cb = this.callbacks.get(command)
         if (!cb) {
             log.debug(`${this.constructor.name}::getCallbackFromCommandName Command "${command}" not found`)
-            throw {
-                success: false,
-                text: `Command "${command}" not found.`
-            }
+            throw ` ${UiUnicodeSymbols.magnifierGlass} Command ${UiUnicodeSymbols.arrowRight} "${command}" not found.`
         }
-        return cb as ICmdCallback<TContext>
-    }
-
-    public async terminateService(userId: string, serviceName: string) {
-        if (!this.isServiceActive(userId, serviceName)) {
-            throw `Service ${serviceName} of user ${userId} not active`
-        }
-
-        const services = this.activeServices.get(userId)!
-        try {
-            await services.find(serv => serv.name === serviceName)!.terminate()
-        } catch (e: any) {
-            throw `Service ${serviceName} terminate error: ${anyToString(e)}`
-        }
-        this.RemoveUserAcitveService(userId, serviceName)
-    }
-
-    public async execute(userId: string, command: string, args: IBuilderCmdArgReadResult[], ctx: TContext) {
-        const cb = this.getCallbackFromCommandName(command)
-        if (cb.execMixin instanceof Function) {
-            return await this.runFunction(userId, command, args, ctx)
-        } else {
-            return await this.runService(userId, command, args, ctx)
-        }
-    }
-
-    public async handleCommand(command: string, ctx: TContext): Promise<ICmdHandlerExecResult> {
-        const args = this.getArgs(ctx.text!)
-        const _userId = ctx.manager?.userId
-
-        if (!_userId) {
-            return {
-                success: false,
-                text: "No user id."
-            }
-        }
-
-        try {
-            return await this.chain.handle({
-                currentCmdHandler: this,
-                command: command,
-                userId: String(_userId),
-                args,
-                uiCtx: ctx
-            })
-        } catch(e: any) {
-            if (e && typeof e === 'object' && 'success' in e) {
-                return e as ICmdHandlerExecResult
-            }
-            log.error(e)
-            return {
-                success: false,
-                text: `Command handling error: ${anyToString(e)}`
-            }
-        }
-    }
-
-    private async runFunction(_: string, command: string, args: IBuilderCmdArgReadResult[], ctx: TContext) {
-        const cb = this.getCallbackFromCommandName(command)
-
-        try {
-            const _args = args.filter(a => a.ctx === "args" && a.value).map(a => a.value) as string[]
-            const exec = cb.execMixin as ICmdFunction<TContext>
-            if (this.isBuiltInCommand(command)) {
-                exec.bind(this)
-            }
-            const res = await exec(_args, ctx)
-            if (res && res.error) {
-                return {
-                    success: false,
-                    text: `Execution failed: ${res.error}`
-                }
-            } else {
-                return {
-                    success: true,
-                    text: `Execution success`
-                }
-            }
-        } catch (e: any) {
-            if (e && typeof e === 'object' && 'success' in e) {
-                return e as ICmdHandlerExecResult
-            }
-            return {
-                success: false,
-                text: `Command execution error: ${anyToString(e)}`
-            }
-        }
-    }
-
-    private async runService(userId: string, serviceName: string, args: IBuilderCmdArgReadResult[], ctx: TContext) {
-        if (this.isServiceActive(userId, serviceName)) {
-            return {
-                success: false,
-                text: `Service ${serviceName} already active.`
-            }
-        }
-
-        const cb = this.getCallbackFromCommandName(serviceName)
-        if (!cb || (cb.execMixin instanceof Function)) {
-            return {
-                success: false,
-                text: `Service ${serviceName} not found.`
-            }
-        }
-        const exe = cb.execMixin as ICmdService
-
-        const _conf = args.filter(a => a.ctx === 'config')
-        let conf = {}
-        for (const c of _conf) {
-            conf = Object.assign(conf, { [c.name]: c.value })
-        }
-
-        const _params = args.filter(a => a.ctx === "params")
-        let params = {}
-        for (const p of _params) {
-            params = Object.assign(conf, { [p.name]: p.value })
-        }
-
-        const _msgs = args.filter(a => a.ctx === "message")
-        let messages = {}
-        for (const m of _msgs) {
-            messages = Object.assign(conf, { [m.name]: m.value })
-        }
-
-        new CmdServiceData(conf as any, params as any, messages as any)
-        const serviceInstance = exe.clone(userId, undefined)
-
-        const userServices = this.UserActiveServices(userId)
-
-        serviceInstance.on("message", async (message: string) => {
-            await ctx.reply(message)
-        })
-        serviceInstance.on('done', async (msg: string = "") => {
-            const services = this.activeServices.get(userId)
-            if (!services) {
-                log.error(`No active services for user ${userId}`)
-                return
-            }
-            services.splice(services!.map(serv => serv.name).indexOf(serviceName), 1)
-            log.info("-- Service done: " + serviceName)
-            await ctx.reply(`Service ${serviceName} done. ${msg}`)
-        })
-        log.info("-- Starting service: " + serviceInstance.name)
-
-        try {
-            await serviceInstance.Initialize()
-            userServices.push(serviceInstance)
-            serviceInstance.run()
-            return {
-                success: true,
-                text: `Service ${serviceName} started.`
-            }
-        } catch(e: any) {
-            log.error(`Error starting service ${serviceName}: ${anyToString(e)}`, e)
-            return {
-                success: false,
-                text: `Error starting service ${serviceName}: ${anyToString(e)}` 
-            }
-        }
+        return cb as ICmdCallback<UIContextType>
     }
 
     private getArgs(text: string): string[] {
         const splited = text.trim().split(" ")
         return splited.slice(1)
-    }
-
-    public isService(name: string): boolean {
-        const cb = this.getCallbackFromCommandName(name)
-        if (!cb) {
-            return false
-        }
-        return cb.execMixin instanceof BaseCommandService
     }
 
     public getRegistredServiceNames(): string[] {

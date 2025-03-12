@@ -32,6 +32,7 @@ export const UiUnicodeSymbols = {
     clock: "⏰",
     eye: "👁",
     hammer: "🔨",
+    mail: "📧",
 
     lock: "🔒",
     unlock: "🔓",
@@ -45,7 +46,7 @@ export const UiUnicodeSymbols = {
     quoteClose: "❞",
 
     success: "✅",
-    info: "i️",
+    info: "i",
     warning: "⚠️",
     error: "❗",
     question: "❓",

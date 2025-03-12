@@ -20,3 +20,9 @@ export const BuiltInHelpCommandsEnum = {
     HELP_COMMAND: "help",
     CHELP_COMMAND: "chelp"
 }
+
+export const BuiltInAliasCommandsEnum = {
+    ALIAS_COMMAND: "alias",
+    UNALIAS_COMMAND: "unalias",
+    LIST_ALIASES_COMMAND: "list_aliases"
+}

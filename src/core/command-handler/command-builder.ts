@@ -15,7 +15,9 @@ import {
     defaultBuilderMarkupOptions
 } from "./constants"
 import log from "@core/utils/logger"
-import { UiUnicodeSymbols } from "@core/ui"
+import { BaseUIContext, UiUnicodeSymbols } from "@core/ui"
+import { CommandBuilderDescCompiler } from "./command-builder-desc-compiler"
+import { MotherCmdHandler } from "./mother-cmd-handler"
 
 function toMarkup(opt: string, type: ICmdBuilderMarkupOptionType, cb_value = opt, isRead: boolean = false): ICmdBuilderMarkupOption {
     return {
@@ -28,7 +30,7 @@ function toMarkup(opt: string, type: ICmdBuilderMarkupOptionType, cb_value = opt
 
 function toSwitchCtxMarkup(ctxs: ReadingCtxType[], current: ReadingCtxType): ICmdBuilderMarkup {
     return {
-        text: "Switch to reading context. Current context: " + current,
+        text: `${UiUnicodeSymbols.gear} Switch to reading context.\n -- ${UiUnicodeSymbols.magnifierGlass} Current context: ${UiUnicodeSymbols.arrowRight} "${current}"}`,
         options: ctxs.map(ctx => toMarkup(ctx, "value", ctx, false))
     }
 }
@@ -44,27 +46,43 @@ export class CommandBuilder {
 
     }
 
-    //userBuildString(userId: string, command: string): string {
-    //    if (!this.isUserOnBuild(userId)) {
-    //        return ""
-    //    }
-    //
-    //    const readArgToStr = (arg: IBuilderCmdArgReadResult) => {
-    //        switch (arg.ctx) {
-    //            case "args":
-    //
-    //                break;
-    //            case "config":
-    //                break;
-    //            case "params":
-    //                break;
-    //            case "message":
-    //                break;
-    //        }
-    //    }
-    //    const bstate = this.usersBuildingQueue.get(userId)!
-    //
-    //}
+    static selectReadingContexts<UICtx extends BaseUIContext>(command: string, userId: string, handler: MotherCmdHandler<UICtx>): ReadingCtxType[] {
+        const isService = handler.isService(command)
+        const isActive = handler.isServiceActive(userId, command)
+
+        return isService ?
+            isActive ?
+                ['message'] :
+                ['params', 'config'] :
+            ['args']
+    }
+
+    userBuildString(bstate: ICmdBuildingState, command: string, info = "", infoPrepend = true): string {
+        let buildStr = `${UiUnicodeSymbols.hammer} Building ${command}\n\nReaded:`
+        if (infoPrepend) {
+            buildStr = `${info}\n${buildStr}`
+        }
+
+        const readArgToStr = (arg: IBuilderCmdArgReadResult) => {
+            switch (arg.ctx) {
+                case "args":
+                    return ` -Arg ${UiUnicodeSymbols.hammer} ${arg.name}: ${arg.value}`
+                case "config":
+                    return ` - Config ${UiUnicodeSymbols.gear} ${arg.name}: ${arg.value}`
+                case "params":
+                    return ` - Params ${UiUnicodeSymbols.gear} ${arg.name}: ${arg.value}`
+                case "message":
+                    return ` - Message ${UiUnicodeSymbols.mail} ${arg.name}: ${arg.value}`
+            }
+        }
+        for (const arg of bstate.state.read) {
+            buildStr += '\n' + readArgToStr(arg)
+        }
+        if (!infoPrepend) {
+            buildStr = `${buildStr}\n\n${info}`
+        }
+        return buildStr
+    }
 
     isUserOnBuild(userId: string) {
         if (this.usersBuildingQueue.has(userId)) {
@@ -74,7 +92,7 @@ export class CommandBuilder {
     }
 
     private stopBuild(userId: string) {
-        console.log("__ done __")
+        console.log("__ build done __")
         this.usersBuildingQueue.delete(userId)
     }
 
@@ -110,45 +128,54 @@ export class CommandBuilder {
         ].includes(input)
     }
 
-    private readDefaultCb(cur: ICmdBuildingState, userId: string, input: string) {
-        if (input === DefaultBuilderCallbacks.cancel) {
+    private isNameRead(cur: ICmdBuildingState, name: string) {
+        for (const arg of cur.state.read) {
+            if (arg.name === name) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private readDefaultCb(cur: ICmdBuildingState, userId: string, input: string, inputSetteled: string) {
+        if (inputSetteled === DefaultBuilderCallbacks.cancel) {
             this.stopBuild(userId)
             return {
                 done: true,
                 markup: {
-                    text: "Build canceled",
+                    text: `${UiUnicodeSymbols.decline} Build canceled`,
                 }
             }
-        } else if (input === DefaultBuilderCallbacks.execute) {
+        } else if (inputSetteled === DefaultBuilderCallbacks.execute) {
             const res = this.build(userId)
             return {
                 done: true,
                 built: res ? res : undefined,
                 markup: {
-                    text: res ? "Build success" : "Build failed",
+                    text: res ? `${UiUnicodeSymbols.success} Build success` : `${UiUnicodeSymbols.error} Build failed`,
                 }
             }
-        } else if (input === DefaultBuilderCallbacks.switchCtx) {
+        } else if (inputSetteled === DefaultBuilderCallbacks.switchCtx) {
             cur.state.readingValue = 'ctx'
             return {
                 done: false,
                 markup: toSwitchCtxMarkup(cur.avalibleCtxs, cur.state.readingCtx)
             }
         } else {
-            throw "Unknown default callback: " + input
+            throw `${UiUnicodeSymbols.error} Unknown default callback: ${UiUnicodeSymbols.arrowRight} "${input}"`
         }
     }
 
-    private readCtxValue(cur: ICmdBuildingState, input: string) {
-        if (cur.avalibleCtxs.includes(input as any)) {
-            cur.state.readingCtx = input as ReadingCtxType
+    private readCtxValue(cur: ICmdBuildingState, inputSetteled: string) {
+        if (cur.avalibleCtxs.includes(inputSetteled as any)) {
+            cur.state.readingCtx = inputSetteled as ReadingCtxType
             cur.state.readingValue = 'name'
             return {
                 done: false,
                 markup: {
-                    text: `${UiUnicodeSymbols.success} Ctx switched to: "${input}". Select argument name:`,
+                    text: this.userBuildString(cur, cur.command, `${UiUnicodeSymbols.success} Ctx switched to: "${inputSetteled}". Select argument name:`),
                     options: [
-                        ...cur.descriptor.args.filter(arg => arg.ctx === input).map(arg => toMarkup(arg.name, "name")),
+                        ...cur.descriptor.args.filter(arg => arg.ctx === inputSetteled).map(arg => toMarkup(arg.name, "name")),
                         ...defaultBuilderMarkupOptions,
                     ]
                 }
@@ -157,115 +184,160 @@ export class CommandBuilder {
             return {
                 done: true,
                 markup: {
-                    text: "Unknown ctx: " + input + ". Exiting...",
+                    text: `${UiUnicodeSymbols.error} Unknown reading context: ${UiUnicodeSymbols.arrowRight} "${inputSetteled}"\n -- ${UiUnicodeSymbols.magnifierGlass} Avalible contexts: ${cur.avalibleCtxs.map(ctx => ` ${UiUnicodeSymbols.arrowRight} ${ctx}`)}.\n ${UiUnicodeSymbols.gear} Exiting...`,
                 }
             }
         }
     }
 
-    private readPairValue(cur: ICmdBuildingState, userId: string, input: string) {
+    private readPairName(cur: ICmdBuildingState, _: string, input: string, inputSetteled: string) {
+        if (this.isNameRead(cur, input)) {
+            return {
+                done: false,
+                markup: {
+                    text: this.userBuildString(cur, cur.command, `${UiUnicodeSymbols.error} Argument name already read: ${UiUnicodeSymbols.arrowRight} "${input}".`),
+                    options: [
+                        ...cur.descriptor.args.filter(arg => arg.ctx === ctx).map(arg => toMarkup(arg.name, "name")),
+                        ...defaultBuilderMarkupOptions
+                    ]
+                }
+            }
+        }
+
+        let markup: ICmdBuilderMarkup = {
+            text: "",
+        }
         const ctx = cur.state.readingCtx
+        const argDesc = cur.descriptor.args.find(arg => arg.name.toLowerCase() === inputSetteled)
+        if (!argDesc) {
+            return {
+                done: true,
+                markup: {
+                    text: `${UiUnicodeSymbols.error} Unknown argument name: ${UiUnicodeSymbols.arrowRight} "${input}".\n\n -- Avalible names(current context: ${UiUnicodeSymbols.gear} ${ctx}): ${cur.descriptor.args.filter(arg => arg.ctx === ctx).map(arg => ` ${UiUnicodeSymbols.arrowRight} ${arg.name}`)}.\n${UiUnicodeSymbols.gear} Aborting...`,
+                }
+            }
+        } else {
+            // HERE CAN PARSE POSITIONAL ARG
+        }
+
+        if (!argDesc.pairOptions && argDesc.standalone) { // no input
+            cur.state.readingValue = 'name'
+            const text = this.userBuildString(
+                cur,
+                cur.command,
+                `Read standalone argument ${UiUnicodeSymbols.arrowRight} "${input}".\n${UiUnicodeSymbols.gear} Continue configuration...\nSelect next option:`, false
+            )
+            markup = {
+                text,
+                options: [
+                    ...cur.descriptor.args.filter(arg => arg.ctx === ctx).map(arg => toMarkup(arg.name, "name")),
+                    ...defaultBuilderMarkupOptions,
+                ]
+            }
+        } else {
+            cur.state.readingValue = 'value'
+            const text = this.userBuildString(
+                cur,
+                cur.command,
+                `Select or type value for argument ${UiUnicodeSymbols.arrowRight} "${input}":`, false
+            )
+            markup = {
+                text,
+                options: [
+                    ...argDesc.pairOptions?.map(opt => toMarkup(opt, "value"))??[],
+                    ...defaultBuilderMarkupOptions,
+                ]
+            }
+        }
+
+        cur.state.read.push({
+            ctx,
+            name: input,
+            value: argDesc.standalone ? input : '',
+            isStandalone: argDesc.standalone
+        })
+
+        return {
+            done: false,
+            markup
+        }
+    }
+
+    private readPairValue(cur: ICmdBuildingState, userId: string, input: string, _: string) {
+        const ctx = cur.state.readingCtx
+        if (cur.state.read.length === 0) {
+            const text = this.userBuildString(
+                cur,
+                cur.command,
+                `\n${UiUnicodeSymbols.error} No argument name selected before value input.\n${UiUnicodeSymbols.cross} Aborting...`,
+                false
+            )
+            return {
+                done: true,
+                markup: {
+                    text,
+                }
+            }
+        }
+        const argRead = cur.state.read[cur.state.read.length - 1]
+        if (argRead) { // to not override: && argRead.value === null
+            argRead.value = input
+        }
+        cur.state.readingValue = 'name'
+
+        // is last value
+        if (this.isAllRead(cur)) {
+            const res = this.build(userId)
+            if (res) {
+                return {
+                    done: true,
+                    built: res,
+                    markup: {
+                        text: "Build success",
+                    }
+                }
+            } else {
+                log.warn("Build failed when all values read")
+            }
+        }
+
+        const text = this.userBuildString(
+            cur,
+            cur.command,
+            `Read value ${UiUnicodeSymbols.arrowRight} "${input}".\n${UiUnicodeSymbols.gear} Continue configuration...\nSelect next option:`,
+        )
+        return {
+            done: false,
+            markup: {
+                text,
+                options: [
+                    ...cur.descriptor.args.filter(arg => arg.ctx === ctx).map(arg => toMarkup(arg.name, "name")),
+                    ...defaultBuilderMarkupOptions,
+                ]
+            }
+        }
+    }
+
+    private parsePairInput(cur: ICmdBuildingState, userId: string, input: string, inputSetteled: string) {
         const readType = cur.state.readingValue
 
         if (readType === 'name') {
-            const argDesc = cur.descriptor.args.find(arg => arg.name.toLowerCase() === input.toLowerCase())
-            if (!argDesc) {
-                return {
-                    done: true,
-                    markup: {
-                        text: `Unknown argument name: "${input}". Avalible names(ctx: ${ctx}): ${cur.descriptor.args.filter(arg => arg.ctx === ctx).map(arg => arg.name)}. Exiting...`,
-                    }
-                }
-            }
-
-            let markup: ICmdBuilderMarkup = {
-                text: "",
-            }
-            if (!argDesc.pairOptions && argDesc.standalone) { // no input
-                cur.state.readingValue = 'name'
-                markup = {
-                    text: "Select next:",
-                    options: [
-                        ...cur.descriptor.args.filter(arg => arg.ctx === ctx).map(arg => toMarkup(arg.name, "name")),
-                        ...defaultBuilderMarkupOptions,
-                    ]
-                }
-            } else {
-                cur.state.readingValue = 'value'
-                markup = {
-                    text: "Select argument value or type own:",
-                    options: [
-                        ...argDesc.pairOptions?.map(opt => toMarkup(opt, "value"))??[],
-                        ...defaultBuilderMarkupOptions,
-                    ]
-                }
-            }
-
-            cur.state.read.push({
-                ctx,
-                name: input,
-                value: argDesc.standalone ? input : '',
-                isStandalone: argDesc.standalone
-            })
-
-            return {
-                done: false,
-                markup
-            }
+            return this.readPairName(cur, userId, input, inputSetteled)
         } else if (readType === 'value') {
-            if (cur.state.read.length === 0) {
-                return {
-                    done: true,
-                    markup: {
-                        text: "Error: Reading value before selected argument name. Exiting...",
-                    }
-                }
-            }
-            const argRead = cur.state.read[cur.state.read.length - 1]
-            if (argRead) { // to not override: && argRead.value === null
-                argRead.value = input
-            }
-            cur.state.readingValue = 'name'
-
-            // is last value
-            if (this.isAllRead(cur)) {
-                const res = this.build(userId)
-                if (res) {
-                    return {
-                        done: true,
-                        built: res,
-                        markup: {
-                            text: "Build success",
-                        }
-                    }
-                } else {
-                    log.warn("Build failed when all values read")
-                }
-            }
-
-            return {
-                done: false,
-                markup: {
-                    text: `${UiUnicodeSymbols.hammer} Select argument name:`,
-                    options: [
-                        ...cur.descriptor.args.filter(arg => arg.ctx === ctx).map(arg => toMarkup(arg.name, "name")),
-                        ...defaultBuilderMarkupOptions,
-                    ]
-                }
-            }
+            return this.readPairValue(cur, userId, input, inputSetteled)
         } else {
             return {
                 done: true,
                 markup: {
-                    text: `State error: Unknown reading state: "${readType}". Exiting...`
+                    text: `State error: Unknown reading state: ${UiUnicodeSymbols.arrowRight} "${readType}".\nAborting...`
                 }
             }
         }
     }
 
     // ridiculous logic implementation of state machine :((
-    private handleInner(userId: string, _input: string): ICmdBuilderHandleResult {
-        const input = _input.toLowerCase().trim()
+    private handleInner(userId: string, input: string): ICmdBuilderHandleResult {
+        const inputSetteled = input.toLowerCase().trim()
         const cur = this.usersBuildingQueue.get(userId)
         if (!cur) {
             return {
@@ -282,14 +354,14 @@ export class CommandBuilder {
         }
 
         if (this.isDefaultCb(input)) {
-            return this.readDefaultCb(cur, userId, input)
+            return this.readDefaultCb(cur, userId, input, inputSetteled)
         }
 
-        return this.readPairValue(cur, userId, input)
+        return this.parsePairInput(cur, userId, input, inputSetteled)
     }
 
-    handle(userId: string, _input: string): ICmdBuilderHandleResult {
-        const res = this.handleInner(userId, _input)
+    handle(userId: string, input: string): ICmdBuilderHandleResult {
+        const res = this.handleInner(userId, input)
         if (res.done) {
             this.stopBuild(userId)
         }
@@ -340,12 +412,45 @@ export class CommandBuilder {
         })
 
         return {
-            text: `${UiUnicodeSymbols.hammer} Run CmdBuilder\nBuilding command: "${command}".\nAvalible context: ${contexts.join(", ")}.\n${desc_str}`,
+            text: `${UiUnicodeSymbols.hammer} Run CmdBuilder\nBuilding command: ${UiUnicodeSymbols.arrowRight} "${command}".\nAvalible context: ${UiUnicodeSymbols.arrowRight} ${contexts.join(", ")}.\n${desc_str}`,
             options: [
                 ...initialCtxOptions.map(arg => toMarkup(arg.name, "name")),
                 ...defaultBuilderMarkupOptions,
             ]
         }
+    }
+
+    public async parseCompeteInput<UICtx extends BaseUIContext>(userId: string, command: string, input: string, ctx: UICtx, mother: MotherCmdHandler<UICtx>): Promise<ICmdBuildResult> {
+        const chips: string[] = []
+        const regex = /[^\s"]+|"([^"]*)"/g
+        let match: RegExpExecArray | null
+
+        while ((match = regex.exec(input)) !== null) {
+            chips.push(match[1] ? match[1] : match[0])
+        }
+
+        if (chips.length === 0) {
+            return {
+                command: "-Unknown-",
+                args: []
+            } as ICmdBuildResult
+        }
+
+        const compiler = new CommandBuilderDescCompiler<UICtx>()
+        const descs = await compiler.compile(command, userId, mother, ctx)
+        this.startBuild(userId, command, descs, CommandBuilder.selectReadingContexts(command, userId, mother))
+        let buildingRes
+        for (const chip of chips) {
+            buildingRes = this.handle(userId, chip)
+            if (buildingRes.done) {
+                if (buildingRes.built) {
+                    return buildingRes.built
+                } else {
+                    throw buildingRes.error ?? `${UiUnicodeSymbols.cross} Build failed(${UiUnicodeSymbols.info} done but not built):\n -- ${buildingRes.markup?.text ?? `${UiUnicodeSymbols.error} Unknown error`}`
+                }
+            }
+        }
+        throw `${UiUnicodeSymbols.cross} Build by chips failed.\n -- ${UiUnicodeSymbols.magnifierGlass} Input: ${UiUnicodeSymbols.arrowRight} "${input}".\n -- ${UiUnicodeSymbols.magnifierGlass} Result: ${UiUnicodeSymbols.arrowRight} "${buildingRes?.built ?? "Unknown result"}.\n -- ${UiUnicodeSymbols.magnifierGlass} Error: ${UiUnicodeSymbols.arrowRight} "${buildingRes?.error ?? "Unknown error"}"`
     }
 }
 

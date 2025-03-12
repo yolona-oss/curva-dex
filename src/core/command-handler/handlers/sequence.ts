@@ -1,3 +1,4 @@
+import { anyToString } from "@core/utils/misc"
 import { AbstractCmdHandler, BaseUIContext, ICmdHandlerRequest, ICmdHandlerResponce } from "./abstract-handler"
 
 import log from '@utils/logger'
@@ -19,10 +20,10 @@ export class HandleSequenceCommand<Ctx extends BaseUIContext> extends AbstractCm
         try {
             res = sequenceHandler.handle(userId, command)
         } catch (e: any) {
-            log.error(`Sequence handling error: ` + e)
-            err = String(e instanceof Error ? e.message : e)
+            err = anyToString(e)
+            log.error(`Sequence handling error: ` + err)
         }
-        if (err) {
+        if (err && err.length > 0) {
             return {
                 success: false,
                 text: err
