@@ -46,7 +46,7 @@ export const UiUnicodeSymbols = {
     quoteClose: "❞",
 
     success: "✅",
-    info: "i",
+    info: "ⓘ",
     warning: "⚠️",
     error: "❗",
     question: "❓",

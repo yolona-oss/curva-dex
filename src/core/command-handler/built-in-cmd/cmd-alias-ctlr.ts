@@ -62,7 +62,7 @@ class UnAliasArgs {
 
 const UnaliasCommand: BuiltInCommand = {
     command: BuiltInAliasCommandsEnum.UNALIAS_COMMAND,
-    description: "",
+    description: "Unalias command",
     args: UnAliasArgs,
     exec: async function(this: MotherCmdHandler<any>, args: string[], ctx) {
         const aliasName = args[0]

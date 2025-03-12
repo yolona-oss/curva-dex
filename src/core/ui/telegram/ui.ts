@@ -5,7 +5,7 @@ import { ICmdBuilderMarkupOption, ICmdHandlerResponce, ICmdMixin, MotherCmdHandl
 import { WithInit } from '@core/types/with-init';
 
 import { BuiltInTgUICommands } from './constants/commands';
-import { cb_data, actions, stickers } from './constants';
+import { cb_data, actions } from './constants';
 import { TgContext } from "./types";
 
 import { LockManager } from '@utils/lock-manager';
@@ -20,9 +20,9 @@ import { InlineKeyboardButton } from 'telegraf/typings/core/types/typegram';
 import { UiUnicodeSymbols } from '../ui-unicode-symbols';
 import { fromTgContext } from '@core/db/schemes/messages-history';
 
-async function tg_deleteMesasge(bot: telegraf.Telegraf<TgContext>, message_id: number, chat_id: number) {
-    await bot.telegram.deleteMessage(chat_id, message_id);
-}
+//async function tg_deleteMesasge(bot: telegraf.Telegraf<TgContext>, message_id: number, chat_id: number) {
+//    await bot.telegram.deleteMessage(chat_id, message_id);
+//}
 
 export class TelegramUI extends WithInit implements IUI<TgContext> {
 
@@ -76,7 +76,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
             console.log("#TEXT----------")
             const firstWord = ctx.text?.split(" ")[0]
             const fullText = ctx.text ? ctx.text : ""
-            const asCommand = firstWord.slice(1);
+            const asCommand = firstWord?.slice(1) ?? "";
             const isCommandAlike = firstWord && firstWord.startsWith("/");
             await this.handleCmd(isCommandAlike ? asCommand : fullText, ctx);
 
