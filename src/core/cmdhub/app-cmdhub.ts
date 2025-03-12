@@ -1,9 +1,9 @@
 import { Application } from "@core/application";
 import { getInitialConfig } from "@core/config";
-import { MotherCmdHandler } from "@core/command-handler";
+import { CHComposer } from "@core/ui/cmd-traspiler";
 import { AvailableUIsType, BaseUIContext, IUI } from "@core/ui/types";
-import { CLIContext, CLIUI } from "@core/ui/cli";
-import { TelegramUI, TgContext } from "@core/ui/telegram";
+import { CLIUI } from "@core/ui/impls/cli";
+import { TelegramUI } from "@core/ui/impls/telegram";
 
 import log from '@utils/logger'
 
@@ -13,11 +13,11 @@ import { FIGLET_LOGO, WELCOME_TEXT } from '@core/constants'
 export class AppCmdhub extends Application<BaseUIContext> {
     constructor(
         ui_name: AvailableUIsType,
-        cmdHandler: MotherCmdHandler<any>
+        composer: CHComposer<any>
     ) {
         const cfg = getInitialConfig()
 
-        if (!cmdHandler.isInitialized()) {
+        if (!composer.isInitialized()) {
             log.error("Command handler must be initialized before starting app")
             process.exit(-1)
         }
@@ -26,10 +26,10 @@ export class AppCmdhub extends Application<BaseUIContext> {
         let selected_ui: IUI<any>
         switch (ui_name) {
             case "telegram":
-                selected_ui = new TelegramUI(cfg.bot.token, cmdHandler)
+                selected_ui = new TelegramUI(cfg.bot.token, composer)
                 break
             case "cli":
-                selected_ui = new CLIUI(cmdHandler)
+                selected_ui = new CLIUI(composer)
                 break
             default:
                 log.error(`Unknown UI: ${ui_name}`)

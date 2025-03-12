@@ -4,7 +4,7 @@ import { ICmdCallback, ICmdService } from "./../types"
 import { CmdArgumentContextType } from "@core/ui/types/command";
 import { CHComposer } from "./../ch-composer"
 import { IManager, Manager } from "@core/db"
-import { BaseCommandArgumentDesc, exposeCmdArgumentDefOptions } from "@core/ui/types/command"
+import { BaseCommandArgumentMetaDesc, exposeCmdArgumentDefOptions } from "@core/ui/types/command"
 
 export class CBDescriptorCompiler<UICtx extends BaseUIContext> {
     constructor() { }
@@ -22,7 +22,7 @@ export class CBDescriptorCompiler<UICtx extends BaseUIContext> {
         const serviceArgCtx: CmdArgumentContextType[] = ['params', 'config', 'message']
         const builderArgs: ICommandArgumentDesc[] = new Array()
         for (const ctxName of serviceArgCtx) {
-            const descriptor: Record<string, BaseCommandArgumentDesc> = service[ctxName === 'message' ? 'receiveMsgDescriptor' : ctxName === 'config' ? 'configDescriptor' : 'paramsDescriptor']()
+            const descriptor: Record<string, BaseCommandArgumentMetaDesc> = service[ctxName === 'message' ? 'receiveMsgDescriptor' : ctxName === 'config' ? 'configDescriptor' : 'paramsDescriptor']()
             console.log(`Descriptor: ${service.name}:${ctxName}`, JSON.stringify(descriptor, null, 4))
 
             for (const key in descriptor) {
@@ -48,6 +48,7 @@ export class CBDescriptorCompiler<UICtx extends BaseUIContext> {
         const promise = cb.args?.map(async (a) => ({
             ctx: 'args' as CmdArgumentContextType,
             name: a.name,
+            required: a.required,
             description: a.description,
             pairOptions: await exposeCmdArgumentDefOptions(command, a.pairOptions, chComposer, ctx.manager as IManager),
             position: a.position,

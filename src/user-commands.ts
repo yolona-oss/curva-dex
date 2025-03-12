@@ -1,5 +1,5 @@
 import { BaseUIContext } from "@core/ui"
-import { ICmdRegisterManyEntry } from "@core/command-handler"
+import { ICmdRegisterManyEntry } from "@core/ui/cmd-traspiler"
 
 import { TestService } from "./user-services"
 //import { PumpFunService, PFName, PFDescription } from './pump.fun.service'

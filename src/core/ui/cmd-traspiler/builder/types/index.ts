@@ -1,7 +1,7 @@
-import { BaseCommandArgumentDesc } from "@core/ui/types/command"
+import { BaseCommandArgumentMetaDesc } from "@core/ui/types/command"
 import { CmdArgumentContextType } from "@core/ui/types/command";
 
-export interface ICommandArgumentDesc extends BaseCommandArgumentDesc {
+export interface ICommandArgumentDesc extends BaseCommandArgumentMetaDesc {
     ctx: CmdArgumentContextType,
     name: string,
     pairOptions?: string[]

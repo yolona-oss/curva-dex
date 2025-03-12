@@ -6,7 +6,7 @@ import { BaseUIContext, IUICommandSimple } from "@core/ui"
 import { ICompiledReadArg } from "./../builder"
 import { CHComposer } from "../ch-composer"
 import { Chain, IChainHandler } from "@core/utils/chain"
-import { BaseCommandArgumentDesc } from "@core/ui/types/command"
+import { BaseCommandArgumentMetaDesc } from "@core/ui/types/command"
 import { IBaseMarkup } from "./markup"
 
 export type ICmdFunction<Ctx> = (args: string[], ctx: Ctx) => Promise<{error?: string}|void>
@@ -17,7 +17,7 @@ export type ICmdMixin<Ctx> = ICmdFunction<Ctx> | ICmdService
 export interface ICmdCallback<Ctx> extends Partial<WithNeighbors> {
     execMixin: ICmdMixin<Ctx>
     description: string
-    args?: (BaseCommandArgumentDesc&{name: string})[]
+    args?: (BaseCommandArgumentMetaDesc&{name: string})[]
     seqBounded: boolean
 }
 

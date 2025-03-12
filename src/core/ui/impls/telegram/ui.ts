@@ -1,8 +1,6 @@
 import { getConfig, getInitialConfig } from '@core/config'
 import { AvailableUIsEnum, AvailableUIsType, IUI, IUICommandSimple } from '@core/ui/types';
 import { FilesWrapper, Manager } from '@core/db';
-import { ICmdHandlerResponce, ICmdMixin, CHComposer } from '@core/command-handler';
-import { IBaseMarkup } from '@core/command-handler/types/markup';
 import { WithInit } from '@core/types/with-init';
 
 import { BuiltInTgUICommands } from './constants/commands';
@@ -16,10 +14,13 @@ import crypto from 'crypto'
 import * as telegraf from 'telegraf'
 import chalk from 'chalk';
 import { anyToString } from '@core/utils/misc';
-import { IUICommandProcessed } from '../types/command';
+import { IUICommandProcessed } from '@core/ui/types/command';
 import { InlineKeyboardButton } from 'telegraf/typings/core/types/typegram';
-import { UiUnicodeSymbols } from '../ui-unicode-symbols';
+import { UiUnicodeSymbols } from '@core/ui/ui-unicode-symbols';
 import { fromTgContext } from '@core/db/schemes/messages-history';
+
+import { ICmdHandlerResponce, ICmdMixin, CHComposer } from '@core/ui/cmd-traspiler';
+import { IBaseMarkup } from '@core/ui/cmd-traspiler/types/markup';
 
 //async function tg_deleteMesasge(bot: telegraf.Telegraf<TgContext>, message_id: number, chat_id: number) {
 //    await bot.telegram.deleteMessage(chat_id, message_id);

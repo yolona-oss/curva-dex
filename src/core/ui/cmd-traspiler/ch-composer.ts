@@ -21,7 +21,7 @@ import { HandleCallbackExecution, HandleCmdBuilder, HandleSequenceCommand } from
 import { isContainsAll } from "@core/utils/array";
 import { anyToString } from "@core/utils/misc";
 import { Account, IAccountSession, Manager } from "@core/db";
-import { BaseCommandArgumentDesc, getCmdArgMetadata, IUICommandProcessed } from "@core/ui/types/command";
+import { BaseCommandArgumentMetaDesc, getCmdArgMetadata, IUICommandProcessed } from "@core/ui/types/command";
 
 import {
     SetVariableCommand,
@@ -143,7 +143,7 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
     }
 
     private registerWrapper(command: ICmdHandlerCommand, mixin: ICmdMixin<UIContextType>, bounded = true) {
-        let argsDesc: (BaseCommandArgumentDesc&{name: string})[] = []
+        let argsDesc: (BaseCommandArgumentMetaDesc&{name: string})[] = []
         if (command.args) {
             const _args = command.args
             const metaArg = getCmdArgMetadata<any>(_args)

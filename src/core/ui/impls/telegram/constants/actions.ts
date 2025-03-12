@@ -1,4 +1,4 @@
-import { CqContext } from "@core/ui/telegram/types";
+import { CqContext } from "@core/ui/impls/telegram/types";
 import { getInitialConfig } from "@core/config";
 import { Manager, FilesWrapper } from "@core/db";
 

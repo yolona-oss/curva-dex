@@ -12,7 +12,6 @@ import log from '@utils/logger'
 import find from "find-process";
 import mongoose from "mongoose";
 import { configDotenv } from "dotenv";
-//import { sleep } from "@utils/time";
 
 configDotenv({
     path: '.env'

@@ -1,5 +1,5 @@
 import { CLIContext } from './types';
-import { CHComposer } from '@core/command-handler';
+import { CHComposer } from '@core/ui/cmd-traspiler';
 
 import { WithInit } from '@core/types/with-init';
 import { IUI } from '@core/ui/types'

@@ -1,4 +1,4 @@
-import { BaseCommandService, CHComposer } from "@core/command-handler"
+import { BaseCommandService, CHComposer } from "@core/ui/cmd-traspiler"
 import { IManager } from "@core/db"
 import { BaseUIContext } from ".."
 
@@ -15,13 +15,13 @@ export type CmdArgumentPairOptionsType<OptionsSetter extends SetterPattern = Cmd
 
 export type CmdArgumentContextType = "args" | "config" | "params" | "message"
 
-export interface BaseCommandArgumentDesc {
+export interface BaseCommandArgumentMetaDesc {
     required: boolean
     description: string
     validator: (arg: string) => boolean
 
     position: number|null
-    pairOptions: CmdArgumentPairOptionsType<CmdArgumentOptionSetter>
+    pairOptions?: CmdArgumentPairOptionsType<CmdArgumentOptionSetter>
     defaultValue?: string
 }
 
@@ -35,7 +35,7 @@ interface BaseCommandArgumentDescDto {
     defaultValue?: string
 }
 
-const CmdArgumentMetaDefaults: Partial<BaseCommandArgumentDesc> = {
+const CmdArgumentMetaDefaults: Partial<BaseCommandArgumentMetaDesc> = {
     validator: () => true,
     required: false,
     pairOptions: [],
@@ -59,13 +59,13 @@ export function CmdArgument(metadata: BaseCommandArgumentDescDto) {
     }
 }
 
-export type CommandArgumentMetadata<T extends string|number|symbol = string> = Record<T, BaseCommandArgumentDesc>
+export type CommandArgumentMetadata<T extends string|number|symbol = string> = Record<T, BaseCommandArgumentMetaDesc>
 export type CommandArgmuentKeyHolder = Record<string, any>
 
 export function getCmdArgMetadata<T>(
     target: any
 ): CommandArgumentMetadata<keyof T> {
-    let metadataMap: Partial<Record<keyof T, BaseCommandArgumentDesc>> = {};
+    let metadataMap: Partial<Record<keyof T, BaseCommandArgumentMetaDesc>> = {};
     let proto = target.prototype || Object.getPrototypeOf(target);
 
     while (proto && proto !== Object.prototype) {
@@ -129,10 +129,10 @@ export interface IUICommand<ThisUI, CtxType> extends BaseCommand {
 }
 
 export type IUICommandSimple = BaseCommand
-export type IUICommandProcessed = BaseCommand & {args?: (BaseCommandArgumentDesc&{name: string})[]}
+export type IUICommandProcessed = BaseCommand & {args?: (BaseCommandArgumentMetaDesc&{name: string})[]}
 
 export function getCmdArgUndefMetadata<T extends CommandArgmuentKeyHolder>(target: T): CommandArgumentMetadata<keyof T> {
-    const metadataMap: Partial<Record<keyof T, BaseCommandArgumentDesc>> = {}
+    const metadataMap: Partial<Record<keyof T, BaseCommandArgumentMetaDesc>> = {}
     let currentTarget = target;
     while (currentTarget !== null && currentTarget !== Object.prototype) {
         const propertyKeys = Object.getOwnPropertyNames(currentTarget);
@@ -175,7 +175,7 @@ export function getCmdArgUndefMetadata<T extends CommandArgmuentKeyHolder>(targe
 
 
 export function __getCmdArgMetadata<T extends CommandArgmuentKeyHolder>(target: any): CommandArgumentMetadata<keyof T> {
-    let metadataMap: Partial<Record<keyof T, BaseCommandArgumentDesc>> = {}
+    let metadataMap: Partial<Record<keyof T, BaseCommandArgumentMetaDesc>> = {}
     
     let proto = target instanceof Object ? Object.getPrototypeOf(target) : target
 

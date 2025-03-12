@@ -56,7 +56,6 @@ export const ManagerSchema: Schema<IManager> = new Schema(
                     timestamp
                 }
                 const message = await MsgHistory.create(msg)
-                console.log("message seved", message.text)
                 await message.save()
                 return this
             },
