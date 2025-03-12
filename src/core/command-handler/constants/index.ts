@@ -1,7 +1,7 @@
 import { BuiltInAccountCommandsEnum, BuiltInHelpCommandsEnum, BuiltInSeqCommandsEnum, BuiltInServiceCommandsEnum, BuiltInAliasCommandsEnum } from "./built-in-cmd-enum"
 
 export const BLANK_USER_ID = "__pussy-killer__"
-//export const CLI_USER_ID = "--gandonio--"
+export const CLI_USER_ID = "--gandonio--"
 
 export const BuiltInCmdNames = [
     ...Object.values(BuiltInSeqCommandsEnum),

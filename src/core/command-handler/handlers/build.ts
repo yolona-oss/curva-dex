@@ -1,9 +1,9 @@
 import { AbstractCmdHandler, ICmdHandlerRequest, ICmdHandlerResponce, BaseUIContext } from "./abstract-handler";
-import { CommandBuilder } from "../command-builder";
+import { CommandBuilder } from "../builder";
 import { CHComposer } from "../ch-composer";
 import log from "@core/utils/logger";
-import { CommandBuilderDescCompiler } from "../command-builder-desc-compiler";
-import { IBuilderCmdDesc } from "../types";
+import { CBDescriptorCompiler } from "../builder/desc-compiler";
+import { ICommandDescriptor } from "../builder";
 
 // TODO add completion for builtin commands
 
@@ -15,8 +15,8 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
         if (!chComposer.isAllArgsPassed(command, args)) {
             const avalibleCtxs = CommandBuilder.selectReadingContexts(command, userId, chComposer)
 
-            const descCompiler = new CommandBuilderDescCompiler<UICtx>()
-            let desc: IBuilderCmdDesc = await descCompiler.compile(
+            const descCompiler = new CBDescriptorCompiler<UICtx>()
+            let desc: ICommandDescriptor = await descCompiler.compile(
                 command,
                 userId,
                 chComposer,
@@ -27,36 +27,33 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
 
             return {
                 success: true,
-                text: res.text,
-                markup: res.options
+                markup: res
             }
         }
         return
     }
 
-    private async handleBuildProcess(userId: string, command: string, ctx: UICtx, builder: CommandBuilder, chComposer: CHComposer<UICtx>): Promise<ICmdHandlerResponce|void> {
+    private async handleBuildProcess(userId: string, text: string, ctx: UICtx, builder: CommandBuilder, chComposer: CHComposer<UICtx>): Promise<ICmdHandlerResponce|void> {
         if (builder.isUserOnBuild(userId)) {
-            const res = builder.handle(userId, command)
+            const stepRes = builder.handle(userId, text)
 
-            if (res.built) {
-                log.trace("@-- cmd build done --@")
-                return await chComposer.CommandExecutor.execute(userId, res.built.command, res.built.args, ctx)
+            if (stepRes.IsBuilt) {
+                return await chComposer.CommandInvoker.invoke(userId, stepRes.Result, ctx)
             }
 
             return {
-                success: !Boolean(res.error),
-                text: res.markup.text,
-                markup: res.markup.options
+                success: !Boolean(stepRes),
+                ...stepRes.Markup
             }
         }
         return
     }
 
     public async handle(request: ICmdHandlerRequest<UICtx>): Promise<ICmdHandlerResponce> {
-        const { command, userId, uiCtx, args, composer } = request
+        const { command, text, userId, uiCtx, args, composer } = request
 
         const builder = composer.CommandBuilder
-        const builderRes = await this.handleBuildProcess(userId, command, uiCtx, builder, composer)
+        const builderRes = await this.handleBuildProcess(userId, text, uiCtx, builder, composer)
         if (builderRes) {
             return builderRes
         }
@@ -67,7 +64,7 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
                 return buildSetupRes
             }
         } catch(e: any) {
-            log.trace(`Cannot start build command: "${command}"`, e)
+            log.error(`Cannot start build command: "${command}"`, e)
         }
 
         return await super.handle(request)

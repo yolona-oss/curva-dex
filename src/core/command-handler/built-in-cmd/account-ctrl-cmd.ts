@@ -22,7 +22,7 @@ async function getAllUserModules(accountId: string): Promise<string[]> {
 class SetVariableArgs {
     @CmdArgument({
         required: true,
-        standalone: true,
+        position: 1,
         description: "Module name",
         pairOptions: async (_, handler) => {
             return handler.getRegistredServiceNames()
@@ -33,14 +33,14 @@ class SetVariableArgs {
     @CmdArgument({
         required: true,
         description: "Variable path",
-        standalone: true,
+        position: 2,
         pairOptions: []
     })
     path!: String
 
     @CmdArgument({
         required: true,
-        standalone: true,
+        position: 3,
         description: "Variable value",
         pairOptions: []
     })
@@ -75,7 +75,7 @@ class RemoveVariableArgs {
     @CmdArgument({
         required: true,
         description: "Module name",
-        standalone: true,
+        position: 1,
         pairOptions: async (_, __, owner) => {
             return await getAllUserModules(owner.account.toString())
         }
@@ -85,7 +85,7 @@ class RemoveVariableArgs {
     @CmdArgument({
         required: true,
         description: "Variable path",
-        standalone: true,
+        position: 2,
         pairOptions: []
     })
     path!: String
@@ -119,7 +119,7 @@ const RemoveVariableCommand: BuiltInCommand = {
 class GetVariableArgs {
     @CmdArgument({
         required: true,
-        standalone: true,
+        position: 1,
         description: "Module name",
         pairOptions: async (_, __, owner) => {
             return await getAllUserModules(owner.account.toString())
@@ -129,7 +129,7 @@ class GetVariableArgs {
 
     @CmdArgument({
         required: true,
-        standalone: true,
+        position: 2,
         description: "Variable path",
         pairOptions: []
     })

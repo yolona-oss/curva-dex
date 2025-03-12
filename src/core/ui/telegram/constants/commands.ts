@@ -36,7 +36,7 @@ const nameDict = [
 class SetGreetingArgs {
     @CmdArgument({
         required: true,
-        standalone: true,
+        position: 1,
         description: "Disable or enable startup greeting",
         validator: (arg: string) => ["on", "off"].includes(arg),
         pairOptions: ["on", "off"]
@@ -47,7 +47,7 @@ class SetGreetingArgs {
 class SetNameArgs {
     @CmdArgument({
         required: true,
-        standalone: true,
+        position: 1,
         description: "Your name, only latin symbols allowed",
         validator: (arg: string) => Boolean(arg.trim().match(/^[a-zA-Z0-9 ]+$/)),
         pairOptions: shuffle(nameDict).slice(0, 5)

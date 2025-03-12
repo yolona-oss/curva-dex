@@ -3,10 +3,11 @@
 import { WithNeighbors } from "@core/types/with-neighbors"
 import { BaseCommandService } from "../command-service"
 import { BaseUIContext, IUICommandSimple } from "@core/ui"
-import { ICmdBuilderMarkupOption } from "./builder"
+import { ICompiledReadArg } from "./../builder"
 import { CHComposer } from "../ch-composer"
 import { Chain, IChainHandler } from "@core/utils/chain"
 import { BaseCommandArgumentDesc } from "@core/ui/types/command"
+import { IBaseMarkup } from "./markup"
 
 export type ICmdFunction<Ctx> = (args: string[], ctx: Ctx) => Promise<{error?: string}|void>
 export type ICmdService = BaseCommandService<any, any, any>
@@ -29,15 +30,15 @@ export interface ICmdRegisterEntry<Ctx> {
 
 export type ICmdRegisterManyEntry<Ctx> = Array<ICmdRegisterEntry<Ctx>>
 
-export interface ICmdHandlerExecResult {
+export interface ICommandHandleResult {
     success: boolean
-    text?: string
-    markup?: ICmdBuilderMarkupOption[]
+    markup?: IBaseMarkup
 }
 
-export type ICmdHandlerResponce = ICmdHandlerExecResult
+export type ICmdHandlerResponce = ICommandHandleResult
 export interface ICmdHandlerRequest<Ctx extends BaseUIContext> {
     composer: CHComposer<Ctx>,
+    text: string,
     command: string,
     uiCtx: Ctx,
     userId: string,
@@ -46,3 +47,8 @@ export interface ICmdHandlerRequest<Ctx extends BaseUIContext> {
 }
 export type ICmdHandler<Ctx extends BaseUIContext> = IChainHandler<ICmdHandlerRequest<Ctx>, ICmdHandlerResponce>
 export type ICommandHandlerChain<Ctx extends BaseUIContext> = Chain<ICmdHandlerRequest<Ctx>, ICmdHandlerResponce>
+
+export interface PrimaryInvokeParams {
+    command: string
+    args: ICompiledReadArg[]
+}

@@ -18,10 +18,10 @@ export const UiUnicodeSymbols = {
     inChatDeclined: "👤❌",
     inChatDeclinedByManager: "👤❌👤",
 
-    arrowLeft: "⬅",
-    arrowRight: "➡",
-    arrowUp: "⬆",
-    arrowDown: "⬇",
+    arrowLeft: "←",
+    arrowRight: "→",
+    arrowUp: "↑",
+    arrowDown: "↓",
 
     star: "⭐",
     gear: "⚙",

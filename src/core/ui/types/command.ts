@@ -13,12 +13,24 @@ type SetterPattern = (...args: any[]) => Promise<string[]>
 export type CmdArgumentOptionSetter = (cmdName: string, composer: CHComposer<any>, manager: IManager) => Promise<string[]>
 export type CmdArgumentPairOptionsType<OptionsSetter extends SetterPattern = CmdArgumentOptionSetter> = string[]|OptionsSetter
 
+export type CmdArgumentContextType = "args" | "config" | "params" | "message"
+
 export interface BaseCommandArgumentDesc {
+    required: boolean
+    description: string
+    validator: (arg: string) => boolean
+
+    position: number|null
+    pairOptions: CmdArgumentPairOptionsType<CmdArgumentOptionSetter>
+    defaultValue?: string
+}
+
+interface BaseCommandArgumentDescDto {
     required?: boolean
     description?: string
     validator?: (arg: string) => boolean
 
-    standalone: boolean // mean dont need any option
+    position?: number|null
     pairOptions?: CmdArgumentPairOptionsType<CmdArgumentOptionSetter>
     defaultValue?: string
 }
@@ -28,15 +40,18 @@ const CmdArgumentMetaDefaults: Partial<BaseCommandArgumentDesc> = {
     required: false,
     pairOptions: [],
     description: "Common argument",
-    standalone: true,
+    position: null,
     defaultValue: undefined
 }
 
-export function CmdArgument(metadata: BaseCommandArgumentDesc) {
-    return (target: any, propertyKey: string) => {
+export function CmdArgument(metadata: BaseCommandArgumentDescDto) {
+    return function(target: any, propertyKey: string) {
         const defaultsMergeMetadata = {
             ...CmdArgumentMetaDefaults,
             ...metadata
+        }
+        if (defaultsMergeMetadata.position != null && defaultsMergeMetadata.position <= 0) {
+            throw new Error(`@CmdArgument: position must be greater than 0`)
         }
         const existingMetadata = Reflect.getMetadata(COMMAND_ARG_DESC_KEY, target) || {};
         existingMetadata[propertyKey] = defaultsMergeMetadata
@@ -77,11 +92,11 @@ export type CommandArgumentDefenition = Record<string, any> // with metadata att
 export async function exposeCmdArgumentDefOptions<CtxType extends BaseUIContext = any>(
     cmdName: string,
     options: CmdArgumentPairOptionsType<CmdArgumentOptionSetter>|undefined,
-    handler: CHComposer<CtxType>,
+    composer: CHComposer<CtxType>,
     manager: IManager
 ) {
     if (options instanceof Function) {
-        return await options(cmdName, handler, manager)
+        return await options(cmdName, composer, manager)
     } else if (Array.isArray(options)) {
         return options
     } else {

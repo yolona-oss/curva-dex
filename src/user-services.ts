@@ -16,35 +16,30 @@ type TestServiceDataType = CmdServiceData<
 class TestServiceInteractMessages extends BaseCmdServiceInteractMessages {
     @CmdArgument({
         required: false,
-        standalone: true,
         description: "Pause service",
     })
     pause?: boolean
 
     @CmdArgument({
         required: false,
-        standalone: true,
         description: "Resume service",
     })
     resume?: boolean
 
     @CmdArgument({
         required: false,
-        standalone: true,
         description: "Stop service",
     })
     stop?: boolean
 
     @CmdArgument({
         required: false,
-        standalone: true,
         description: "Reset service",
     })
     reset?: boolean
 
     @CmdArgument({
         required: false,
-        standalone: false,
         description: "Set max value",
     })
     setmax?: string
@@ -53,7 +48,6 @@ class TestServiceInteractMessages extends BaseCmdServiceInteractMessages {
 class TestServiceParameters extends BaseCmdServiceParameters {
     @CmdArgument({
         required: false,
-        standalone: false,
         pairOptions: async () => new Array(10).fill(0).map(() => genRandomNumber(genRandomNumberBetween(1, 3)).toString()),
         defaultValue: "1",
         validator: (arg) => !Number.isNaN(Number(arg)),

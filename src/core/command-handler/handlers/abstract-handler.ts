@@ -20,6 +20,6 @@ export abstract class AbstractCmdHandler<Ctx extends BaseUIContext> implements I
         }
 
         console.log("-- CmdHandler chain end --")
-        return { success: false, text: "No handler" }
+        return { success: false, markup: {text: "No handler"} }
     }
 }

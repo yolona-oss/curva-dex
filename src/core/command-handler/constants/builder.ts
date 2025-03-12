@@ -1,4 +1,4 @@
-import { ICmdBuilderMarkupOption } from "../types/builder"
+import { IMarkupOption } from "../types/markup"
 
 // INFO: must be lower case
 export const DefaultBuilderCallbacks = {
@@ -7,7 +7,7 @@ export const DefaultBuilderCallbacks = {
     switchCtx: "__switchctx"
 }
 
-export const defaultBuilderMarkupOptions: ICmdBuilderMarkupOption[] = [
+export const defaultBuilderMarkupOptions: IMarkupOption[] = [
     {
         text: "Execute",
         type: "defaultMk",

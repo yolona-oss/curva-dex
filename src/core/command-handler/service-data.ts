@@ -16,7 +16,7 @@ export abstract class BaseCmdServiceConfig {
 export class BaseCmdServiceParameters {
     @CmdArgument({
         required: false,
-        standalone: false,
+        position: null,
         pairOptions: sessionOptsWithRand,
         defaultValue: genRandomString(8),
         validator: sessionIdValidator,
@@ -26,7 +26,7 @@ export class BaseCmdServiceParameters {
 
     @CmdArgument({
         required: false,
-        standalone: false,
+        position: null,
         pairOptions: sessionOptsWithRand,
         defaultValue: genRandomString(8),
         validator: sessionIdValidator,
@@ -39,7 +39,7 @@ export class BaseCmdServiceInteractMessages {
     @CmdArgument({
         required: false,
         description: "Echo message",
-        standalone: false,
+        position: null,
         defaultValue: "R U GAY?"
     })
     echo!: String

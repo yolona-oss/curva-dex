@@ -1,5 +1,5 @@
 import { CLIContext } from './types';
-import { MotherCmdHandler } from '@core/command-handler';
+import { CHComposer } from '@core/command-handler';
 
 import { WithInit } from '@core/types/with-init';
 import { IUI } from '@core/ui/types'
@@ -18,7 +18,7 @@ export class CLIUI extends WithInit implements IUI<CLIContext> {
     private cmds: string[]
 
     constructor(
-        public readonly chComposer: MotherCmdHandler<CLIContext>
+        public readonly chComposer: CHComposer<CLIContext>
     ) {
         super()
         this.context = {
@@ -101,8 +101,8 @@ export class CLIUI extends WithInit implements IUI<CLIContext> {
             this.context.userSession.data.args = args; // Save args in context
 
             const response = await this.chComposer!.handleCommand(command, this.context);
-            if (response.text) {
-                this.context.reply(String(response.text));
+            if (response.markup?.text) {
+                this.context.reply(String(response.markup.text));
             }
         });
 

@@ -1,6 +1,6 @@
 - REFACTORING ... ITS GARBAGE ... NEED TO OPC FIXES plz
 - get GF
-- rename all log commands accordingly its significance to logging levels
++ rename all log commands accordingly its significance to logging levels
 - create live log: just html + js that poll from server / send empty msg and endit it with log updates
 + integrate user context state value to set availability to execute concreet commands
 + create associative mongo collection for handling default images
@@ -8,26 +8,18 @@
 - !(will not implemented due another way selectd) add account modules linking for nesting configs
 +- add command handler capability to use interactive command arguments pass with sequence handler by adding new field to command: UICommand.interactive = true
 + add all recived signs from fronted-pump.fun-api websocket add listners to check tx finalization and remove from all tx destinations by some signal
-
-+ create modules
 + sort files to isolated folders that dont call other not @core or adk dependency and create plugins folder to store all code extensions
 - add cap to check needed modules deps initialization in CmdHubApplication (like TradeArchImplRegistry trade implementation registration)
-
 + create data saves by executor more centralized!!
 + in mtc / stc ... etc that subscribes to events or will saving files depend on global vars and checks for its id equals to blank to do not save data or subscribe. its need to modification for unified assigning to blank behavior
-
 - deep refactor pump.fun impl api folder
-
 + create command aliasing
-
 + create command service param and msg type injection with reflection|decorators
-
 - create classes for more OCP assess to db schemes
-
-- create singleton to manage piping building command option selection. and ...
-
+- create class to manage piping building command option selection. and ...
 - save history of bot answers too
-
 - add commands arguments chain handler validator
 + reimplemet account schema to common mongoose concept
-- add to handle positional arguments of commands
++ add to handle positional arguments of commands
+- create command builder descriptors cache with need reload param to reload not static pairOptions
+- @CmdArgument field "position" add not hard-code setting capability

@@ -1,6 +1,5 @@
 export abstract class AbstractState<Ctx> {
-    // @ts-ignore
-    protected context: Ctx
+    protected context!: Ctx
 
     public setContext(context: Ctx) {
         this.context = context
@@ -8,15 +7,14 @@ export abstract class AbstractState<Ctx> {
 }
 
 export abstract class AbstractCtx<StateType extends AbstractState<any>> {
-    // @ts-ignore
-    protected state: StateType
+    protected _ctx_state!: StateType
 
     constructor(initialState: StateType) {
         this.transitionTo(initialState)
     }
 
     public transitionTo(state: StateType) {
-        this.state = state
-        this.state.setContext(this)
+        this._ctx_state = state
+        this._ctx_state.setContext(this)
     }
 }

@@ -12,11 +12,11 @@ import {
     ICommandHandlerChain,
     ICmdCallback,
     ICmdHandlerCommand,
-    ICmdHandlerExecResult,
+    ICommandHandleResult,
     ICmdMixin,
     ICmdRegisterManyEntry,
 } from "./types";
-import { CommandBuilder } from "./command-builder";
+import { CommandBuilder } from "./builder";
 import { HandleCallbackExecution, HandleCmdBuilder, HandleSequenceCommand } from "./handlers";
 import { isContainsAll } from "@core/utils/array";
 import { anyToString } from "@core/utils/misc";
@@ -47,7 +47,7 @@ import {
 import 'reflect-metadata'
 
 import { BuiltInCommandNames, toRegister } from "./built-in-cmd";
-import { CommandExecutor } from "./command-executor"
+import { CommandInvoker } from "./invoker"
 import { UiUnicodeSymbols } from "@core/ui";
 import { HandleCommandAlias } from "./handlers/alias";
 
@@ -60,7 +60,7 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
     private callbacks: Map<string, ICmdCallback<UIContextType>> // name -> callback
     private sequenceHandler?: SequenceHandler
     private cmdBuilder: CommandBuilder
-    private cmdExecutor: CommandExecutor<UIContextType>
+    private cmdInvoker: CommandInvoker<UIContextType>
 
     private chain: ICommandHandlerChain<UIContextType>
 
@@ -70,7 +70,7 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
         this.callbacks = new Map()
         this.activeServices = new Map()
         this.cmdBuilder = new CommandBuilder()
-        this.cmdExecutor = new CommandExecutor(this)
+        this.cmdInvoker = new CommandInvoker(this)
 
         this.chain.use(new HandleCommandAlias<UIContextType>)
         this.chain.use(new HandleCmdBuilder<UIContextType>)
@@ -78,14 +78,16 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
         this.chain.use(new HandleCallbackExecution<UIContextType>)
     }
 
-    public async handleCommand(command: string, ctx: UIContextType): Promise<ICmdHandlerExecResult> {
+    public async handleCommand(command: string, ctx: UIContextType): Promise<ICommandHandleResult> {
         const args = this.getArgs(ctx.text!)
         const _userId = ctx.manager?.userId
 
         if (!_userId) {
             return {
                 success: false,
-                text: ` ${UiUnicodeSymbols.error} No user id.`
+                markup: {
+                    text: ` ${UiUnicodeSymbols.error} No user id.`,
+                }
             }
         }
 
@@ -93,6 +95,7 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
             return await this.chain.handle({
                 composer: this,
                 command: command,
+                text: ctx.text!,
                 userId: String(_userId),
                 ownerId: String(ctx.manager!._id),
                 args,
@@ -100,10 +103,11 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
             })
         } catch(e: any) {
             log.error(anyToString(e))
-            let text = ` ${UiUnicodeSymbols.error} Command handling error:\n -- ${anyToString(e)}`
             return {
                 success: false,
-                text
+                markup: {
+                    text: ` ${UiUnicodeSymbols.error} Command handling error:\n -- ${anyToString(e)}`
+                }
             }
         }
     }
@@ -294,8 +298,8 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
         return this.callbacks.has(command)
     }
 
-    get CommandExecutor() {
-        return this.cmdExecutor
+    get CommandInvoker() {
+        return this.cmdInvoker
     }
     
     get SequenceHandler() {

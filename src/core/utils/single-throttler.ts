@@ -1,7 +1,7 @@
 import { sleep } from "./time"
 
 export class SingleThrottler {
-    private static instance!: SingleThrottler
+    private static instance?: SingleThrottler
 
     private constructor() {
 

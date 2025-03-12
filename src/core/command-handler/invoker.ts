@@ -1,24 +1,28 @@
 import { BaseUIContext, UiUnicodeSymbols } from "@core/ui"
 import { CHComposer } from "./ch-composer"
-import { IBuilderCmdArgReadResult, ICmdFunction, ICmdService } from "./types"
+import { ICmdFunction, ICmdService, PrimaryInvokeParams } from "./types"
+import { ICompiledReadArg } from "./builder"
 import log from "@core/utils/logger"
 import { anyToString } from "@core/utils/misc"
 
-export class CommandExecutor<TContext extends BaseUIContext> {
+const SEND_SUCCESS = false
+
+export class CommandInvoker<TContext extends BaseUIContext> {
     constructor(
         protected composer: CHComposer<TContext>,
     ) { }
 
-    async execute(userId: string, command: string, args: IBuilderCmdArgReadResult[], ctx: TContext) {
+    async invoke(invokerId: string, param: PrimaryInvokeParams, ctx: TContext) {
+        const { command, args } = param
         const cb = this.composer.getCallbackFromCommandName(command)
         if (cb.execMixin instanceof Function) {
-            return await this.runFunction(userId, command, args, ctx)
+            return await this.invokeFunc(invokerId, command, args, ctx)
         } else {
-            return await this.runService(userId, command, args, ctx)
+            return await this.invokeService(invokerId, command, args, ctx)
         }
     }
 
-    async runFunction(_: string, command: string, readArgs: IBuilderCmdArgReadResult[], ctx: TContext) {
+    async invokeFunc(_: string, command: string, readArgs: ICompiledReadArg[], ctx: TContext) {
         const cb = this.composer.getCallbackFromCommandName(command)
 
         try {
@@ -29,17 +33,20 @@ export class CommandExecutor<TContext extends BaseUIContext> {
             }
             const res = await exec(commandArgs, ctx)
             if (res && res.error) {
+                log.error(`Command "${command}" exec error: ${res.error}`)
                 return {
                     success: false,
                     text: `${UiUnicodeSymbols.error} Execution failed: "${res.error ?? "unknown error"}"`
                 }
             } else {
+                log.error(`Command "${command}" exec success`)
                 return {
                     success: true,
-                    text: `${UiUnicodeSymbols.success} Execution success`
+                    text: SEND_SUCCESS ? `${UiUnicodeSymbols.success} Execution success` : ""
                 }
             }
         } catch (e: any) {
+            log.error(`Command ${command} invokation error: ${anyToString(e)}\n`, e)
             return {
                 success: false,
                 text: `Command execution error:\n -- ${anyToString(e)}`
@@ -47,7 +54,7 @@ export class CommandExecutor<TContext extends BaseUIContext> {
         }
     }
 
-    private transormfReadArgs(readArgs: IBuilderCmdArgReadResult[]) {
+    private compiledArgToInvokeArg(readArgs: ICompiledReadArg[]) {
         const _conf = readArgs.filter(a => a.ctx === 'config')
         let config: any = {}
         for (const c of _conf) {
@@ -73,11 +80,11 @@ export class CommandExecutor<TContext extends BaseUIContext> {
         }
     }
 
-    async runService(userId: string, serviceName: string, readArgs: IBuilderCmdArgReadResult[], ctx: TContext) {
+    async invokeService(userId: string, serviceName: string, readArgs: ICompiledReadArg[], ctx: TContext) {
         if (this.composer.isServiceActive(userId, serviceName)) {
             return {
                 success: false,
-                text: `Service ${serviceName} already active.`
+                text: `${UiUnicodeSymbols.warning} Service ${UiUnicodeSymbols.arrowRight} "${serviceName}" already active.`
             }
         }
 
@@ -85,18 +92,23 @@ export class CommandExecutor<TContext extends BaseUIContext> {
         if (!cb || (cb.execMixin instanceof Function)) {
             return {
                 success: false,
-                text: `${UiUnicodeSymbols.magnifierGlass} Command service ${UiUnicodeSymbols.arrowRight} "${serviceName}" not found.`
+                text: `${UiUnicodeSymbols.error} Command service ${UiUnicodeSymbols.arrowRight} "${serviceName}" not found.`
             }
         }
         const exe = cb.execMixin as ICmdService
 
-        const { config, params, messages } = this.transormfReadArgs(readArgs)
+        const { config, params, messages } = this.compiledArgToInvokeArg(readArgs)
 
         const inputData = {
             config,
             params,
             messages
         }
+        console.log(`----Invoke-args`)
+        console.log(config)
+        console.log(params)
+        console.log(messages)
+
         const serviceInstance = exe.clone(userId, inputData)
 
         const userServices = this.composer.UserActiveServices(userId)
@@ -112,7 +124,7 @@ export class CommandExecutor<TContext extends BaseUIContext> {
             }
             services.splice(services.map(serv => serv.name).indexOf(serviceName), 1)
             log.info("-- Service done: " + serviceName)
-            await ctx.reply(` ${UiUnicodeSymbols.success} Service "${serviceName}" done. ${UiUnicodeSymbols.info} ${msg}`)
+            await ctx.reply(` ${UiUnicodeSymbols.success} Service ${UiUnicodeSymbols.arrowRight} "${serviceName}" done.\n -- ${UiUnicodeSymbols.info} ${msg}`)
         })
         log.info("-- Starting service: " + serviceInstance.name)
 
@@ -122,7 +134,7 @@ export class CommandExecutor<TContext extends BaseUIContext> {
             serviceInstance.run()
             return {
                 success: true,
-                text: `Service ${serviceName} started.`
+                text: `Service ${UiUnicodeSymbols.arrowRight} "${serviceName}" ${UiUnicodeSymbols.star} started.`
             }
         } catch(e: any) {
             log.error(`Error starting service ${serviceName}: ${anyToString(e)}`, e)

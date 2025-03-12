@@ -21,17 +21,21 @@ export class HandleCommandAlias<Ctx extends BaseUIContext> extends AbstractCmdHa
         if (!composer.isCommandRegistered(commandName)) {
             return {
                 success: false,
-                text: `Aliased(${aliasDoc.alias}) command "${commandName}" is not registered.`
+                markup: {
+                    text: `Aliased(${aliasDoc.alias}) command "${commandName}" is not registered.`
+                }
             }
         }
         try {
-            const built = await composer.CommandBuilder.parseCompeteInput(request.userId, commandName, commandArg, uiCtx, composer)
-            return await composer.CommandExecutor.execute(request.userId, commandStr, built.args, uiCtx)
+            const compiled = await composer.CommandBuilder.chipsCompile(request.userId, commandName, commandArg, uiCtx, composer)
+            return await composer.CommandInvoker.invoke(request.userId, compiled.Result, uiCtx)
         } catch (e: any) {
             log.error("Command execution error: " + anyToString(e))
             return {
                 success: false,
-                text: `${UiUnicodeSymbols.error} Command ${UiUnicodeSymbols.arrowRight} "${command}" execution error:\n -- ${anyToString(e) || UiUnicodeSymbols.warning  + " unknown error"}`
+                markup: {
+                    text: `${UiUnicodeSymbols.error} Command ${UiUnicodeSymbols.arrowRight} "${command}" execution error:\n -- ${anyToString(e) || UiUnicodeSymbols.warning  + " unknown error"}`
+                }
             }
         }
     }

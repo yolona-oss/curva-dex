@@ -10,21 +10,21 @@ import { UiUnicodeSymbols } from "@core/ui"
 export const serviceToString = <Ctx>(cmdName: string, cmdCb: ICmdCallback<Ctx>) => {
     const executor = cmdCb.execMixin as ICmdService
     return `Service /${cmdName},\n
-${UiUnicodeSymbols.magnifierGlass} Description: ${cmdCb.description},\n
-${UiUnicodeSymbols.gear} Params: ${JSON.stringify(executor.paramsDescriptor(), null, 4)},\n
-${UiUnicodeSymbols.gear} Config: ${JSON.stringify(executor.configDescriptor(), null, 4)},\n
-${UiUnicodeSymbols.magnifierGlass} Next: ${cmdCb.next?.join(", ") ?? "None"}\n\
-${UiUnicodeSymbols.magnifierGlass} Prev: ${cmdCb.prev ?? "None"}\n\
+Description:\n  ${cmdCb.description},\n
+Params: ${JSON.stringify(executor.paramsDescriptor(), null, 4)},\n
+Config: ${JSON.stringify(executor.configDescriptor(), null, 4)},\n
+Next: ${cmdCb.next?.join(", ") ?? "None"}\n\
+Prev: ${cmdCb.prev ?? "None"}\n\
 `
 }
 
 export const commonToString = <Ctx>(cmdName: string, cmdCb: ICmdCallback<Ctx>) => {
     const argsStr = cmdCb.args?.map(a => a.name).join(",\n")
     return `Command ${cmdName},\n\
-${UiUnicodeSymbols.magnifierGlass} Description: ${cmdCb.description},\n\
-${argsStr ? `${UiUnicodeSymbols.gear} Args:\n${argsStr}\n` : ""}\
-${UiUnicodeSymbols.magnifierGlass} Next: ${cmdCb.next?.join(", ") ?? `${UiUnicodeSymbols.cross} None`}\n\
-${UiUnicodeSymbols.magnifierGlass} Prev: ${cmdCb.prev ?? `${UiUnicodeSymbols.cross} None`}\
+Description: ${cmdCb.description},\n\
+${argsStr ? `Args:\n  ${argsStr}\n` : ""}\
+$Next: ${cmdCb.next?.join(", ") ?? `${UiUnicodeSymbols.cross} None`}\n\
+$Prev: ${cmdCb.prev ?? `${UiUnicodeSymbols.cross} None`}\
 `
 }
 
@@ -38,8 +38,8 @@ export const uiCommandsToString = (commands: IUICommandProcessed[]): string => {
             }
         }
         return `Command: /${v.command},\n\
-${UiUnicodeSymbols.magnifierGlass} Description: ${v.description},\n\
-${argsStr ? `${UiUnicodeSymbols.gear} Arguments:\n${argsStr}\n` : ""}\
+Description: ${v.description},\n\
+${argsStr ? `Arguments:\n  ${argsStr}\n` : ""}\
 `
     }).join("\n")
 }
@@ -61,7 +61,7 @@ const CommonHelp: BuiltInCommand = {
 class ConcreetHelpArgs {
     @CmdArgument({
         required: true,
-        standalone: true,
+        position: 1,
         description: "Command name",
         defaultValue: "help",
         pairOptions: async (_: string, handler: CHComposer<any>) => {

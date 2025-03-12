@@ -24,7 +24,9 @@ export class HandleSequenceCommand<Ctx extends BaseUIContext> extends AbstractCm
         if (err && err.length > 0) {
             return {
                 success: false,
-                text: err
+                markup: {
+                    text: err
+                }
             }
         }
 

@@ -9,7 +9,7 @@ import { UiUnicodeSymbols } from "@core/ui"
 class ServiceStopArgs {
     @CmdArgument({
         required: true,
-        standalone: true,
+        position: 1,
         description: "Service name to stop",
         pairOptions: async (_, handler, owner) => {
             return handler.ActiveServices.get(String(owner.userId))?.map(s => s.name) ?? []
@@ -40,7 +40,7 @@ const ServiceStopCommand: BuiltInCommand = {
 class ServiceRunArgs {
     @CmdArgument({
         required: true,
-        standalone: true,
+        position: 1,
         description: "Service name to run",
         pairOptions: async (_, handler, __) => {
             return handler.getRegistredServiceNames()
@@ -58,7 +58,7 @@ const ServiceRunCommand: BuiltInCommand = {
         const serviceName = args[0]
 
         try {
-            const res = await this.CommandExecutor.execute(userId, serviceName, [], ctx)
+            const res = await this.CommandInvoker.invoke(userId, serviceName, [], ctx)
             await ctx.reply(`Service ${serviceName} started: ${res}`)
         } catch(e: any) {
             await ctx.reply(`Service ${serviceName} termination error: ${anyToString(e)}.`)
@@ -72,7 +72,7 @@ const ServiceRunCommand: BuiltInCommand = {
 class ServiceSendMsgArgs {
     @CmdArgument({
         required: true,
-        standalone: true,
+        position: 1,
         description: "Service name to send message",
         pairOptions: async function(_, composer, owner): Promise<string[]> {
             return composer.UserActiveServices(String(owner.userId)).map(s => s.name)
@@ -82,7 +82,7 @@ class ServiceSendMsgArgs {
 
     @CmdArgument({
         required: true,
-        standalone: true,
+        position: 2,
         description: "Message name",
         pairOptions: async (serviceName, handler, __) => {
             try {
@@ -103,7 +103,7 @@ class ServiceSendMsgArgs {
 
     @CmdArgument({
         required: false,
-        standalone: true,
+        position: 3,
         description: "Message additional args",
         pairOptions: []
     })

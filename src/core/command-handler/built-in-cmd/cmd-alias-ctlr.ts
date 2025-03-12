@@ -14,14 +14,14 @@ function isValidAliasName(alias: string) {
 class AliasArgs {
     @CmdArgument({
         required: true,
-        standalone: true,
+        position: 1,
         description: "Alias name",
     })
     alias!: String
 
     @CmdArgument({
         required: true,
-        standalone: true,
+        position: 2,
         description: "Command to alias",
     })
     command!: String
@@ -54,7 +54,7 @@ const AliasCommand: BuiltInCommand = {
 class UnAliasArgs {
     @CmdArgument({
         required: true,
-        standalone: true,
+        position: 1,
         description: "Alias name to remove",
     })
     alias!: String

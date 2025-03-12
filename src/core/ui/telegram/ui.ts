@@ -1,7 +1,8 @@
 import { getConfig, getInitialConfig } from '@core/config'
 import { AvailableUIsEnum, AvailableUIsType, IUI, IUICommandSimple } from '@core/ui/types';
 import { FilesWrapper, Manager } from '@core/db';
-import { ICmdBuilderMarkupOption, ICmdHandlerResponce, ICmdMixin, CHComposer } from '@core/command-handler';
+import { ICmdHandlerResponce, ICmdMixin, CHComposer } from '@core/command-handler';
+import { IBaseMarkup } from '@core/command-handler/types/markup';
 import { WithInit } from '@core/types/with-init';
 
 import { BuiltInTgUICommands } from './constants/commands';
@@ -350,11 +351,15 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
     // Commands handlers utility
 
     // NOTE: check text length for each btn and select correct perline for each row(after determine max line len)
-    private createKeyboard(markup: ICmdBuilderMarkupOption[], perLine = 3) {
+    private createKeyboard(markup: IBaseMarkup, perLine = 3) {
         let arr: Array<Array<InlineKeyboardButton.CallbackButton>> = []
-        for (let i = 0; i < markup.length; i += perLine) {
+        const mk_options = markup.options
+        if (!mk_options) {
+            return [[]]
+        }
+        for (let i = 0; i < mk_options.length; i += perLine) {
             arr.push(
-                markup.slice(i, i + perLine).filter(m => m.type != 'defaultMk').map(m => 
+                mk_options.slice(i, i + perLine).filter(m => m.type != 'defaultMk').map(m => 
                     telegraf.Markup.button.callback(
                         m.isRead ? `${UiUnicodeSymbols.eye} ${m.text}` : m.text,
                         "builder_"+m.callback_data
@@ -364,7 +369,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         }
 
         const defaultMkArray: Array<InlineKeyboardButton.CallbackButton> = []
-        markup.filter(m => m.type == 'defaultMk').forEach(m => {
+        mk_options.filter(m => m.type == 'defaultMk').forEach(m => {
             defaultMkArray.push(
                 telegraf.Markup.button.callback(`${UiUnicodeSymbols.gear} ${m.text}`, "builder_"+m.callback_data)
             )
@@ -375,9 +380,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
     private async replyByCommandResult(ctx: TgContext, response: ICmdHandlerResponce) {
         const layout = response.markup ? this.createKeyboard(response.markup) : [];
         let keyboard = telegraf.Markup.inlineKeyboard(layout)
-        if (response.text || response.markup) {
-            await ctx.reply(String(response.text), keyboard);
-        }
+        await ctx.reply(String(response.markup?.text ?? `:)`), keyboard);
     }
 
     private async handleCmd(cmd: string, ctx: TgContext) {

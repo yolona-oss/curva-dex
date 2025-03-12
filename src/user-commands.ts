@@ -1,22 +1,28 @@
 import { BaseUIContext } from "@core/ui"
-import { BLANK_USER_ID, ICmdRegisterManyEntry } from "@core/command-handler"
+import { ICmdRegisterManyEntry } from "@core/command-handler"
 
 import { TestService } from "./user-services"
-import { PumpFunService, PFName, PFDescription } from './pump.fun.service'
-import { getInitialConfig } from "@core/config"
+//import { PumpFunService, PFName, PFDescription } from './pump.fun.service'
 import { SingleThrottler } from "@core/utils/single-throttler"
 import { CmdArgument } from "@core/ui/types/command"
 
 class AksArgs {
     @CmdArgument({
         required: false,
-        standalone: false,
+        position: null,
         pairOptions: ["misterial"],
         defaultValue: "misterial",
         validator: () => true,
         description: "AI name"
     })
     ai?: string
+
+    @CmdArgument({
+        required: true,
+        position: 1,
+        description: "Message to ask"
+    })
+    message?: string
 }
 
 export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegisterManyEntry<Ctx> {
@@ -47,8 +53,9 @@ export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegiste
                 description: "Ask something from AI",
                 args: new AksArgs()
             },
-            mixin: async function(arg: string[], ctx: BaseUIContext) {
-                let aiName = arg[0]
+            mixin: async function(args: string[], ctx: BaseUIContext) {
+                console.log(args)
+                let aiName = args[0]
                 const avaliableAis = [ "misterial" ]
                 let msg
                 if (aiName) {
@@ -56,23 +63,32 @@ export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegiste
                         ctx.reply(`AI "${aiName}" not found`)
                         return
                     }
-                    msg = arg.slice(1).join(" ")
+                    msg = args.slice(1).join(" ")
                 } else {
                     aiName = "misterial"
-                    msg = arg.join(" ")
+                    msg = args.join(" ")
                 }
+                await ctx.reply(`${aiName} AI selected`)
 
                 if (!msg) {
-                    ctx.reply("Please provide a message")
+                    await ctx.reply("Please provide a message")
                     return
                 }
 
                 const answer = await SingleThrottler.Instance.throttle<string>("ask", async () => {
-                    const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
+                    let api_all = {
+                        misterial: {
+                            url: 'https://api.mistral.ai/v1/chat/completions',
+                            key: process.env[`AI_API_KEY_MISTERAL`]
+                        }
+                    }
+                    const api = api_all[aiName as keyof typeof api_all]
+                    console.log(api)
+                    const res = await fetch(api.url, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${"API_KEY"}`,
+                            'Authorization': `Bearer ${api.key}`,
                         },
                         body: JSON.stringify({
                             "model": "mistral-small-latest",
@@ -102,13 +118,13 @@ export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegiste
             },
             mixin: new TestService()
         },
-        {
-            command: {
-                command: PFName,
-                description: PFDescription,
-            },
-            mixin: new PumpFunService()
-        }
+        //{
+        //    command: {
+        //        command: PFName,
+        //        description: PFDescription,
+        //    },
+        //    mixin: new PumpFunService()
+        //}
 
     ]
 }

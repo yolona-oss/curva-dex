@@ -47,25 +47,33 @@ export class SequenceHandler {
                         const prevCmd = this.sequences.get(String(seqId))!.pop()
                         return {
                             success: true,
-                            text: `You are backed to "${prevCmd}".`
+                            markup: {
+                                text: `You are backed to "${prevCmd}".`
+                            }
                         }
                     }
                 }
                 return {
                     success: false,
-                    text: "You are not in a command sequence."
+                    markup: {
+                        text: "You are not in a command sequence."
+                    }
                 }
             case BuiltInSeqCommandsEnum.CANCEL_COMMAND:
                 if (selSequence) {
                     this.sequences.get(String(seqId))!.drop()
                     return {
                         success: true,
-                        text: "Sequence canceled."
+                        markup: {
+                            text: "Sequence canceled."
+                        }
                     }
                 }
                 return  {
                     success: false,
-                    text: "You are not in a command sequence."
+                    markup: {
+                        text: "You are not in a command sequence."
+                    }
                 }
             default:
                 // skip
@@ -107,8 +115,8 @@ export class SequenceHandler {
 
         const res = this.handleBuiltInSeqCommands(command, selSequence, seqId)
         if (!res.skip) {
-            const { text, success } = res
-            return { text, success}
+            const { markup, success } = res
+            return { markup, success}
         }
 
         if (!selSequence) {
@@ -118,7 +126,9 @@ export class SequenceHandler {
         if (!handlingSeq) {
             return {
                 success: false,
-                text: `Unknown command "${command}".`
+                markup: {
+                    text: `Unknown command "${command}".`
+                }
             }
         }
 
@@ -136,7 +146,9 @@ export class SequenceHandler {
         } else {
             return {
                 success: false,
-                text: `You are not executed all prev commands(${notExecuted.length}): ${notExecuted.join(', ')}.`
+                markup: {
+                    text: `You are not executed all prev commands(${notExecuted.length}): ${notExecuted.join(', ')}.`
+                }
             }
         }
 
