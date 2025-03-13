@@ -37,7 +37,7 @@ function logLevelToColor(level: LogLevel) {
 function logLevelToSymbol(level: LogLevel) {
     switch (level) {
         case LogLevel.TRACE:
-            return 'II'
+            return 'TT'
         case LogLevel.DEBUG:
             return 'DD'
         case LogLevel.INFO:
@@ -80,11 +80,12 @@ export class log {
     private static instance?: log
 
     private static log_file: string
-
     private static cur_level: LogLevel = LogLevel.TRACE
+    private static prefix_len: number // if log level change we need to update this, but now log level marks are same size
 
     private constructor() {
         log.cur_level = stringToLogLevel(getInitialConfig().log_level)
+        log.prefix_len = this.prefix(LogLevel.TRACE).length - 10 // wtf?
     }
 
     static get Instance(): log {
@@ -114,11 +115,30 @@ export class log {
         return `[${time}]:[${mark}] ->`
     }
 
+    private formatMsg(...args: any[]): any[] {
+        const repetTimes = process.stdout.columns < log.prefix_len ? 0 : log.prefix_len
+        let ret = new Array<any>() // "any" to save object pretty print
+        for (const arg of args) {
+            if (typeof arg === 'string') {
+                const slices = arg.split('\n')
+                let first = true
+                for (const slice of slices) {
+                    let ws = first ? "" : " ".repeat(repetTimes)
+                    if (first) { first = false }
+                    ret.push(ws + slice)
+                }
+            } else {
+                ret.push(arg)
+            }
+        }
+        return ret
+    }
+
     private log_filter(level: LogLevel, ...arg: any[]) {
         this.log_to_file(...arg)
 
         if (level >= log.cur_level) {
-            console.log(this.prefix(level), ...arg)
+            console.log(this.prefix(level), ...this.formatMsg(...arg))
         }
     }
 
@@ -138,6 +158,6 @@ export class log {
     }
 }
 
-// initial creation
+// createtion time set trigger
 log.Instance
 export default log
