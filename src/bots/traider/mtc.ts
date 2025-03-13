@@ -1,6 +1,6 @@
 import { Identificable } from "@core/types/identificable";
 import { IRunnable } from "@core/types/runnable";
-import log from "@utils/logger";
+import log from '@logger';
 import { sleep, timeoutPromise } from "@utils/time";
 import { Sequalizer } from "@utils/sequalizer";
 

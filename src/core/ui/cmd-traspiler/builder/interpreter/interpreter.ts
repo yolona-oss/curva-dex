@@ -7,7 +7,7 @@ import { CmdArgumentContextType } from "@core/ui/types/command";
 import { anyToString } from "@core/utils/misc";
 
 import { AbstractState, AbstractCtx } from "@core/types/state";
-import log from "@core/utils/logger";
+import log from '@logger';
 
 /**
  * @param comprehensive - every argument must be processed

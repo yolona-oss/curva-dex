@@ -1,4 +1,4 @@
-import log from "@core/utils/logger"
+import log from '@logger';
 import { AbstractCmdHandler, ICmdHandlerRequest, ICmdHandlerResponce } from "./abstract-handler"
 import { BaseUIContext } from "@core/ui"
 import { anyToString } from "@core/utils/misc"

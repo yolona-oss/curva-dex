@@ -2,7 +2,7 @@ import { Account, FilesWrapper, MsgHistory } from '@core/db';
 import { DbModelsEnum } from '@core/db/models-enum';
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import { IMsgHistory, IMsgHistoryDto } from './messages-history';
-import log from '@core/utils/logger';
+import log from '@logger';
 
 export interface IManager extends Document {
     userId: number;

@@ -2,7 +2,7 @@ import { WithInit } from "@core/types/with-init";
 import { validateWithNeighborsMap } from "@core/types/with-neighbors";
 import { BaseUIContext } from "@core/ui/types";
 
-import log from '@utils/logger'
+import log from '@logger';
 
 import { SequenceHandler } from "./sequence-handler";
 import { BaseCommandService } from "@core/ui/types/command/service";

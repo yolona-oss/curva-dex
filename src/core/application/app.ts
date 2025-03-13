@@ -7,11 +7,10 @@ import { IRunnable } from "@core/types/runnable";
 import { Identificable } from "@core/types/identificable";
 import { WithInit } from "@core/types/with-init";
 
-import log from '@utils/logger'
-
 import find from "find-process";
 import mongoose from "mongoose";
 import { configDotenv } from "dotenv";
+import log from '@logger';
 
 configDotenv({
     path: '.env'

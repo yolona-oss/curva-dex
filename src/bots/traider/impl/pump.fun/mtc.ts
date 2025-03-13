@@ -6,7 +6,7 @@ import { IPumpFun_TxEventPayload } from "./api";
 import { TradeSideConst } from "@bots/traider/types";
 import { BLANK_MINT_PREFIX } from "./../built-in";
 
-import log from '@utils/logger'
+import log from '@logger';
 import { SolanaWalletManager } from "@bots/traider/wallet-manager";
 import { ExCurveSaveTradePoints } from "@bots/traider/curve";
 

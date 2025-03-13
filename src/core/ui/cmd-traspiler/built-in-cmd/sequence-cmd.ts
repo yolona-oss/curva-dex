@@ -1,4 +1,4 @@
-import log from "@core/utils/logger"
+import log from '@logger';
 import { BuiltInSeqCommandsEnum } from "../constants"
 import { CHComposer } from "../ch-composer"
 import { BuiltInCommand } from "../types/built-in-cmd"

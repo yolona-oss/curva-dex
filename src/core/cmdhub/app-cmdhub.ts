@@ -5,7 +5,7 @@ import { AvailableUIsType, BaseUIContext, IUI } from "@core/ui";
 import { CLIUI } from "@core/ui/impls/cli";
 import { TelegramUI } from "@core/ui/impls/telegram";
 
-import log from '@utils/logger'
+import log from '@logger';
 
 import { clearScreen } from '@utils/console'
 import { FIGLET_LOGO, WELCOME_TEXT } from '@core/constants'

@@ -4,7 +4,7 @@ import { TelegramUI } from '../ui'
 import { TgCommand, TextContext } from '../types'
 import { shuffle } from '@core/utils/array';
 import { CmdArgument, IArgumentCompiled } from '@core/ui/types/command';
-import log from '@core/utils/logger';
+import log from '@logger';
 import { anyToString } from '@core/utils/misc';
 import { ICmdRegisterEntry } from '@core/ui/cmd-traspiler';
 import { BaseUIContext } from '@core/ui';

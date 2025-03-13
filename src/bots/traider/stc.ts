@@ -2,7 +2,7 @@ import { Identificable } from "@core/types/identificable";
 import { Sequalizer } from "@utils/sequalizer";
 import { HMSTime } from "@utils/time";
 import { Cloner } from "@utils/cloner";
-import log from '@utils/logger'
+import log from '@logger';
 
 import { ITradeCommit, IOffer, TradeSideConst, TradeSideType } from "./types/trade";
 import { IDEXWallet } from "./types/wallet";

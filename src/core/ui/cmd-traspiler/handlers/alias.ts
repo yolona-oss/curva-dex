@@ -2,7 +2,7 @@ import { AbstractCmdHandler, ICmdHandlerRequest, ICmdHandlerResponce } from "./a
 import { BaseUIContext } from "@core/ui"
 import { anyToString } from "@core/utils/misc"
 import { UiUnicodeSymbols } from "@core/ui"
-import log from "@core/utils/logger"
+import log from '@logger';
 import { CmdAlias } from "@core/db"
 
 export class HandleCommandAlias<Ctx extends BaseUIContext> extends AbstractCmdHandler<Ctx> {

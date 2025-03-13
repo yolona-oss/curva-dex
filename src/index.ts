@@ -1,7 +1,7 @@
 import { AppCmdhub } from '@core/cmdhub'
 import { CHComposer } from '@core/ui/cmd-traspiler'
 import { TgContext } from '@core/ui/impls/telegram'
-import log from '@utils/logger'
+import log from '@logger';
 
 import { ImplRegistrySetup } from './impl-registry-setup'
 import { InitializeUserCommands } from './user-commands'

@@ -9,7 +9,7 @@ import { cb_data, actions } from './constants';
 import { TgContext } from "./types";
 
 import { LockManager } from '@utils/lock-manager';
-import log from '@utils/logger';
+import log from '@logger';
 
 import crypto from 'crypto'
 import * as telegraf from 'telegraf'

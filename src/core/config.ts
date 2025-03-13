@@ -1,10 +1,11 @@
 import * as fs from 'fs'
 import { min, pattern, Infer, assert, object, number, string, boolean } from 'superstruct'
 import { readFileSync } from 'fs'
-import log from '@utils/logger'
 import { main_config_path } from '@core/constants/path'
 import Path from 'path'
 import AsyncLock from 'async-lock';
+
+import log from '@logger';
 
 import * as readline from 'readline';
 

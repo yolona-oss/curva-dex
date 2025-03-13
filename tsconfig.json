@@ -48,6 +48,8 @@
         "rootDir": "./",
         "paths": {
             "@core/*":  [ "./src/core/*" ],
+            "@logger":  [ "./src/core/application/logger" ],
+            "@config":  [ "./src/core/config" ],
             "@bots/*":  [ "./src/bots/*" ],
             "@utils/*": [ "./src/core/utils/*" ],
             "@paragon/*": [ "./src/core/paragon/*" ]

@@ -5,7 +5,7 @@ import { Identificable } from "@core/types/identificable";
 
 import { HMSTime, sleep } from './time'
 
-import log from "./logger"
+import log from '@logger';
 
 import EventEmitter from "events";
 

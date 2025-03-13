@@ -2,7 +2,7 @@ import { DEFAULT_COMMITMENT, SolanaProvider } from '@core/providers/solana';
 import { Logs, PublicKey, Context } from '@solana/web3.js';
 import { AnchorProvider, Program } from '@coral-xyz/anchor'
 
-import log from '@utils/logger';
+import log from '@logger';
 
 import { TradeApiListnerType } from '../../../../../base-trade-api';
 

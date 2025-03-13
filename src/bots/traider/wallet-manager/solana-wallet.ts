@@ -6,7 +6,7 @@ import { IDEXWallet } from './../types/wallet';
 import { Connection, Keypair, SystemProgram, Transaction, PublicKey, clusterApiUrl } from '@solana/web3.js';
 import bs58 from 'bs58';
 
-import log from '@utils/logger'
+import log from '@logger';
 import { sleep } from '@utils/time';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 

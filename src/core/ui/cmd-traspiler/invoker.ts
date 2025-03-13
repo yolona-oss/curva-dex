@@ -1,7 +1,7 @@
 import { BaseUIContext, ICmdFunction, ICmdService, ICommandCompiled, isFunc, UiUnicodeSymbols } from "@core/ui"
 import { CHComposer } from "./ch-composer"
 import { IArgumentCompiled } from "@core/ui/types"
-import log from "@core/utils/logger"
+import log from '@logger';
 import { anyToString } from "@core/utils/misc"
 
 const SEND_SUCCESS = false

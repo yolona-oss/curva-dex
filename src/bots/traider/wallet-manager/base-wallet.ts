@@ -1,7 +1,7 @@
 import { IDEXWallet, IBalance, IBalanceList } from '../types';
 
 import { getInitialConfig } from '@core/config';
-import log from '@utils/logger'
+import log from '@logger';
 
 import path from 'path'
 import * as fs from 'fs'

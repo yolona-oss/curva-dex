@@ -7,7 +7,7 @@ import { AvailableUIsEnum, AvailableUIsType } from '@core/ui/impls';
 import { FilesWrapper, Manager } from '@core/db';
 
 import { LockManager } from '@utils/lock-manager';
-import log from '@utils/logger'
+import log from '@logger';
 
 import readline from 'readline';
 

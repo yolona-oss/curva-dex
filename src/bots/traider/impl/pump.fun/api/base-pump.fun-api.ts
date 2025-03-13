@@ -7,7 +7,7 @@ import {
 } from '../../../types';
 import { BaseTradeApi, IApiTradeResponce, TradeApiListnerType } from '../../../base-trade-api';
 
-import log from '@utils/logger';
+import log from '@logger';
 
 import { pumpFunBuy, pumpFunSell, PumpFunSwapFn } from './swap';
 import { priceCalc } from '@bots/traider/utils';

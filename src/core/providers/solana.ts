@@ -1,6 +1,6 @@
 import { Provider, AnchorProvider } from "@coral-xyz/anchor";
 import { Connection, Keypair } from "@solana/web3.js";
-import log from "@utils/logger";
+import log from '@logger';
 import { configDotenv } from "dotenv";
 import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
 

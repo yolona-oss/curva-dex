@@ -1,6 +1,6 @@
 import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
 
-import log from '@utils/logger'
+import log from '@logger';
 
 // swap instcution but with added token&blanace info
 export interface SwapInstructionWithBalance {

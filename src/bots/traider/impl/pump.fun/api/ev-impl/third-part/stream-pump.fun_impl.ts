@@ -1,6 +1,6 @@
 import { TradeApiListnerType } from '../../../../../base-trade-api';
 
-import log from '@utils/logger';
+import log from '@logger';
 
 import { PUMP_FUN_SOCKET_API_URL } from './../../constants';
 import { BasePumpFunApi } from './../../base-pump.fun-api';

@@ -1,7 +1,7 @@
 import * as fs from 'fs'
 import path from 'path'
 
-import log from '@utils/logger'
+import log from '@logger';
 
 export class LockManager {
     private lockFiles: Set<string> = new Set();

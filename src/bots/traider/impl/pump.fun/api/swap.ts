@@ -21,7 +21,7 @@ import {
     PUMP_FUN_PROGRAM_BUY_INSTRUCTION
 } from './constants';
 
-import log from '@core/utils/logger';
+import log from '@logger';
 import { AccountResolver } from './account';
 
 //import { Tx } from '@core/utils/blockchain/tx';

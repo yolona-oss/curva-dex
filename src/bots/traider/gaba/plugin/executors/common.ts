@@ -2,7 +2,7 @@ import { MasterTraderCtrl } from '@bots/traider/mtc'
 import { GabaState } from './state'
 import { CmdError } from '@paragon/Types/CmdError'
 
-import log from '@utils/logger'
+import log from '@logger';
 import { MTC_OfferBuilder } from '@bots/traider/mtc-offer-builder'
 
 export async function getNativeBalance<MasterType extends MasterTraderCtrl<any,any>>(this: GabaState<MasterType>, ...inputs: any[]): Promise<CmdError> {

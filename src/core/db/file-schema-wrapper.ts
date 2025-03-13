@@ -2,7 +2,7 @@ import { DefaultAssets, File } from '@core/db'
 import { DefaultAssetsEnum } from '@core/db/schemes/default-assets'
 import { getConfig, getInitialConfig } from '@core/config'
 import { genRandomString } from '@utils/random'
-import log from '@utils/logger'
+import log from '@logger';
 
 import * as mime from 'mime-types'
 import download from 'download'

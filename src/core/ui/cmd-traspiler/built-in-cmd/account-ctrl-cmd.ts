@@ -1,7 +1,7 @@
 import { CmdArgument, IArgumentCompiled } from "@core/ui/types/command"
 import { BuiltInAccountCommandsEnum } from "../constants"
 import { Account, Manager } from "@core/db"
-import log from "@core/utils/logger"
+import log from '@logger';
 import { BuiltInCommand } from "../types/built-in-cmd"
 import { CHComposer } from "../ch-composer"
 

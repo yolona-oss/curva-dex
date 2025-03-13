@@ -2,7 +2,7 @@ import { AbstractCmdHandler, ICmdHandlerRequest, ICmdHandlerResponce } from "./a
 import { BaseUIContext } from "@core/ui/types";
 import { CommandBuilder } from "../builder";
 import { CHComposer } from "../ch-composer";
-import log from "@core/utils/logger";
+import log from '@logger';
 import { CBDescriptorCompiler } from "../builder/desc-compiler";
 import { IUICommandDescriptor } from "@core/ui/types";
 
