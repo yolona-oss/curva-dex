@@ -1,7 +1,6 @@
-import { BaseUIContext, UiUnicodeSymbols } from "@core/ui"
+import { BaseUIContext, ICmdFunction, ICmdService, ICommandCompiled, isFunc, UiUnicodeSymbols } from "@core/ui"
 import { CHComposer } from "./ch-composer"
-import { ICmdFunction, ICmdService, PrimaryInvokeParams } from "./types"
-import { ICompiledReadArg } from "./builder"
+import { IArgumentCompiled } from "@core/ui/types"
 import log from "@core/utils/logger"
 import { anyToString } from "@core/utils/misc"
 
@@ -12,22 +11,22 @@ export class CommandInvoker<TContext extends BaseUIContext> {
         protected composer: CHComposer<TContext>,
     ) { }
 
-    async invoke(invokerId: string, param: PrimaryInvokeParams, ctx: TContext) {
-        const { command, args } = param
+    async invoke(invokerId: string, cmdCompiled: ICommandCompiled, ctx: TContext) {
+        const { command, args } = cmdCompiled
         const cb = this.composer.getCallbackFromCommandName(command)
-        if (cb.execMixin instanceof Function) {
+        if (isFunc(cb.callback)) {
             return await this.invokeFunc(invokerId, command, args, ctx)
         } else {
             return await this.invokeService(invokerId, command, args, ctx)
         }
     }
 
-    async invokeFunc(_: string, command: string, readArgs: ICompiledReadArg[], ctx: TContext) {
+    async invokeFunc(_: string, command: string, readArgs: IArgumentCompiled[], ctx: TContext) {
         const cb = this.composer.getCallbackFromCommandName(command)
 
         try {
-            const commandArgs = readArgs.filter(a => a.ctx === "args" && a.value).map(a => a.value) as string[]
-            const exec = cb.execMixin as ICmdFunction<TContext>
+            const commandArgs = readArgs.filter(a => a.ctx === "args" && a.value)
+            const exec = cb.callback as ICmdFunction<TContext>
             if (this.composer.isBuiltInCommand(command)) {
                 exec.bind(this.composer)
             }
@@ -54,7 +53,7 @@ export class CommandInvoker<TContext extends BaseUIContext> {
         }
     }
 
-    private compiledArgToInvokeArg(readArgs: ICompiledReadArg[]) {
+    private compiledArgToInvokeArg(readArgs: IArgumentCompiled[]) {
         const _conf = readArgs.filter(a => a.ctx === 'config')
         let config: any = {}
         for (const c of _conf) {
@@ -80,7 +79,7 @@ export class CommandInvoker<TContext extends BaseUIContext> {
         }
     }
 
-    async invokeService(userId: string, serviceName: string, readArgs: ICompiledReadArg[], ctx: TContext) {
+    async invokeService(userId: string, serviceName: string, readArgs: IArgumentCompiled[], ctx: TContext) {
         if (this.composer.isServiceActive(userId, serviceName)) {
             return {
                 success: false,
@@ -89,13 +88,13 @@ export class CommandInvoker<TContext extends BaseUIContext> {
         }
 
         const cb = this.composer.getCallbackFromCommandName(serviceName)
-        if (!cb || (cb.execMixin instanceof Function)) {
+        if (!cb || (isFunc(cb.callback))) {
             return {
                 success: false,
                 text: `${UiUnicodeSymbols.error} Command service ${UiUnicodeSymbols.arrowRight} "${serviceName}" not found.`
             }
         }
-        const exe = cb.execMixin as ICmdService
+        const exe = cb.callback as ICmdService
 
         const { config, params, messages } = this.compiledArgToInvokeArg(readArgs)
 

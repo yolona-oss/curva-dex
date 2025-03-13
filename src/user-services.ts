@@ -1,6 +1,7 @@
-import { BaseCommandService } from '@core/ui/cmd-traspiler'
+import { BaseCommandService } from '@core/ui/types/command/service'
+import { BaseCmdServiceConfig, BaseCmdServiceInteractMessages, BaseCmdServiceParameters, CmdServiceData } from '@core/ui/types/command/service'
+
 import { BLANK_USER_ID } from '@core/ui/cmd-traspiler'
-import { BaseCmdServiceConfig, BaseCmdServiceInteractMessages, BaseCmdServiceParameters, CmdServiceData } from '@core/ui/cmd-traspiler/service-data'
 import { CmdArgument } from '@core/ui/types/command'
 import { genRandomNumber, genRandomNumberBetween, genRandomNumberBetweenWithScatter } from '@utils/random'
 import { sleep } from '@utils/time'

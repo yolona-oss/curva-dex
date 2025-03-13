@@ -1,6 +1,11 @@
-import { BaseUIContext, IUICommand } from "@core/ui";
-import {CHComposer } from "../ch-composer";
+import { BaseUIContext, IArgumentCompiled, ICallbackType, IUICommand } from "@core/ui";
+import { CHComposer } from "../ch-composer";
 
-export interface BuiltInCommand<UICtx extends BaseUIContext = BaseUIContext> extends IUICommand<any, UICtx> {
-    exec: (this: CHComposer<UICtx>, args: string[], ctx: UICtx) => Promise<void>;
+// TODO: create base class to not dot this. ITS CREATED ONLY CAUSE IUICommandCallback use args fields as parsed
+interface IBuiltInCommandType<Ctx extends BaseUIContext = BaseUIContext> extends IUICommand {
+    callback: ICallbackType<Ctx>;
+}
+
+export interface BuiltInCommand<UICtx extends BaseUIContext = BaseUIContext> extends IBuiltInCommandType<UICtx> {
+    callback: (this: CHComposer<UICtx>, args: IArgumentCompiled[], ctx: UICtx) => Promise<void>;
 }

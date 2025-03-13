@@ -1,4 +1,4 @@
-import { TgContext } from '@core/ui/telegram';
+import { TgContext } from '@core/ui/impls/telegram';
 import { Schema, Document } from 'mongoose';
 
 export interface IMsgHistory extends Document {

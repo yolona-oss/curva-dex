@@ -1,5 +1,5 @@
 import { IManager } from "@core/db"
-import { AvailableUIsType } from "./index"
+import { AvailableUIsType } from "./../impls"
 
 export abstract class BaseUIContext {
     abstract type: AvailableUIsType

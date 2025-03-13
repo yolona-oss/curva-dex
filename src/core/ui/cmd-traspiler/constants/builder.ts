@@ -1,5 +1,7 @@
 import { IMarkupOption } from "../types/markup"
 
+export const PAIR_ARGUMENT_PREFIX = '--'
+
 // INFO: must be lower case
 export const DefaultBuilderCallbacks = {
     execute: "__execute",

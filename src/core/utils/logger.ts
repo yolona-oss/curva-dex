@@ -15,6 +15,68 @@ const logFileName = "./.log/" +
     new Date()
         .toLocaleTimeString("ru")
 
+enum LogLevel {
+    TRACE = 'TT',
+    DEBUG = 'DD',
+    INFO = 'II',
+    WARN = 'WW',
+    ERROR = 'EE',
+}
+
+function getInvokerDetails(): { fileName: string; functionName: string; lineNumber: string } {
+    const error = new Error()
+    const stack = error.stack?.split('\n') || []
+
+    const callerLine = stack[4] || ''
+
+    const match = callerLine.match(/at (.+) \((.+):(\d+):\d+\)/) || callerLine.match(/at (.+):(\d+):(\d+)/)
+
+    if (match) {
+        return {
+            fileName: match[2] || 'unknown',
+            functionName: match[1] || 'anonymous',
+            lineNumber: match[3] || 'unknown',
+        }
+    }
+
+    return {
+        fileName: 'unknown',
+        functionName: 'unknown',
+        lineNumber: 'unknown',
+    }
+}
+
+function formatMessage(level: LogLevel): string {
+    const timestamp = logTime()
+    const { fileName, functionName, lineNumber } = getInvokerDetails()
+
+    let colored = level.toString()
+
+    switch (level) {
+        case LogLevel.TRACE:
+            colored = chalk.cyan(colored)
+            break
+        case LogLevel.DEBUG:
+            colored = chalk.blue(colored)
+            break
+        case LogLevel.INFO:
+            colored = chalk.green(colored)
+            break
+        case LogLevel.WARN:
+            colored = chalk.yellow(colored)
+            break
+        case LogLevel.ERROR:
+            colored = chalk.red(colored)
+            break
+        default:
+            break
+    }
+
+    let formattedMessage = `${timestamp}:[${chalk.bold(colored)}] [${chalk.bold(functionName)}:${chalk.bold(lineNumber)}] -> `
+
+    return formattedMessage
+}
+
 type ExtendedLog = {
     (...arg: any[]): void,
     error: (...arg: any[]) => void
@@ -40,32 +102,27 @@ let log = <ExtendedLog>function(...arg: any[]): void {
 
 log.error = function(...arg: any[]) {
     log("ERROR:", ...arg)
-    const prefix = logTime() + ':' + '[' + chalk.red('EE') + '] ->'
-    console.error(prefix, ...arg)
+    console.error(formatMessage(LogLevel.ERROR), ...arg)
 }
 
 log.warn = function(...arg: any[]) {
     log("WARNING:", ...arg)
-    const prefix = logTime() + ':' + '[' + chalk.yellow('WW') + '] ->'
-    console.warn(prefix, ...arg)
+    console.warn(formatMessage(LogLevel.WARN), ...arg)
 }
 
 log.info = function(...arg: any[]) {
     log(...arg)
-    const prefix = logTime() + ':' + '[' + chalk.blue('II') + '] ->'
-    console.log(prefix, ...arg)
+    console.log(formatMessage(LogLevel.INFO), ...arg)
 }
 
 log.debug = function(...arg: any[]) {
     log("DEBUG:", ...arg)
-    const prefix = logTime() + ':' + '[' + chalk.magenta('DD') + '] ->'
-    console.log(prefix, ...arg)
+    console.log(formatMessage(LogLevel.DEBUG), ...arg)
 }
 
 log.trace = function(...arg: any[]) {
     log("TRACE:", ...arg)
-    const prefix = logTime() + ':' + '[' + chalk.green('TT') + '] ->'
-    console.log(prefix, ...arg)
+    console.log(formatMessage(LogLevel.TRACE), ...arg)
 }
 
 log.lineSep = function(symbol: string = '~', color: string = "cyan") {

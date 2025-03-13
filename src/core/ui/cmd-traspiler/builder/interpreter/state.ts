@@ -1,5 +1,5 @@
 import { deepClone } from "@core/utils/object"
-import { ICompiledReadArg, ICommandDescriptor } from "./../types"
+import { IArgumentCompiled, IUICommandDescriptor } from '@core/ui/types'
 import { Stack } from "@core/utils/struct/stack"
 import { CmdArgumentContextType } from "@core/ui/types/command";
 
@@ -8,17 +8,17 @@ type InterpreteTokenType = "name" | "value" | "ctx"
 export interface ICBStateRaw {
     command: string
     avaliableCtxs: CmdArgumentContextType[]
-    descriptor: ICommandDescriptor
+    descriptor: IUICommandDescriptor
     currentCtx: CmdArgumentContextType
     waitingFor: InterpreteTokenType
-    read: ICompiledReadArg[]
+    read: IArgumentCompiled[]
 }
 
 class StateSnap {
     constructor(
         public readonly currentCtx: CmdArgumentContextType,
         public readonly waitingFor: InterpreteTokenType,
-        public readonly read: ICompiledReadArg[]
+        public readonly read: IArgumentCompiled[]
     ) {}
 }
 
@@ -54,17 +54,17 @@ class StateSnaper {
 export class CBState {
     private command!: string
     private avaliableCtxs!: CmdArgumentContextType[]
-    private descriptor!: ICommandDescriptor
+    private descriptor!: IUICommandDescriptor
     private currentCtx!: CmdArgumentContextType
     private waitingFor!: InterpreteTokenType
-    private read!: ICompiledReadArg[]
+    private read!: IArgumentCompiled[]
 
     private snaper = new StateSnaper()
 
     constructor(
         command: string,
         avalibleCtxs: CmdArgumentContextType[],
-        descriptor: ICommandDescriptor,
+        descriptor: IUICommandDescriptor,
         initialCtx?: CmdArgumentContextType
     ) {
         this.reset(command, avalibleCtxs, descriptor, initialCtx)
@@ -79,8 +79,7 @@ export class CBState {
     }
 
     private snap() {
-        // to be implemented. now not needed
-        //this.stateSnapKeeper.memorize(this.toSnap)
+        this.snaper.memorize(this.toSnap)
     }
 
     get WaitingFor() {
@@ -135,7 +134,7 @@ export class CBState {
         return ctx ? ctx : this.currentCtx
     }
 
-    reset(cmd: string, avaliableCtxs: CmdArgumentContextType[], descriptor: ICommandDescriptor, initialCtx?: CmdArgumentContextType) {
+    reset(cmd: string, avaliableCtxs: CmdArgumentContextType[], descriptor: IUICommandDescriptor, initialCtx?: CmdArgumentContextType) {
         this.snaper = new StateSnaper()
         this.command = cmd
         this.avaliableCtxs = avaliableCtxs
@@ -157,7 +156,7 @@ export class CBState {
         }
     }
 
-    private isReadFromDescriptor(desc: ICommandDescriptor) {
+    private isReadFromDescriptor(desc: IUICommandDescriptor) {
         for (const arg_d of desc.args) {
             if (arg_d.position != null) {
                 if (!this.isPosRead(arg_d.position)) {
@@ -186,7 +185,7 @@ export class CBState {
     isNameRead(input: string, ctx?: CmdArgumentContextType) {
         const searchArray = this.read.filter(arg => arg.ctx === (ctx ?? this.currentCtx))
         for (const read of searchArray) {
-            if (read.name === input) {
+            if (read.name === input && read.value != '') {
                 return true
             } else if (read.name.startsWith('positional-')) {
                 const { name } = this.decodePositionalName(read.name)
@@ -200,7 +199,7 @@ export class CBState {
 
     isPosRead(pos: number, ctx?: CmdArgumentContextType) {
         ctx = this.ctxOrCurrentCtx(ctx)
-        return this.read.some(arg => arg.position === pos && arg.ctx === ctx)
+        return this.read.some(arg => arg.position === pos && arg.ctx === ctx && arg.value != '')
     }
 
     private encodePositionalName(name: string, position: number) {
@@ -247,12 +246,15 @@ export class CBState {
             throw 'On setPositional Unexpected waitingFor: ' + this.waitingFor
         }
 
+        const maxPos = this.descriptor.args.filter(arg => arg.position && arg.ctx == this.currentCtx).length
         pos = pos ?? this.ReadPositionals.length + 1
+        if (pos > maxPos) {
+            throw `Position exceeded: max: ${maxPos}, passed: ${pos}. `
+        }
 
         const desc = this.descriptor.args.find(arg => arg.position === pos && arg.ctx === this.currentCtx)
         if (!desc) {
-            const maxPos = this.descriptor.args.filter(arg => arg.position && arg.ctx == this.currentCtx).length
-            throw `Cannot find descriptor for positional argument. Position exceeded: max: ${maxPos}, passed: ${pos}. `
+            throw `Cannot find descriptor for positional: ${pos}`
         }
         this.read.push({
             name: this.encodePositionalName(desc.name, pos),

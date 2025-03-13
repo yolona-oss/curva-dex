@@ -1,4 +1,5 @@
-import { AbstractCmdHandler, BaseUIContext, ICmdHandlerRequest, ICmdHandlerResponce } from "./abstract-handler"
+import { AbstractCmdHandler, ICmdHandlerRequest, ICmdHandlerResponce } from "./abstract-handler"
+import { BaseUIContext } from "@core/ui"
 import { anyToString } from "@core/utils/misc"
 import { UiUnicodeSymbols } from "@core/ui"
 import log from "@core/utils/logger"

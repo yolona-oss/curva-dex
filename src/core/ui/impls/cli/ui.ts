@@ -3,7 +3,7 @@ import { CHComposer } from '@core/ui/cmd-traspiler';
 
 import { WithInit } from '@core/types/with-init';
 import { IUI } from '@core/ui/types'
-import { AvailableUIsEnum, AvailableUIsType } from '@core/ui/types';
+import { AvailableUIsEnum, AvailableUIsType } from '@core/ui/impls';
 import { FilesWrapper, Manager } from '@core/db';
 
 import { LockManager } from '@utils/lock-manager';
@@ -30,7 +30,7 @@ export class CLIUI extends WithInit implements IUI<CLIContext> {
                 console.log('[' + new Date().toLocaleTimeString("ru") + ']' + "[CLI] < " + message);
             }
         };
-        this.cmds = this.chComposer.mapHandlersToUICommands().map(cmd => cmd.command)
+        this.cmds = this.chComposer.toUICommands().map(cmd => cmd.command)
         console.log(this.cmds)
         this.setInitialized()
     }

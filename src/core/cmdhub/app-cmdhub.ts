@@ -1,7 +1,7 @@
 import { Application } from "@core/application";
 import { getInitialConfig } from "@core/config";
 import { CHComposer } from "@core/ui/cmd-traspiler";
-import { AvailableUIsType, BaseUIContext, IUI } from "@core/ui/types";
+import { AvailableUIsType, BaseUIContext, IUI } from "@core/ui";
 import { CLIUI } from "@core/ui/impls/cli";
 import { TelegramUI } from "@core/ui/impls/telegram";
 

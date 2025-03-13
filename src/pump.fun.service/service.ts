@@ -1,14 +1,14 @@
-import { BaseCommandService } from "@core/command-handler";
+import { BaseCommandService } from "@core/ui/types";
 
 import { IPumpFunRobotConfig, defaultCfg } from "./config";
 
 import { PumpFunRobot } from "./robot";
-import { BLANK_USER_ID } from "@core/command-handler";
+import { BLANK_USER_ID } from "@core/ui/cmd-traspiler";
 import { IMTCStateSave } from "@bots/traider/mtc";
 import { PumpFunAssetType } from "@bots/traider/impl/pump.fun";
-import { BaseCmdServiceInteractMessages, CmdServiceData } from "@core/command-handler/service-data";
+import { BaseCmdServiceInteractMessages, CmdServiceData } from "@core/ui/types";
 import { IPumpFunRobotSessionState } from "./robot/state";
-
+import { IPFServiceSessionData, pfDefaultData, pfname, PFServiceDataType } from "./service-data";
 
 export class PumpFunService extends BaseCommandService<IPFServiceSessionData, IPumpFunRobotConfig> {
 
@@ -16,8 +16,8 @@ export class PumpFunService extends BaseCommandService<IPFServiceSessionData, IP
 
     constructor(
         userId: string = BLANK_USER_ID,
-        inputData: Partial<PFServiceData> = {},
-        name: string = serviceName
+        inputData: Partial<PFServiceDataType> = {},
+        name: string = pfname
     ) {
         super(
             userId,

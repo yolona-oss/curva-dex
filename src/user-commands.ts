@@ -4,7 +4,7 @@ import { ICmdRegisterManyEntry } from "@core/ui/cmd-traspiler"
 import { TestService } from "./user-services"
 //import { PumpFunService, PFName, PFDescription } from './pump.fun.service'
 import { SingleThrottler } from "@core/utils/single-throttler"
-import { CmdArgument } from "@core/ui/types/command"
+import { CmdArgument, IArgumentCompiled } from "@core/ui/types/command"
 
 class AksArgs {
     @CmdArgument({
@@ -33,7 +33,7 @@ export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegiste
                 description: "Check sequence first",
                 next: ["check_seq_2"]
             },
-            mixin: async function(_: any, ctx: BaseUIContext) {
+            callback: async function(_: any, ctx: BaseUIContext) {
                 await ctx.reply("now you can call cmd: /check_seq_2")
             }
         },
@@ -43,7 +43,7 @@ export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegiste
                 description: "Check sequence cmd",
                 prev: "check_seq_1"
             },
-            mixin: async function(_: any, ctx: BaseUIContext) {
+            callback: async function(_: any, ctx: BaseUIContext) {
                 await ctx.reply("check_seq_2 success")
             }
         },
@@ -53,9 +53,9 @@ export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegiste
                 description: "Ask something from AI",
                 args: new AksArgs()
             },
-            mixin: async function(args: string[], ctx: BaseUIContext) {
+            callback: async function(args: IArgumentCompiled[], ctx: BaseUIContext) {
                 console.log(args)
-                let aiName = args[0]
+                let aiName = args.find(arg => arg.position == 0)?.value
                 const avaliableAis = [ "misterial" ]
                 let msg
                 if (aiName) {
@@ -116,7 +116,7 @@ export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegiste
                 command: "test_service",
                 description: "Test service",
             },
-            mixin: new TestService()
+            callback: new TestService()
         },
         //{
         //    command: {

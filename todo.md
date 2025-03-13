@@ -23,3 +23,4 @@
 + add to handle positional arguments of commands
 - create command builder descriptors cache with need reload param to reload not static pairOptions
 - @CmdArgument field "position" add not hard-code setting capability
+- remove config to application class and create interface to set/get/load configs/validators

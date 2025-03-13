@@ -1,7 +1,7 @@
 import * as ss from 'superstruct'
 import { BaseState } from './../Types/State.js'
 import { extract } from './extractable.js'
-import { extractValueFromObject } from '@utils/object.js'
+import { extractValueFromObject } from '@utils/object'
 
 export interface IBaseInput {
     position: number

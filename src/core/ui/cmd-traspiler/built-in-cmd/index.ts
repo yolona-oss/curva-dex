@@ -4,7 +4,7 @@ export * from './help-cmd'
 export * from './sequence-cmd'
 export * from './cmd-alias-ctlr'
 
-import { BaseUIContext } from '@core/ui'
+//import { BaseUIContext } from '@core/ui'
 import { BuiltInSeqCommandsEnum, BuiltInHelpCommandsEnum, BuiltInAccountCommandsEnum, BuiltInServiceCommandsEnum, BuiltInAliasCommandsEnum } from '../constants'
 import { ICmdRegisterEntry } from '../types'
 import { BuiltInCommand } from '../types/built-in-cmd'
@@ -16,13 +16,15 @@ export const BuiltInCommandNames: string[] = Object.values(BuiltInSeqCommandsEnu
                                                 .concat(Object.values(BuiltInServiceCommandsEnum))
                                                 .concat(Object.values(BuiltInAliasCommandsEnum))
 
-export function toRegister<UICtx extends BaseUIContext>(cmd: BuiltInCommand<UICtx>, composer: CHComposer<UICtx>): ICmdRegisterEntry<UICtx> {
+export function toRegister(cmd: BuiltInCommand<any>, composer: CHComposer<any>): ICmdRegisterEntry<any> {
     return {
         command: {
             command: cmd.command,
             description: cmd.description,
-            args: cmd.args
+            args: cmd.args,
+            next: cmd.next,
+            prev: cmd.prev
         },
-        mixin: cmd.exec.bind(composer)
+        callback: cmd.callback.bind(composer)
     }
 }

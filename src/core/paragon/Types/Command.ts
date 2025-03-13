@@ -5,7 +5,7 @@ import { CmdError } from './CmdError.js'
 import { extract } from './extractable.js'
 import { BaseState } from './State.js'
 import { IBaseInputSign, IBaseInput, BaseInput, getInputs } from './Input.js'
-import { extractValueFromObject } from '@utils/object.js'
+import { extractValueFromObject } from '@utils/object'
 
 // TODO remove
 interface ICommandInput extends IBaseInput {

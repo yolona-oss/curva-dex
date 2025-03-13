@@ -1,7 +1,7 @@
 import { BaseUIContext } from "@core/ui"
-import { ICmdHandler, ICmdHandlerRequest, ICmdHandlerResponce } from "./../types"
+import { ICmdHandler, ICmdHandlerRequest, ICmdHandlerResponce } from "./types"
 
-export type { ICmdHandler, ICmdHandlerRequest, ICmdHandlerResponce, BaseUIContext }
+export * from './types'
 
 export abstract class AbstractCmdHandler<Ctx extends BaseUIContext> implements ICmdHandler<Ctx> {
     private next: ICmdHandler<Ctx> | null = null

@@ -39,6 +39,7 @@ type RemoveField<T, Path extends string> =
     Path extends `${infer Key}.${infer Rest}`
         ? Key extends keyof T
             ? { [K in keyof T]: K extends Key ? RemoveField<T[K], Rest> : T[K] } // Recursively remove the field
+// @ts-ignore
             : Key extends `${infer Index extends number}` // Check if Key is a numeric index
                 ? T extends readonly any[] // Ensure T is an array
                     ? { [K in keyof T]: K extends Key ? RemoveField<T[K], Rest> : T[K] } // Recursively remove the field from the array
@@ -46,6 +47,7 @@ type RemoveField<T, Path extends string> =
                 : T // Invalid path (key doesn't exist)
         : Path extends keyof T
             ? Omit<T, Path> // Base case: remove the field at the final key
+// @ts-ignore
             : Path extends `${infer Index extends number}` // Check if Path is a numeric index
                 ? T extends readonly any[] // Ensure T is an array
                     ? T // Arrays cannot have fields removed by index (use `splice` instead)
@@ -146,7 +148,7 @@ export function removeFieldFromObject<T, Path extends string>(
     const finalKey = keys[keys.length - 1]
     if (current && typeof current === 'object' && finalKey in current) {
         if (Array.isArray(current)) {
-            throw new Error(`Cannot remove array element by index: ${finalKey}`)
+            throw new Error(`Cannot remove array element by index: ${finalKey.toString()}`)
         } else {
             delete current[finalKey];
         }

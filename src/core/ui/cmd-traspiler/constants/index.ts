@@ -12,5 +12,4 @@ export const BuiltInCmdNames = [
 ]
 
 export * from './builder'
-export * from './service'
 export * from './built-in-cmd-enum'

@@ -1,12 +1,9 @@
-import { genRandomString } from "@core/utils/random";
+import { sessionIdValidator, sessionOptsWithRand } from "./utils/session-id-generator";
 
-import { sessionIdValidator, sessionOptsWithRand } from "./utils/misc";
-
-import 'reflect-metadata'
-import { CmdArgument, CommandArgmuentKeyHolder, CommandArgumentMetadata, getCmdArgMetadata } from "@core/ui/types/command";
+import { CmdArgument, CmdArgmuentKeyHolder, CmdArgumentMetadata, getCmdArgMetadata } from "@core/ui/types/command";
 import { DEFAULT_ACCOUNT_SESSION_NAME } from "@core/db/schemes/account/session";
 
-export function toDescriptor<T extends CommandArgmuentKeyHolder>(instance: T): CommandArgumentMetadata<keyof T> {
+export function toDescriptor<T extends CmdArgmuentKeyHolder>(instance: T): CmdArgumentMetadata<keyof T> {
     return getCmdArgMetadata(instance)
 }
 
@@ -17,20 +14,18 @@ export class BaseCmdServiceParameters {
     @CmdArgument({
         required: false,
         pairOptions: sessionOptsWithRand,
-        defaultValue: genRandomString(8),
         validator: sessionIdValidator,
         description: "Session id to restore state from."
     })
-    sessionId?: String
+    sessionId?: string
 
     @CmdArgument({
         required: false,
         pairOptions: sessionOptsWithRand,
-        defaultValue: genRandomString(8),
         validator: sessionIdValidator,
         description: "Session id to restore state from."
     })
-    s?: String
+    s?: string
 }
 
 export class BaseCmdServiceInteractMessages {
@@ -39,17 +34,17 @@ export class BaseCmdServiceInteractMessages {
         description: "Echo message",
         defaultValue: "R U GAY?"
     })
-    echo!: String
+    echo?: string
 }
 
 /**
  * sessionId will be setted to default or will be overwrited by params.sessionId. User input will be ignored if params.sessionId is set
  */
 export class CmdServiceData<
-    TConfig extends BaseCmdServiceConfig = BaseCmdServiceConfig,
-    TParams extends BaseCmdServiceParameters = BaseCmdServiceParameters,
-    TMessages extends BaseCmdServiceInteractMessages = BaseCmdServiceInteractMessages,
-    TSessionData = {}
+        TConfig extends BaseCmdServiceConfig = BaseCmdServiceConfig,
+        TParams extends BaseCmdServiceParameters = BaseCmdServiceParameters,
+        TMessages extends BaseCmdServiceInteractMessages = BaseCmdServiceInteractMessages,
+        TSessionData = {}
     >
 {
     constructor(
@@ -59,12 +54,12 @@ export class CmdServiceData<
         public readonly sessionId: string = DEFAULT_ACCOUNT_SESSION_NAME,
         public sessionData: TSessionData = {} as TSessionData
     ) {
-        if (this.sessionId == "") {
+        if (this.sessionId.trim() == "") {
             throw "Empty session id"
         }
         const paramSession = this.params.sessionId || this.params.s
         if (paramSession) {
-            this.sessionId = paramSession.toString()
+            this.sessionId = paramSession
         }
     }
 }

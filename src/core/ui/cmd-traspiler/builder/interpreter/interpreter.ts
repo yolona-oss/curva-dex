@@ -2,11 +2,12 @@ import { UiUnicodeSymbols } from "@core/ui";
 import { DefaultBuilderCallbacks } from "../../constants";
 import { CBState } from "./state";
 import { EvaluationResult } from "./../ev-result";
-import { PrimaryInvokeParams } from "../../types";
+import { ICommandCompiled } from '@core/ui/types/command';
 import { CmdArgumentContextType } from "@core/ui/types/command";
 import { anyToString } from "@core/utils/misc";
 
 import { AbstractState, AbstractCtx } from "@core/types/state";
+import log from "@core/utils/logger";
 
 /**
  * @param comprehensive - every argument must be processed
@@ -25,6 +26,8 @@ export class CBInterpreter extends AbstractCtx<BaseInterpreterComponent> {
         mode: InterpreterMode = "required"
     ) {
         super(new BaseInterpreterComponent(state))
+        log.trace(`Interpreter mode: ${mode}`)
+        log.trace(`Initial context: ${state.CurrentContext}`)
         switch (mode) {
             case "comprehensive":
                 this.transitionTo(new InterpreterModeComprehensive(state))
@@ -43,6 +46,9 @@ export class CBInterpreter extends AbstractCtx<BaseInterpreterComponent> {
     }
 }
 
+/**
+ * Base component that contain main interpritation logic for command builder
+ */
 class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
     constructor(
         protected state: CBState
@@ -51,6 +57,7 @@ class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
     }
 
     step(input: string): EvaluationResult {
+        log.trace(`#--Interpreter-- Input: "${input}" ----#`)
         if (this.state.WaitingFor === 'ctx') {
             return this.switchReadingContext(input)
         }
@@ -63,7 +70,7 @@ class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
     }
 
     
-    protected compile(): PrimaryInvokeParams {
+    protected compile(): ICommandCompiled {
         return {
             command: this.state.BuildingCommand,
             args: this.state.ReadArgs
@@ -85,6 +92,7 @@ class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
     protected readPairName(input: string) {
         const inputDescriptor = this.state.findDescriptor(input)
 
+        log.trace(`--Interpreter-- Read argument: "${input}"`)
         if (this.state.isNameRead(input, this.state.CurrentContext)) {
             const { removed } = this.state.removePairRead(input, this.state.CurrentContext)
             if (removed != 1) {
@@ -92,6 +100,7 @@ class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
             }
             this.state.setName(input)
 
+            log.trace(`--Interpreter-- Re-read argument: "${input}"`)
             return new EvaluationResult(
                 this.state,
                 `Resetting argument...`,
@@ -99,6 +108,7 @@ class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
         }
 
         if (!inputDescriptor) {
+            log.trace(`--Interpreter-- Setting positional: "${input}"`)
             this.state.setPositional(input)
             return new EvaluationResult(
                 this.state,
@@ -107,6 +117,7 @@ class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
             )
         }
 
+        log.trace(`--Interpreter-- Setting named: "${input}"`)
         this.state.setName(input)
 
         return new EvaluationResult(
@@ -117,6 +128,7 @@ class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
     }
 
     protected readPairValue(input: string) {
+        log.trace(`--Interpreter-- Setting value: "${input}"`)
         this.state.setValue(input)
 
         return new EvaluationResult(
@@ -167,7 +179,7 @@ class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
             return new EvaluationResult(
                 this.state,
                 `${UiUnicodeSymbols.success} Build success`// : `${UiUnicodeSymbols.error} Build failed`
-                , { built: comiled }
+                , { compiled: comiled }
             )
         } else if (input === DefaultBuilderCallbacks.switchCtx) {
             this.state.transitToContextSelection()
@@ -184,6 +196,9 @@ class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
     }
 }
 
+/**
+* Will runs until all arguments in descripter are read
+*/
 class InterpreterModeComprehensive extends BaseInterpreterComponent {
     step(input: string) {
         const res = super.step(input)
@@ -193,7 +208,7 @@ class InterpreterModeComprehensive extends BaseInterpreterComponent {
             return new EvaluationResult(
                 this.state,
                 `Building command`,
-                {built: compiled, addTo: "end"}
+                {compiled: compiled, addTo: "end"}
             )
         }
 
@@ -201,23 +216,39 @@ class InterpreterModeComprehensive extends BaseInterpreterComponent {
     }
 }
 
+/**
+* Will runs until all required arguments in descripter are read
+*/
 class InterpreterModeRequired extends BaseInterpreterComponent {
     step(input: string) {
+        console.log(`----PRE----------`)
+        console.log(this.state.ReadArgs)
+        console.log(`----PRE-END------`)
         const res = super.step(input)
 
         if (this.state.isRequiredRead()) {
             const compiled = this.compile()
+            console.log(`-----DONE----------------------`)
+            console.log(this.state.ReadArgs)
+            console.log(`-------------------------------`)
             return new EvaluationResult(
                 this.state,
                 `Building command`,
-                {built: compiled, addTo: "end"}
+                {compiled: compiled, addTo: "end"}
             )
         }
+
+        console.log(`----POST---------`)
+        console.log(this.state.ReadArgs)
+        console.log(`----POST-END-----`)
 
         return res
     }
 }
 
+/**
+* Gets all argumets once then parse all of them
+*/
 class InterpreterModeInclusive extends BaseInterpreterComponent {
     private getChips(input: string) {
         const chips: string[] = []
@@ -258,7 +289,7 @@ class InterpreterModeInclusive extends BaseInterpreterComponent {
         return new EvaluationResult(
             this.state,
             `Inclusive build done ${UiUnicodeSymbols.hammer}`,
-            {built: compiled, addTo: "end"}
+            {compiled: compiled, addTo: "end"}
         )
     }
 }

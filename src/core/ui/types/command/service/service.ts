@@ -1,16 +1,20 @@
-// TODO: create corn job for session expirity
-//       create opts validator and eval() injection finder
-//       module session expirity check
-
 import { Account, Manager } from "@core/db";
 import { IRunnable } from "@core/types/runnable";
 import TypedEventEmitter, { EventMap } from 'typed-emitter'
 import EventEmitter from 'events'
-import { BLANK_SERVICE_NAME, } from "./constants";
 
-import { BaseCmdServiceConfig, BaseCmdServiceInteractMessages, BaseCmdServiceParameters, CmdServiceData, toDescriptor } from "./service-data";
-import { CommandArgumentMetadata } from "@core/ui/types/command";
+import { BLANK_SERVICE_NAME } from "./constants";
 import { DEFAULT_ACCOUNT_SESSION_NAME } from "@core/db/schemes/account/session";
+
+import {
+    BaseCmdServiceConfig,
+    BaseCmdServiceInteractMessages,
+    BaseCmdServiceParameters,
+    CmdServiceData,
+    toDescriptor
+} from "./data";
+
+import { CmdArgumentMetadata } from "@core/ui/types/command";
 import { Extender } from "@core/utils/extender";
 
 import 'reflect-metadata';
@@ -80,15 +84,15 @@ export abstract class BaseCommandService<
         return this._isRunning
     }
 
-    configDescriptor(): CommandArgumentMetadata<keyof TConfig> {
+    configDescriptor(): CmdArgumentMetadata<keyof TConfig> {
         return toDescriptor(this.data.config)
     }
 
-    paramsDescriptor(): CommandArgumentMetadata<keyof TParams> {
+    paramsDescriptor(): CmdArgumentMetadata<keyof TParams> {
         return toDescriptor(this.data.params)
     }
 
-    receiveMsgDescriptor(): CommandArgumentMetadata<keyof TInteractMessages> {
+    receiveMsgDescriptor(): CmdArgumentMetadata<keyof TInteractMessages> {
         return toDescriptor(this.data.messages)
     }
 

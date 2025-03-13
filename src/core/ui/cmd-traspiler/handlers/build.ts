@@ -1,9 +1,10 @@
-import { AbstractCmdHandler, ICmdHandlerRequest, ICmdHandlerResponce, BaseUIContext } from "./abstract-handler";
+import { AbstractCmdHandler, ICmdHandlerRequest, ICmdHandlerResponce } from "./abstract-handler";
+import { BaseUIContext } from "@core/ui/types";
 import { CommandBuilder } from "../builder";
 import { CHComposer } from "../ch-composer";
 import log from "@core/utils/logger";
 import { CBDescriptorCompiler } from "../builder/desc-compiler";
-import { ICommandDescriptor } from "../builder";
+import { IUICommandDescriptor } from "@core/ui/types";
 
 // TODO add completion for builtin commands
 
@@ -16,7 +17,7 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
             const avalibleCtxs = CommandBuilder.selectReadingContexts(command, userId, chComposer)
 
             const descCompiler = new CBDescriptorCompiler<UICtx>()
-            let desc: ICommandDescriptor = await descCompiler.compile(
+            let desc: IUICommandDescriptor = await descCompiler.compile(
                 command,
                 userId,
                 chComposer,
@@ -37,7 +38,7 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
         if (builder.isUserOnBuild(userId)) {
             const stepRes = builder.handle(userId, text)
 
-            if (stepRes.IsBuilt) {
+            if (stepRes.IsCompiled) {
                 return await chComposer.CommandInvoker.invoke(userId, stepRes.Result, ctx)
             }
 

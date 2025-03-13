@@ -1,5 +1,6 @@
 import { IManager } from "@core/db";
-import { AvailableUIsEnum, BaseUIContext } from "@core/ui/types";
+import { BaseUIContext } from "@core/ui/types";
+import { AvailableUIsEnum } from "../..";
 
 import { NarrowedContext, Context, Types } from "telegraf";
 

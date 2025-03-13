@@ -5,23 +5,21 @@ import { BaseUIContext } from "@core/ui/types";
 import log from '@utils/logger'
 
 import { SequenceHandler } from "./sequence-handler";
-import { BaseCommandService } from "./command-service";
+import { BaseCommandService } from "@core/ui/types/command/service";
 
 import { Chain } from "@core/utils/chain";
 import {
-    ICommandHandlerChain,
-    ICmdCallback,
-    ICmdHandlerCommand,
-    ICommandHandleResult,
-    ICmdMixin,
+    IComposerUICmdCallback,
+    IHandleCommandResult,
     ICmdRegisterManyEntry,
+    ICmdRegisterEntry,
 } from "./types";
 import { CommandBuilder } from "./builder";
 import { HandleCallbackExecution, HandleCmdBuilder, HandleSequenceCommand } from "./handlers";
 import { isContainsAll } from "@core/utils/array";
 import { anyToString } from "@core/utils/misc";
 import { Account, IAccountSession, Manager } from "@core/db";
-import { BaseCommandArgumentMetaDesc, getCmdArgMetadata, IUICommandProcessed } from "@core/ui/types/command";
+import { CmdArgumentMeta, getCmdArgMetadata, isFunc, isService, IUICommandProcessed } from "@core/ui/types/command";
 
 import {
     SetVariableCommand,
@@ -50,14 +48,13 @@ import { BuiltInCommandNames, toRegister } from "./built-in-cmd";
 import { CommandInvoker } from "./invoker"
 import { UiUnicodeSymbols } from "@core/ui";
 import { HandleCommandAlias } from "./handlers/alias";
+import { ICommandHandlerChain } from "./handlers/abstract-handler";
 
-// NOTE: ITS TEMPORARY. ITS WILL BE REMOVED TO ANOTHER IMPL
-type WaitingUserInputType = "builderDeligate" | null
-
+// TODO split to service manager
 export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
-    /** @description Per user active services */
     private activeServices: Map<string, Array<BaseCommandService<any>>> // userId -> services
-    private callbacks: Map<string, ICmdCallback<UIContextType>> // name -> callback
+    private callbacks: Map<string, IComposerUICmdCallback<UIContextType>> // command -> callback
+
     private sequenceHandler?: SequenceHandler
     private cmdBuilder: CommandBuilder
     private cmdInvoker: CommandInvoker<UIContextType>
@@ -78,7 +75,7 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
         this.chain.use(new HandleCallbackExecution<UIContextType>)
     }
 
-    public async handleCommand(command: string, ctx: UIContextType): Promise<ICommandHandleResult> {
+    public async handleCommand(command: string, ctx: UIContextType): Promise<IHandleCommandResult> {
         const args = this.getArgs(ctx.text!)
         const _userId = ctx.manager?.userId
 
@@ -92,6 +89,9 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
         }
 
         try {
+            console.log(`"-----------`)
+            console.log(ctx.text)
+            console.log(`-----------"`)
             return await this.chain.handle({
                 composer: this,
                 command: command,
@@ -112,25 +112,25 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
         }
     }
 
-    public registerMany(commands: ICmdRegisterManyEntry<UIContextType>) {
-        commands.forEach(cmd => this.register(cmd.command, cmd.mixin))
+    public registerMany(entries: ICmdRegisterManyEntry<UIContextType>) {
+        entries.forEach(entry => this.register(entry))
     }
 
-    public register(command: ICmdHandlerCommand, mixin: ICmdMixin<UIContextType>) {
+    public register({command, callback}: ICmdRegisterEntry<UIContextType>) {
         if (this.isInitialized()) {
             throw new Error("Not permitted to register command after init");
         }
 
         this.validateCmdName(command.command)
-        this.registerWrapper(command, mixin)
+        this.registerWrapper({command, callback})
     }
 
     /**
     * @description All command registred with this method not allowed to use in sequence
     */
-    unBoundRegister(command: ICmdHandlerCommand, mixin: ICmdMixin<UIContextType>) {
+    unBoundRegister({command, callback}: ICmdRegisterEntry<UIContextType>) {
         this.validateCmdName(command.command)
-        this.registerWrapper(command, mixin, false)
+        this.registerWrapper({command, callback}, false)
     }
 
     private validateCmdName(command: string) {
@@ -142,8 +142,8 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
         //}
     }
 
-    private registerWrapper(command: ICmdHandlerCommand, mixin: ICmdMixin<UIContextType>, bounded = true) {
-        let argsDesc: (BaseCommandArgumentMetaDesc&{name: string})[] = []
+    private registerWrapper({command, callback}: ICmdRegisterEntry<UIContextType>, bounded = true) {
+        let argsDesc: (CmdArgumentMeta&{name: string})[] = []
         if (command.args) {
             const _args = command.args
             const metaArg = getCmdArgMetadata<any>(_args)
@@ -159,7 +159,7 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
         this.callbacks.set(
             command.command,
             {
-                execMixin: mixin,
+                callback: callback,
                 description: command.description,
                 args: argsDesc,
                 next: command.next,
@@ -171,24 +171,24 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
 
     done() {
         this.registerMany([
-            toRegister<UIContextType>(SetVariableCommand as any, this),
-            toRegister<UIContextType>(RemoveVariableCommand as any, this),
-            toRegister<UIContextType>(GetVariableCommand as any, this),
+            toRegister(SetVariableCommand as any, this),
+            toRegister(RemoveVariableCommand as any, this),
+            toRegister(GetVariableCommand as any, this),
 
-            toRegister<UIContextType>(ServiceStopCommand as any, this),
-            toRegister<UIContextType>(ServiceRunCommand as any, this),
-            toRegister<UIContextType>(ServiceSendMsgCommand as any, this),
+            toRegister(ServiceStopCommand as any, this),
+            toRegister(ServiceRunCommand as any, this),
+            toRegister(ServiceSendMsgCommand as any, this),
 
-            toRegister<UIContextType>(NextInSeqCommand as any, this),
-            toRegister<UIContextType>(BackInSeqCommand as any, this),
-            toRegister<UIContextType>(CancelSeqCommand as any, this),
+            toRegister(NextInSeqCommand as any, this),
+            toRegister(BackInSeqCommand as any, this),
+            toRegister(CancelSeqCommand as any, this),
 
-            toRegister<UIContextType>(ConcreetHelp as any, this),
-            toRegister<UIContextType>(CommonHelp as any, this),
+            toRegister(ConcreetHelp as any, this),
+            toRegister(CommonHelp as any, this),
 
-            toRegister<UIContextType>(AliasCommand as any, this),
-            toRegister<UIContextType>(UnaliasCommand as any, this),
-            toRegister<UIContextType>(ListAliases as any, this),
+            toRegister(AliasCommand as any, this),
+            toRegister(UnaliasCommand as any, this),
+            toRegister(ListAliases as any, this),
         ])
 
         const cbNames = this.callbacks.keys().toArray()
@@ -201,7 +201,7 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
         }
 
         const targets: string[] = Array.from(this.callbacks.keys())
-        const naighbors: ICmdCallback<UIContextType>[] = Array.from(this.callbacks.values())
+        const naighbors: IComposerUICmdCallback<UIContextType>[] = Array.from(this.callbacks.values())
         this.sequenceHandler = new SequenceHandler(
             Array.from(
                 targets.map((v, i) =>
@@ -248,21 +248,13 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
         this.RemoveUserAcitveService(userId, serviceName)
     }
 
-
-    WaitingInputFromUser(userId: string): WaitingUserInputType {
-        if (this.cmdBuilder.isUserOnBuild(userId)) {
-            return "builderDeligate"
-        } else {
-            return null
-        }
-    }
-
     public isService(name: string): boolean {
         const cb = this.getCallbackFromCommandName(name)
         if (!cb) {
+            log.debug(`Trying check callback type for command "${name}" but command not found.`)
             return false
         }
-        return cb.execMixin instanceof BaseCommandService
+        return isService(cb.callback)
     }
 
     isAllArgsPassed(command: string, passedArgs: string[]): boolean {
@@ -271,21 +263,15 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
             log.error(`While processing command "${command}" passed arguments, command not found`)
             return true // maybe dispatch exception?
         }
-        if (cmd.execMixin instanceof Function) {
+        if (isFunc(cmd.callback)) {
             if (!cmd.args || cmd.args.length === 0) {
                 return true
             }
 
             const requiredArgs = cmd.args.filter(a => a.required)
             return passedArgs.length >= requiredArgs.length
-            //const requiredArgNames = requiredArgs.map(a => a.name)
-            //console.log("Required VVV")
-            //console.log(requiredArgNames)
-            //console.log("Passed VVV")
-            //console.log(passedArgs)
-            //return isEqual_Deep(requiredArgNames, passedArgs)
         } else {
-            // services always neet to be configured
+            // services always neet to be configured ?
             return false
         }
     }
@@ -335,8 +321,8 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
     }
 
     async UserServiceSessions(userId: string, serviceName: string): Promise<string[]> {
-        const cb = this.getCallbackFromCommandName(serviceName)
-        if (cb.execMixin instanceof Function) {
+        const cmd = this.getCallbackFromCommandName(serviceName)
+        if (isFunc(cmd.callback)) {
             return []
         } else {
             const owner = await Manager.findOne({userId})
@@ -367,13 +353,13 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
         return services.map(s => s.name).includes(serviceName)
     }
 
-    getCallbackFromCommandName(command: string): ICmdCallback<UIContextType> {
+    getCallbackFromCommandName(command: string): IComposerUICmdCallback<UIContextType> {
         const cb = this.callbacks.get(command)
         if (!cb) {
-            log.debug(`${this.constructor.name}::getCallbackFromCommandName Command "${command}" not found`)
-            throw ` ${UiUnicodeSymbols.magnifierGlass} Command ${UiUnicodeSymbols.arrowRight} "${command}" not found.`
+            log.error(`Command ${UiUnicodeSymbols.arrowRight} "${command}" not found.`)
+            throw `Command ${UiUnicodeSymbols.arrowRight} "${command}" not found.`
         }
-        return cb as ICmdCallback<UIContextType>
+        return cb!
     }
 
     private getArgs(text: string): string[] {
@@ -384,8 +370,8 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
     public getRegistredServiceNames(): string[] {
         let ret: string[] = []
         this.callbacks.forEach((v) => {
-            if (v.execMixin instanceof BaseCommandService) {
-                ret.push(v.execMixin.name)
+            if (isService(v.callback)) {
+                ret.push(v.callback.name)
             }
         })
         return ret
@@ -393,24 +379,24 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
 
     public getRegistredCommandNames(): string[] {
         let ret: string[] = []
-        this.callbacks.forEach((v) => {
-            if (v.execMixin instanceof Function) {
-                ret.push(v.execMixin.name)
+        for (const [key, value] of this.callbacks) {
+            if (isFunc(value.callback)) {
+                ret.push(key)
             }
-        })
+        }
         return ret
     }
 
-    public mapHandlersToUICommands(): IUICommandProcessed[] {
-        let cmd = this.callbacks.keys().toArray()
-        const desc = this.callbacks.values().map(v => v.description).toArray()
-        const args = this.callbacks.values().map(v => v.args).toArray()
+    public toUICommands(): IUICommandProcessed[] {
+        let commands = this.callbacks.keys().toArray()
+        const cmd_descriptions = this.callbacks.values().map(v => v.description).toArray()
+        const cmd_args = this.callbacks.values().map(v => v.args).toArray()
 
-        const registredCmds = new Array(cmd.length).fill(0).map(
+        const registredCmds: IUICommandProcessed[] = new Array(commands.length).fill(0).map(
             (_, i) => ({
-                command: cmd[i],
-                description: desc[i],
-                args: args[i]
+                command: commands[i],
+                description: cmd_descriptions[i],
+                args: cmd_args[i]
             })
         )
 

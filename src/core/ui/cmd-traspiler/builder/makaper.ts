@@ -1,5 +1,5 @@
 import { UiUnicodeSymbols } from "@core/ui"
-import { ICompiledReadArg } from "./types"
+import { IArgumentCompiled } from "@core/ui/types"
 import { CBState, ICBStateRaw } from './interpreter'
 import { defaultBuilderMarkupOptions } from '../constants'
 import { IMarkupOptionType, IMarkupOption, IBaseMarkup } from "../types/markup"
@@ -43,9 +43,9 @@ export class Makaper {
 
     static BuildingString(bstate: ICBStateRaw, info = "", addTo: "begining"|"end" = "begining"): string {
         const command = bstate.command
-        let buildStr = `${UiUnicodeSymbols.hammer} Building "${command}"\n\nReaded:`
+        let buildStr = `${UiUnicodeSymbols.hammer} Building "${command}"\n\nReaded:\n`
 
-        const readArgToStr = (arg: ICompiledReadArg) => {
+        const readArgToStr = (arg: IArgumentCompiled) => {
             switch (arg.ctx) {
                 case "args":
                     // TODO positionals
@@ -60,7 +60,7 @@ export class Makaper {
             return ` - ${UiUnicodeSymbols.warning} (unkown ctx: "${arg.ctx}") ${arg.name}: ${arg.value}`
         }
 
-        const argGroupToString = (name: string, group: ICompiledReadArg[]) => {
+        const argGroupToString = (name: string, group: IArgumentCompiled[]) => {
             let str = `\n* ${name}:`
             for (const arg of group) {
                 str += '\n' + readArgToStr(arg)

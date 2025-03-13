@@ -1,10 +1,11 @@
 import { BaseUIContext } from "@core/ui"
-import { ICommandArgumentDesc, ICommandDescriptor } from "./types"
-import { ICmdCallback, ICmdService } from "./../types"
+import { IArgumentDescriptor, IUICommandDescriptor } from "@core/ui/types"
+import { IComposerUICmdCallback } from "./../types"
+import { ICmdService } from "@core/ui/types/command";
 import { CmdArgumentContextType } from "@core/ui/types/command";
 import { CHComposer } from "./../ch-composer"
 import { IManager, Manager } from "@core/db"
-import { BaseCommandArgumentMetaDesc, exposeCmdArgumentDefOptions } from "@core/ui/types/command"
+import { CmdArgumentMeta, exposeCmdArgumentOptions } from "@core/ui/types/command"
 
 export class CBDescriptorCompiler<UICtx extends BaseUIContext> {
     constructor() { }
@@ -16,18 +17,18 @@ export class CBDescriptorCompiler<UICtx extends BaseUIContext> {
         return this.configureDescriptors(configureAs, userId, cb, command, mother, ctx)
     }
 
-    private async configureServiceDesc(service: ICmdService, userId: string, chComposer: CHComposer<UICtx>): Promise<ICommandDescriptor> {
+    private async configureServiceDesc(service: ICmdService, userId: string, chComposer: CHComposer<UICtx>): Promise<IUICommandDescriptor> {
         const manager = await Manager.findOne({ userId })!
 
         const serviceArgCtx: CmdArgumentContextType[] = ['params', 'config', 'message']
-        const builderArgs: ICommandArgumentDesc[] = new Array()
+        const builderArgs: IArgumentDescriptor[] = new Array()
         for (const ctxName of serviceArgCtx) {
-            const descriptor: Record<string, BaseCommandArgumentMetaDesc> = service[ctxName === 'message' ? 'receiveMsgDescriptor' : ctxName === 'config' ? 'configDescriptor' : 'paramsDescriptor']()
-            console.log(`Descriptor: ${service.name}:${ctxName}`, JSON.stringify(descriptor, null, 4))
+            const descriptor: Record<string, CmdArgumentMeta> = service[ctxName === 'message' ? 'receiveMsgDescriptor' : ctxName === 'config' ? 'configDescriptor' : 'paramsDescriptor']()
+            //console.log(`Descriptor: ${service.name}:${ctxName}`, JSON.stringify(descriptor, null, 4))
 
             for (const key in descriptor) {
                 const options = descriptor[key].pairOptions ?
-                    await exposeCmdArgumentDefOptions(service.name, descriptor[key].pairOptions, chComposer, manager as IManager)
+                    await exposeCmdArgumentOptions(service.name, descriptor[key].pairOptions, chComposer, manager as IManager)
                     :
                     undefined;
                 builderArgs.push({
@@ -44,13 +45,13 @@ export class CBDescriptorCompiler<UICtx extends BaseUIContext> {
         }
     }
 
-    private async configureFunctionDesc(command: string, cb: ICmdCallback<UICtx>, chComposer: CHComposer<UICtx>, ctx: UICtx): Promise<ICommandDescriptor> {
+    private async configureFunctionDesc(command: string, cb: IComposerUICmdCallback<UICtx>, chComposer: CHComposer<UICtx>, ctx: UICtx): Promise<IUICommandDescriptor> {
         const promise = cb.args?.map(async (a) => ({
             ctx: 'args' as CmdArgumentContextType,
             name: a.name,
             required: a.required,
             description: a.description,
-            pairOptions: await exposeCmdArgumentDefOptions(command, a.pairOptions, chComposer, ctx.manager as IManager),
+            pairOptions: await exposeCmdArgumentOptions(command, a.pairOptions, chComposer, ctx.manager as IManager),
             position: a.position,
             validator: a.validator
         })) ?? []
@@ -62,12 +63,12 @@ export class CBDescriptorCompiler<UICtx extends BaseUIContext> {
     }
 
     // TODO set configreAs types in other place and disperce to all code base
-    private async configureDescriptors(configureAs: "function" | "service", userId: string, cb: ICmdCallback<UICtx>, command: string, chComposer: CHComposer<UICtx>, ctx: UICtx): Promise<ICommandDescriptor> {
+    private async configureDescriptors(configureAs: "function" | "service", userId: string, cb: IComposerUICmdCallback<UICtx>, command: string, chComposer: CHComposer<UICtx>, ctx: UICtx): Promise<IUICommandDescriptor> {
         switch (configureAs) {
             case "function":
-                return this.configureFunctionDesc(command, cb as ICmdCallback<UICtx>, chComposer, ctx)
+                return this.configureFunctionDesc(command, cb as IComposerUICmdCallback<UICtx>, chComposer, ctx)
             case "service":
-                return await this.configureServiceDesc(cb.execMixin as ICmdService, userId, chComposer)
+                return await this.configureServiceDesc(cb.callback as ICmdService, userId, chComposer)
         }
     }
 

@@ -1,5 +1,6 @@
 import { anyToString } from "@core/utils/misc"
-import { AbstractCmdHandler, BaseUIContext, ICmdHandlerRequest, ICmdHandlerResponce } from "./abstract-handler"
+import { AbstractCmdHandler, ICmdHandlerRequest, ICmdHandlerResponce } from "./abstract-handler"
+import { BaseUIContext } from "@core/ui"
 
 import log from '@utils/logger'
 

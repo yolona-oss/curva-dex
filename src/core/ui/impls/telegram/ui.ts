@@ -1,9 +1,10 @@
 import { getConfig, getInitialConfig } from '@core/config'
-import { AvailableUIsEnum, AvailableUIsType, IUI, IUICommandSimple } from '@core/ui/types';
+import { IUI } from '@core/ui/types';
+import { AvailableUIsEnum, AvailableUIsType } from '..';
 import { FilesWrapper, Manager } from '@core/db';
 import { WithInit } from '@core/types/with-init';
 
-import { BuiltInTgUICommands } from './constants/commands';
+import { TelegramUI_BuiltIns, toRegister } from './constants/commands';
 import { cb_data, actions } from './constants';
 import { TgContext } from "./types";
 
@@ -19,7 +20,7 @@ import { InlineKeyboardButton } from 'telegraf/typings/core/types/typegram';
 import { UiUnicodeSymbols } from '@core/ui/ui-unicode-symbols';
 import { fromTgContext } from '@core/db/schemes/messages-history';
 
-import { ICmdHandlerResponce, ICmdMixin, CHComposer } from '@core/ui/cmd-traspiler';
+import { CHComposer, IHandleCommandResult } from '@core/ui/cmd-traspiler';
 import { IBaseMarkup } from '@core/ui/cmd-traspiler/types/markup';
 
 //async function tg_deleteMesasge(bot: telegraf.Telegraf<TgContext>, message_id: number, chat_id: number) {
@@ -47,7 +48,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         this.bot = new telegraf.Telegraf(botApiKey);
     }
 
-    private setCommandHandler(commands: IUICommandSimple[]) {
+    private setCommandHandler(commands: IUICommandProcessed[]) {
         commands.forEach(cmd => {
             log.info(`-- Assigning command: "${chalk.bold(cmd.command)}"`)
             this.bot.command(cmd.command, async (ctx) => {
@@ -66,6 +67,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         this.bot.action(RegExp("builder_*"), async (ctx) => {
             console.log("~ACTI----------")
             const action = String(ctx.match.input.slice("builder_".length));
+            console.log(`Action input: `, [ctx.match.input, action])
             const res = await this.chComposer.handleCommand(action, ctx as any);
             await this.replyByCommandResult(ctx as any, res);
             await ctx.deleteMessage();
@@ -79,6 +81,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
             const fullText = ctx.text ? ctx.text : ""
             const asCommand = firstWord?.slice(1) ?? "";
             const isCommandAlike = firstWord && firstWord.startsWith("/");
+            console.log(`Text input: `, [firstWord, fullText])
             await this.handleCmd(isCommandAlike ? asCommand : fullText, ctx);
 
             if (next) {
@@ -98,7 +101,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
 
         // apply builtin tg commands to cmd handler
         const tgCommands = this.registerTgComands()
-        const commands = this.chComposer.mapHandlersToUICommands().concat(tgCommands.map(cmd => cmd.command) as IUICommandProcessed[])
+        const commands = this.chComposer.toUICommands().concat(tgCommands.map(cmd => cmd.command) as IUICommandProcessed[])
 
         this.verifyCommands(commands)
         log.info(`Commands verified ${chalk.green("successfully")}. Total commands: ${chalk.bold(commands.length)}`)
@@ -113,20 +116,20 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
     }
 
     private async setupReplyRedifinition() {
-        this.bot.use(async (ctx, next) => {
-            const originalReply = ctx.reply.bind(ctx);
-
-            ctx.reply = async (...args: Parameters<telegraf.Context["reply"]>) => {
-                const message = args[0]?.toString();
-
-                const manager = await Manager.findById(ctx.manager.id)
-                const dto = fromTgContext(ctx)
-                await manager!.appendMessageHistory(dto)
-
-                return originalReply(...args); // Call the original reply function
-            };
-            await next()
-        })
+        //this.bot.use(async (ctx, next) => {
+        //    const originalReply = ctx.reply.bind(ctx);
+        //
+        //    ctx.reply = async (...args: Parameters<telegraf.Context["reply"]>) => {
+        //        const message = args[0]?.toString();
+        //
+        //        const manager = await Manager.findById(ctx.manager.id)
+        //        const dto = fromTgContext(ctx)
+        //        await manager!.appendMessageHistory(dto)
+        //
+        //        return originalReply(...args); // Call the original reply function
+        //    };
+        //    await next()
+        //})
     }
 
     private async setupAuth() {
@@ -156,13 +159,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
             if (ctx.manager) {
                 const manager = await Manager.findById(ctx.manager.id)
                 if (manager) {
-                    await manager.appendMessageHistory({
-                        chatId: ctx.chat!.id,
-                        userId: manager.userId,
-                        message_id: ctx.message?.message_id,
-                        text: ctx.text ?? "",
-                        timestamp: ctx.message?.date ? ctx.message.date : undefined 
-                    })
+                    await manager.appendMessageHistory(fromTgContext(ctx as TgContext))
                 }
             } else if (ctx.message.from.is_bot) {
                 // TODO be pretty to use OPC :>
@@ -183,17 +180,9 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         })
 
         this.bot.on('edited_message', async function(ctx, next) {
-            ctx.editedMessage.sender_boost_count
-            const mngr = await Manager.findById(ctx.manager.id)
-            if (mngr) {
-                const chatId = ctx.chat.id
-                const message_id = ctx.editedMessage!.message_id
-                await mngr.appendMessageHistory({
-                    chatId: chatId,
-                    userId: mngr.userId,
-                    message_id: message_id,
-                    text: ctx.text ?? "",
-                })
+            const mamanger = await Manager.findById(ctx.manager.id)
+            if (mamanger) {
+                await mamanger.appendMessageHistory(fromTgContext(ctx as TgContext))
             } else {
                 log.debug(`No manager in ctx for editing history message. user: ${ctx.from?.id}, chat: ${ctx.chat?.id}`)
             }
@@ -289,23 +278,9 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
     // Append builtin telegram command to command handler
 
     private registerTgComands() {
-        const tgCommands = BuiltInTgUICommands.map(
-            cmd => ({
-                command: {
-                    command: cmd.command,
-                    description: cmd.description,
-                    args: cmd.args
-                },
-                mixin: cmd.exec.bind(this)
-            }))
-
-        for (const tgCmd of tgCommands) {
-            this.chComposer.unBoundRegister(
-                tgCmd.command,
-                tgCmd.mixin as ICmdMixin<TgContext>
-            )
-        }
-        return tgCommands
+        const commands = TelegramUI_BuiltIns.map(toRegister)
+        commands.forEach((c) => this.chComposer.unBoundRegister(c)) // why dont work? commands.forEach(this.chComposer.unBoundRegister)
+        return commands
     }
 
     // VV UTILITY VV
@@ -378,7 +353,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         return arr.concat([defaultMkArray])
     }
 
-    private async replyByCommandResult(ctx: TgContext, response: ICmdHandlerResponce) {
+    private async replyByCommandResult(ctx: TgContext, response: IHandleCommandResult) {
         const layout = response.markup ? this.createKeyboard(response.markup) : [];
         let keyboard = telegraf.Markup.inlineKeyboard(layout)
         await ctx.reply(String(response.markup?.text ?? `:)`), keyboard);
@@ -419,7 +394,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
     }
 
     printCommands(): void {
-        for (const cmd of this.chComposer.mapHandlersToUICommands()) {
+        for (const cmd of this.chComposer.toUICommands()) {
             cmd;
             //console.log(`${cmd.command} - ${cmd.description}`);
             //cmd.args && cmd.args.length ? console.log(cmd.args) : void 0;

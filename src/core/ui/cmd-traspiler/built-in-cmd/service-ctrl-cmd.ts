@@ -1,6 +1,6 @@
-import { CmdArgument } from "@core/ui/types/command"
+import { CmdArgument, IArgumentCompiled, isFunc } from "@core/ui/types/command"
 import { BuiltInServiceCommandsEnum } from "../constants"
-import { ICmdService } from "../types"
+import { ICmdService } from "@core/ui/types/command"
 import { BuiltInCommand } from "../types/built-in-cmd"
 import { CHComposer } from "../ch-composer"
 import { anyToString } from "@core/utils/misc"
@@ -23,7 +23,7 @@ const ServiceStopCommand: BuiltInCommand = {
     command: BuiltInServiceCommandsEnum.STOP_COMMAND,
     description: "Stop service with passed name <service-name>.",
     args: ServiceStopArgs,
-    exec: async function(this: CHComposer<any>, args: string[], ctx) {
+    callback: async function(this: CHComposer<any>, args: IArgumentCompiled[], ctx) {
         const userId = String(ctx.manager!.userId)
         const serviceName = args[0]
         try {
@@ -53,12 +53,16 @@ const ServiceRunCommand: BuiltInCommand = {
     command: BuiltInServiceCommandsEnum.RUN_COMMAND,
     description: "Run service with passed name <service-name>. NOCONFIG!!!",
     args: ServiceRunArgs,
-    exec: async function(this: CHComposer<any>, args: string[], ctx) {
+    callback: async function(this: CHComposer<any>, args: IArgumentCompiled[], ctx) {
         const userId = String(ctx.manager!.userId)
-        const serviceName = args[0]
+        const serviceName = args.find(a => a.position === 1)!.value
+
+        if (!serviceName) {
+            throw `Service name not found`
+        }
 
         try {
-            const res = await this.CommandInvoker.invoke(userId, serviceName, [], ctx)
+            const res = await this.CommandInvoker.invoke(userId, {command: serviceName, args: []}, ctx)
             await ctx.reply(`Service ${serviceName} started: ${res}`)
         } catch(e: any) {
             await ctx.reply(`Service ${serviceName} termination error: ${anyToString(e)}.`)
@@ -87,10 +91,10 @@ class ServiceSendMsgArgs {
         pairOptions: async (serviceName, handler, __) => {
             try {
                 const cb = handler.getCallbackFromCommandName(serviceName)
-                if (cb.execMixin instanceof Function) {
-                    throw ""
+                if (isFunc(cb.callback)) {
+                    throw `Command "${serviceName}" is not a service.`
                 }
-                const instance = cb.execMixin as ICmdService
+                const instance = cb.callback as ICmdService
                 const messages = instance.receiveMsgDescriptor()
 
                 return Object.keys(messages)
@@ -114,7 +118,7 @@ const ServiceSendMsgCommand: BuiltInCommand = {
     command: BuiltInServiceCommandsEnum.SEND_MSG_COMMAND,
     description: "Send message to service with passed name <service-name> and <message> with optional args.",
     args: ServiceSendMsgArgs,
-    exec: async function(this: CHComposer<any>, args: string[], ctx) {
+    callback: async function(this: CHComposer<any>, args: IArgumentCompiled[], ctx) {
         const userId = String(ctx.manager!.userId)
         const serviceName = args[0]
         const messageName = args[1]

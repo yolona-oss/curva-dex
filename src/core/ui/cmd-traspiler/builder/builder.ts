@@ -1,4 +1,4 @@
-import { ICommandDescriptor, } from "./types"
+import { IUICommandDescriptor } from "@core/ui/types"
 import { BaseUIContext, UiUnicodeSymbols } from "@core/ui"
 import { CBDescriptorCompiler } from "./desc-compiler"
 import { CHComposer } from "./../ch-composer"
@@ -52,7 +52,7 @@ export class CommandBuilder {
         return res
     }
 
-    startBuild(userId: string, command: string, desc: ICommandDescriptor, contexts: CmdArgumentContextType[], mode?: InterpreterMode): IBaseMarkup {
+    startBuild(userId: string, command: string, desc: IUICommandDescriptor, contexts: CmdArgumentContextType[], mode?: InterpreterMode): IBaseMarkup {
         if (this.usersBuild.has(userId)) {
             throw "User already has active build."
         }

@@ -1,26 +1,26 @@
 import { Makaper } from "./makaper"
 import { IBaseMarkup } from "../types/markup"
 import { CBState } from "./interpreter"
-import { PrimaryInvokeParams } from "../types"
+import { ICommandCompiled } from "@core/ui/types/command"
 
 export class EvaluationResult {
     private done: boolean
     private markup: IBaseMarkup
-    private built?: PrimaryInvokeParams
+    private compiled?: ICommandCompiled
     private error?: string
 
     constructor(
         state: CBState,
         info: string|string[],
         config: {
-            built?: PrimaryInvokeParams
+            compiled?: ICommandCompiled
             done?: boolean,
             error?: string
             addTo?: "begining"|"end"
         } = {}
     ) {
-        this.done = config.built ? true : (config.done ?? false)
-        this.built = config.built
+        this.done = config.compiled ? true : (config.done ?? false)
+        this.compiled = config.compiled
         this.error = config.error
         this.markup = Makaper.markup(state, {
             text: {
@@ -46,13 +46,13 @@ export class EvaluationResult {
         return this.error ?? "unknown error"
     }
 
-    get IsBuilt() {
-        return Boolean(this.built)
+    get IsCompiled() {
+        return Boolean(this.compiled)
     }
 
     get Result() {
-        if (this.IsBuilt) {
-            return this.built!
+        if (this.IsCompiled) {
+            return this.compiled!
         } else {
             throw `Assesing to built result but there are not done`
         }

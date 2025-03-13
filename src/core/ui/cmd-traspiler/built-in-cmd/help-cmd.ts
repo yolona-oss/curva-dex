@@ -1,14 +1,13 @@
-import { CmdArgument, IUICommandProcessed } from "@core/ui/types/command"
+import { CmdArgument, IArgumentCompiled, ICmdService, isService, IUICommand, IUICommandProcessed } from "@core/ui/types/command"
 import { BuiltInHelpCommandsEnum } from "../constants"
 import { CHComposer } from "../ch-composer"
 import { BuiltInCommand } from "../types/built-in-cmd"
-import { ICmdCallback, ICmdService } from "../types"
+import { IComposerUICmdCallback } from "../types"
 import { anyToString } from "@core/utils/misc"
-import { BaseCommandService } from "../command-service"
 import { UiUnicodeSymbols } from "@core/ui"
 
-export const serviceToString = <Ctx>(cmdName: string, cmdCb: ICmdCallback<Ctx>) => {
-    const executor = cmdCb.execMixin as ICmdService
+export const serviceToString = <Ctx>(cmdName: string, cmdCb: IComposerUICmdCallback<Ctx>) => {
+    const executor = cmdCb.callback as ICmdService
     return `Service /${cmdName},\n
 Description:\n  ${cmdCb.description},\n
 Params: ${JSON.stringify(executor.paramsDescriptor(), null, 4)},\n
@@ -18,7 +17,7 @@ Prev: ${cmdCb.prev ?? "None"}\n\
 `
 }
 
-export const commonToString = <Ctx>(cmdName: string, cmdCb: ICmdCallback<Ctx>) => {
+export const commonToString = <Ctx>(cmdName: string, cmdCb: IComposerUICmdCallback<Ctx>) => {
     const argsStr = cmdCb.args?.map(a => a.name).join(",\n")
     return `Command ${cmdName},\n\
 Description: ${cmdCb.description},\n\
@@ -49,8 +48,8 @@ ${argsStr ? `Arguments:\n  ${argsStr}\n` : ""}\
 const CommonHelp: BuiltInCommand = {
     command: BuiltInHelpCommandsEnum.HELP_COMMAND,
     description: "List all available commands.",
-    exec: async function(this: CHComposer<any>, _: string[], ctx) {
-        const commands = this.mapHandlersToUICommands()
+    callback: async function(this: CHComposer<any>, _: IArgumentCompiled[], ctx) {
+        const commands = this.toUICommands()
         const commandsStr = uiCommandsToString(commands)
         await ctx.reply(commandsStr)
     }
@@ -65,7 +64,7 @@ class ConcreetHelpArgs {
         description: "Command name",
         defaultValue: "help",
         pairOptions: async (_: string, handler: CHComposer<any>) => {
-            return handler.mapHandlersToUICommands().map(c => c.command)
+            return handler.toUICommands().map(c => c.command)
         }
     })
     command!: String
@@ -75,13 +74,15 @@ const ConcreetHelp: BuiltInCommand = {
     command: BuiltInHelpCommandsEnum.CHELP_COMMAND,
     description: "Print help for concreet command",
     args: ConcreetHelpArgs,
-    exec: async function(this: CHComposer<any>, args: string[], ctx) {
-        const command = args[0]
+    callback: async function(this: CHComposer<any>, args: IArgumentCompiled[], ctx) {
+        const command = args.find(arg => arg.position === 1)?.value
+        if (!command) {
+            throw `Arg: Command name not found`
+        }
 
         try {
             const cb = this.getCallbackFromCommandName(command)
-            const isService = cb.execMixin instanceof BaseCommandService
-            const commandHelpStr = isService ? serviceToString(command, cb) : commonToString(command, cb)
+            const commandHelpStr = isService(cb.callback) ? serviceToString(command, cb) : commonToString(command, cb)
             await ctx.reply(commandHelpStr)
         } catch(e: any) {
             if (e && typeof e === 'object' && 'success' in e) {

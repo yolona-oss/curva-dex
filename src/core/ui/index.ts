@@ -1,5 +1,4 @@
 export * from "./types"
-export { UiUnicodeSymbols } from './ui-unicode-symbols'
+export * from './impls'
 
-export { TelegramUI } from './impls/telegram'
-export { CLIUI } from './impls/cli'
+export * from './ui-unicode-symbols'

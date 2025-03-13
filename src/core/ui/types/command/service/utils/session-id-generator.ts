@@ -1,7 +1,6 @@
 import { IManager } from "@core/db"
-import { CHComposer } from "../ch-composer"
+import { ArgOptionValidator, CHComposer } from "@core/ui/cmd-traspiler"
 import { genRandomString } from "@core/utils/random"
-import { ArgOptionValidator } from "../types"
 import { CmdArgumentOptionSetter } from "@core/ui/types/command"
 
 export const sessionOpts: CmdArgumentOptionSetter = async (servName: string, o: CHComposer<any>, manager: IManager) => {

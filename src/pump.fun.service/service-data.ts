@@ -1,11 +1,11 @@
-import { BaseCmdServiceConfig, BaseCmdServiceParameters, BaseCmdServiceInteractMessages, CmdServiceData } from "@core/command-handler/service-data"
+import { BaseCmdServiceConfig, BaseCmdServiceParameters, BaseCmdServiceInteractMessages, CmdServiceData } from "@core/ui/types/command/service"
 import { defaultCfg, IPumpFunRobotConfig } from "./config"
 import { IPumpFunRobotSessionState } from "./robot/state"
 import { IMTCStateSave } from "@bots/traider/mtc"
 import { PumpFunAssetType } from "@bots/traider/impl/pump.fun"
 
-export const name = 'pump_fun'
-export const description = `Customizable servie for the pump.fun dex simulation activity and automated trading by setting a strategy schema.`
+export const pfname = 'pump_fun'
+export const pfdescription = `Customizable servie for the pump.fun dex simulation activity and automated trading by setting a strategy schema.`
 
 export class PFConfigData extends BaseCmdServiceConfig /*implements IPumpFunRobotConfig*/ {
 
@@ -24,7 +24,7 @@ export type PFServiceDataType = CmdServiceData<
     IPFServiceSessionData
 >
 
-interface IPFServiceSessionData {
+export interface IPFServiceSessionData {
     state: IPumpFunRobotSessionState
     master_state_save: IMTCStateSave<PumpFunAssetType>
 }
