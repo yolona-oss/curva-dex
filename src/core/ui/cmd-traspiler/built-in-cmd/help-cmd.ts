@@ -5,6 +5,7 @@ import { BuiltInCommand } from "../types/built-in-cmd"
 import { IComposerUICmdCallback } from "../types"
 import { anyToString } from "@core/utils/misc"
 import { UiUnicodeSymbols } from "@core/ui"
+import { ArgProxy } from "../arg-proxy"
 
 export const serviceToString = <Ctx>(cmdName: string, cmdCb: IComposerUICmdCallback<Ctx>) => {
     const executor = cmdCb.callback as ICmdService
@@ -75,7 +76,9 @@ const ConcreetHelp: BuiltInCommand = {
     description: "Print help for concreet command",
     args: ConcreetHelpArgs,
     callback: async function(this: CHComposer<any>, args: IArgumentCompiled[], ctx) {
-        const command = args.find(arg => arg.position === 1)?.value
+        const proxy = new ArgProxy(args)
+
+        const command = proxy.getOrThrow('command')
         if (!command) {
             throw `Arg: Command name not found`
         }

@@ -1,5 +1,6 @@
 import { BaseUIContext } from "@core/ui"
 import { ICmdHandler, ICmdHandlerRequest, ICmdHandlerResponce } from "./types"
+import log from "@core/application/logger"
 
 export * from './types'
 
@@ -15,11 +16,11 @@ export abstract class AbstractCmdHandler<Ctx extends BaseUIContext> implements I
 
     async handle(request: ICmdHandlerRequest<Ctx>): Promise<ICmdHandlerResponce> {
         if (this.next) {
-            console.log(this.next.constructor.name, "handle")
+            log.trace(this.next.constructor.name)
             return await this.next.handle(request)
         }
 
-        console.log("-- CmdHandler chain end --")
+        log.trace("-- CmdHandler chain end --")
         return { success: false, markup: {text: "No handler"} }
     }
 }

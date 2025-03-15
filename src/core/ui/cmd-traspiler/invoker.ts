@@ -31,14 +31,14 @@ export class CommandInvoker<TContext extends BaseUIContext> {
                 exec.bind(this.composer)
             }
             const res = await exec(commandArgs, ctx)
-            if (res && res.error) {
+            if (res?.error) {
                 log.error(`Command "${command}" exec error: ${res.error}`)
                 return {
                     success: false,
                     text: `${UiUnicodeSymbols.error} Execution failed: "${res.error ?? "unknown error"}"`
                 }
             } else {
-                log.error(`Command "${command}" exec success`)
+                log.info(`Command "${command}" exec success`)
                 return {
                     success: true,
                     text: SEND_SUCCESS ? `${UiUnicodeSymbols.success} Execution success` : ""
@@ -103,10 +103,10 @@ export class CommandInvoker<TContext extends BaseUIContext> {
             params,
             messages
         }
-        console.log(`----Invoke-args`)
-        console.log(config)
-        console.log(params)
-        console.log(messages)
+        log.trace(`----Invoke-args\n
+${JSON.stringify(config, null, 2)}\n
+${JSON.stringify(params, null, 2)}\n
+${JSON.stringify(messages, null, 2)}`)
 
         const serviceInstance = exe.clone(userId, inputData)
 

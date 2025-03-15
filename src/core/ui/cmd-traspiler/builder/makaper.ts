@@ -1,7 +1,7 @@
 import { UiUnicodeSymbols } from "@core/ui"
 import { IArgumentCompiled } from "@core/ui/types"
-import { CBState, ICBStateRaw } from './interpreter'
-import { defaultBuilderMarkupOptions } from '../constants'
+import { CBParser, ICBParserStateRaw } from './interpreter/parser'
+import { defaultBuilderMarkupOptions } from './default-markup'
 import { IMarkupOptionType, IMarkupOption, IBaseMarkup } from "../types/markup"
 
 // toMarkup only
@@ -41,8 +41,8 @@ export class Makaper {
     }
 
 
-    static BuildingString(bstate: ICBStateRaw, info = "", addTo: "begining"|"end" = "begining"): string {
-        const command = bstate.command
+    static BuildingString(parserState: ICBParserStateRaw, info = "", addTo: "begining"|"end" = "begining"): string {
+        const command = parserState.command
         let buildStr = `${UiUnicodeSymbols.hammer} Building "${command}"\n\nReaded:\n`
 
         const readArgToStr = (arg: IArgumentCompiled) => {
@@ -68,10 +68,10 @@ export class Makaper {
             return str
         }
 
-        const args = bstate.read.filter(arg => arg.ctx === "args")
-        const configs = bstate.read.filter(arg => arg.ctx === "config")
-        const params = bstate.read.filter(arg => arg.ctx === "params")
-        const messages = bstate.read.filter(arg => arg.ctx === "message")
+        const args = parserState.read.filter(arg => arg.ctx === "args")
+        const configs = parserState.read.filter(arg => arg.ctx === "config")
+        const params = parserState.read.filter(arg => arg.ctx === "params")
+        const messages = parserState.read.filter(arg => arg.ctx === "message")
 
         buildStr += args.length > 0 ? '\n' + argGroupToString("Arguments", args) : ''
         buildStr += configs.length > 0 ? '\n' + argGroupToString("Configs", configs) : ''
@@ -88,8 +88,8 @@ export class Makaper {
 
     // TODO create new name or rebase it
     // mb pass BuildingString function as param to create text
-    static __tmpMarkup(bstate: CBState) {
-        const desc = bstate.toState().descriptor
+    static __tmpMarkup(parser: CBParser) {
+        const desc = parser.toState().descriptor
         const args = desc.args.filter(v => v.ctx === 'args')
         const msgs = desc.args.filter(v => v.ctx === 'message')
         const params = desc.args.filter(v => v.ctx === 'params')
@@ -104,8 +104,12 @@ export class Makaper {
             ).join('\n') + "\n";
         })
 
-        const overwrite = `${UiUnicodeSymbols.hammer} Run CmdBuilder\nBuilding command: - ${UiUnicodeSymbols.arrowRight} "${bstate.BuildingCommand}".\n - Avalible context: ${UiUnicodeSymbols.arrowRight} ${bstate.toState().avaliableCtxs.join(", ")}.\n${desc_str}`
-        return Makaper.markup(bstate, {
+        const overwrite =
+            `${UiUnicodeSymbols.hammer} Run CmdBuilder\n
+Building command: - ${UiUnicodeSymbols.arrowRight} "${parser.BuildingCommand}".\n
+ - Avalible context: ${UiUnicodeSymbols.arrowRight} ${parser.toState().avaliableCtxs.join(", ")}.\n${desc_str}`
+
+        return Makaper.markup(parser, {
             text: {
                 overwrite,
                 info: "",
@@ -113,7 +117,7 @@ export class Makaper {
         })
     }
 
-    static markup(bstate: CBState, {text, options}: IMakaperBuildOpts): IBaseMarkup {
+    static markup(parser: CBParser, {text, options}: IMakaperBuildOpts): IBaseMarkup {
         if (!text) {
             text = {
                 info: ""
@@ -126,7 +130,7 @@ export class Makaper {
 
         const infoText = Array.isArray(text.info) ? text.info.join('\n') : text.info
 
-        const descArgs = bstate.toState().descriptor.args
+        const descArgs = parser.toState().descriptor.args
         let markuped: IMarkupOption[] = []
         if (options.argName) {
             const arg = descArgs.find(arg => arg.name === options.argName)
@@ -139,23 +143,23 @@ export class Makaper {
                 ) ?? []
             }
         } else {
-            markuped = descArgs.filter(arg => arg.ctx === bstate.CurrentContext).map(arg => 
+            markuped = descArgs.filter(arg => arg.ctx === parser.CurrentContext).map(arg => 
                 this.toMarkup({
                     text: arg.name,
                     type: 'name',
-                    isRead: bstate.isNameRead(arg.name)
+                    isRead: parser.isNameRead(arg.name)
                 })
             )
         }
 
         // TODO its too not open-close 
-        if (bstate.WaitingFor === 'ctx') {
-            markuped = bstate.AvaliableContexts.map(ctx => Makaper.toMarkup({text: ctx, type: "value", isRead: false}))
+        if (parser.WaitingFor === 'CTX') {
+            markuped = parser.AvaliableContexts.map(ctx => Makaper.toMarkup({text: ctx, type: "value", isRead: false}))
         }
 
         const mk_text = text.overwrite ?
             text.overwrite :
-            this.BuildingString(bstate.toState(), infoText, text.addTo)
+            this.BuildingString(parser.toState(), infoText, text.addTo)
 
         return {
             text: mk_text,

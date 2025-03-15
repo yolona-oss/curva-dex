@@ -5,12 +5,14 @@ import { CHComposer } from "./../ch-composer"
 import { CBInterpreter } from "./interpreter"
 import { Makaper } from "./makaper"
 import { IBaseMarkup } from "../types/markup"
-import { CBState } from "./interpreter"
+import { CBParser } from "./interpreter/parser"
 import { CmdArgumentContextType } from "@core/ui/types/command";
 import { EvaluationResult } from "./ev-result"
 import { unique } from "@core/utils/array"
 import { anyToString } from "@core/utils/misc"
 import { InterpreterMode } from "./interpreter/interpreter"
+import { DefaultBuilderCallbacks } from "./default-callbacks"
+import log from "@core/application/logger"
 
 // TODO mark readed args with * start line marker to make it easier to read
 export class CommandBuilder {
@@ -69,32 +71,33 @@ export class CommandBuilder {
         // NOTE: ok?
         const initialCtx = uniqCtxs[0]
 
-        const state = new CBState(command, uniqCtxs, desc, initialCtx)
+        const state = new CBParser(command, uniqCtxs, desc, DefaultBuilderCallbacks.switchCtx, initialCtx)
         const interpreter = new CBInterpreter(state, mode)
         this.usersBuild.set(userId, interpreter)
 
         return Makaper.__tmpMarkup(state)
     }
 
-    public async chipsCompile<UICtx extends BaseUIContext>(
+    public async nonCrendaryCompile<UICtx extends BaseUIContext>(
         userId: string,
         command: string,
         input: string,
         ctx: UICtx,
         chComposer: CHComposer<UICtx>
     ): Promise<EvaluationResult> {
+        log.trace(`CommandBuilder: Starting non-crendary compilation for command: ${command}`)
         const desc_compiler = new CBDescriptorCompiler<UICtx>()
         const descriptor = await desc_compiler.compile(command, userId, chComposer, ctx)
 
         const argContexts = CommandBuilder.selectReadingContexts(command, userId, chComposer)
-        const cbstate = new CBState(command, argContexts, descriptor, 'args')
-        const interpreter = new CBInterpreter(cbstate, 'inclusive')
+        const parser = new CBParser(command, argContexts, descriptor, DefaultBuilderCallbacks.switchCtx, 'args')
+        const interpreter = new CBInterpreter(parser, 'non-crendary')
 
         try {
             const compiled = interpreter.step(input)
             return compiled
         } catch(e) {
-            throw `${UiUnicodeSymbols.cross} Build by chips failed.\n
+            throw `${UiUnicodeSymbols.cross} Non crendary compilation failed.\n
 -- ${UiUnicodeSymbols.magnifierGlass} Input: ${UiUnicodeSymbols.arrowRight} "${input}".\n
 -- ${UiUnicodeSymbols.magnifierGlass} Error: ${UiUnicodeSymbols.arrowRight} "${anyToString(e) || "Unknown error"}"`
         }

@@ -1,3 +1,8 @@
+/**
+ * @description Deep clone an object. Preserve functions, arrays, and objects recursively.
+ * @param obj - The object to clone. May be null or undefined.
+ * @returns The cloned object or the original object if null or undefined.
+ */
 export function deepClone<T>(obj: T): T {
     if (obj === null || typeof obj !== 'object') {
         return obj

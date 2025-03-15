@@ -28,7 +28,7 @@ export class HandleCommandAlias<Ctx extends BaseUIContext> extends AbstractCmdHa
             }
         }
         try {
-            const compiled = await composer.CommandBuilder.chipsCompile(request.userId, commandName, commandArg, uiCtx, composer)
+            const compiled = await composer.CommandBuilder.nonCrendaryCompile(request.userId, commandName, commandArg, uiCtx, composer)
             return await composer.CommandInvoker.invoke(request.userId, compiled.Result, uiCtx)
         } catch (e: any) {
             log.error("Command execution error: " + anyToString(e))

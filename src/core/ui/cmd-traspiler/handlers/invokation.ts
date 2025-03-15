@@ -4,14 +4,14 @@ import { BaseUIContext } from "@core/ui"
 import { anyToString } from "@core/utils/misc"
 import { UiUnicodeSymbols } from "@core/ui"
 
-export class HandleCallbackExecution<Ctx extends BaseUIContext> extends AbstractCmdHandler<Ctx> {
+export class HandleCallbackInvokation<Ctx extends BaseUIContext> extends AbstractCmdHandler<Ctx> {
 
     public async handle(request: ICmdHandlerRequest<Ctx>): Promise<ICmdHandlerResponce> {
         const { command, uiCtx, userId, args, composer } = request
 
         let res: ICmdHandlerResponce|undefined
         try {
-            const compiled = await composer.CommandBuilder.chipsCompile(userId, command, args.join(' '), uiCtx, composer)
+            const compiled = await composer.CommandBuilder.nonCrendaryCompile(userId, command, args.join(' '), uiCtx, composer)
             res = await composer.CommandInvoker.invoke(userId, compiled.Result, uiCtx)
         } catch (e: any) {
             log.error("Command execution error: " + anyToString(e))

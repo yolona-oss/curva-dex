@@ -22,6 +22,21 @@ import { CmdArgmuentKeyHolder } from './meta'
  */
 export type ICmdArgumentDefenition = CmdArgmuentKeyHolder
 
+export function encodePositionalName(name: string, position: number) {
+    return `positional-${position}-${name}`
+}
+
+export function decodePositionalName(input: string) {
+    const constSkip = 'positional-'.length
+    const position = parseInt(input.slice(constSkip).slice(0, input.indexOf('-')))
+    const name = String(input.slice(input.indexOf('-', constSkip) + 1))
+
+    return {
+        position,
+        name
+    }
+}
+
 export * from './descriptor'
 export * from './context'
 export * from './option'

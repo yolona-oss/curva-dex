@@ -13,7 +13,7 @@ export interface IArgumentDescriptor extends CmdArgumentMeta {
 /**
  * @description Parsed argument, ready to use in command transpiler
  */
-export interface IArgumentCompiled extends Pick<IArgumentDescriptor, 'ctx'|'name'> {
+export interface IArgumentCompiled extends Pick<IArgumentDescriptor, 'ctx'|'name'|'standalone'> {
     value: string
     position: number|null
 }

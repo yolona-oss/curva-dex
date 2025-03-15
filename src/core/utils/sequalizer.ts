@@ -1,7 +1,7 @@
 import { IRunnable } from "@core/types/runnable";
 import { ICommand } from '@core/types/command'
 import { AbstractState } from "@core/types/state";
-import { Identificable } from "@core/types/identificable";
+import { asId, Identificable, isIdentifiable } from "@core/types/identificable";
 
 import { HMSTime, sleep } from './time'
 
@@ -125,7 +125,11 @@ export class Sequalizer implements IRunnable {
     }
 
     public genId(): string {
-        return crypto.randomUUID()
+        return asId(crypto.randomUUID())
+    }
+
+    static GenId(): string {
+        return asId(crypto.randomUUID())
     }
 
     public getTasks(): ITask[] {
@@ -196,6 +200,10 @@ export class Sequalizer implements IRunnable {
     enqueue<T>(task: ITask<T>): void {
         if (!this._isRunning) {
             throw new Error("Sequalizer::enqueue() Sequalizer is not running")
+        }
+
+        if (!isIdentifiable(task)) {
+            throw new Error(`Sequalizer::enqueue() task must be identifiable. Maybe id is incorrect: "${(task as any)?.id}". Or task is fully invalid. ${JSON.stringify(task)}`)
         }
 
         const { after } = task

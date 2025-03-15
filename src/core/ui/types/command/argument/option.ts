@@ -9,6 +9,14 @@ type SetterPattern = (...args: any[]) => Promise<string[]>
 export type CmdArgumentOptionSetter = (cmdName: string, composer: CHComposer<any>, manager: IManager) => Promise<string[]>
 export type CmdArgumentPairOptionsType<OptionsSetter extends SetterPattern = CmdArgumentOptionSetter> = string[]|OptionsSetter
 
+export function isCmdArgPairFunc<OptionsSetter extends SetterPattern = CmdArgumentOptionSetter>(options: CmdArgumentPairOptionsType<OptionsSetter>): options is OptionsSetter {
+    return typeof options === 'function'
+}
+
+export function isCmdArgPairStr(options: CmdArgumentPairOptionsType): options is string[] {
+    return Array.isArray(options)
+}
+
 export async function exposeCmdArgumentOptions<CtxType extends BaseUIContext = any>(
     cmdName: string,
     options: CmdArgumentPairOptionsType<CmdArgumentOptionSetter>|undefined,

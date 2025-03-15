@@ -4,6 +4,7 @@ import {CHComposer } from "../ch-composer"
 import { BuiltInCommand } from "../types/built-in-cmd"
 import { CmdAlias } from "@core/db"
 import { UiUnicodeSymbols } from "@core/ui"
+import { ArgProxy } from "../arg-proxy"
 
 export const MAX_ALIAS_NAME_LEN = 32
 
@@ -32,8 +33,11 @@ const AliasCommand: BuiltInCommand = {
     description: "Print help for concreet command",
     args: AliasArgs,
     callback: async function(this: CHComposer<any>, args: IArgumentCompiled[], ctx) {
-        const aliasName = args[0]
-        const commandStr = args.slice(1).join(" ")
+        const proxy = new ArgProxy(args)
+
+        const aliasName = proxy.getOrThrow('alias')
+        const commandStr = proxy.getOrThrow('command')
+
         const owner_id = ctx.manager!._id
 
         if (!isValidAliasName(aliasName)) {

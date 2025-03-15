@@ -4,6 +4,7 @@ import { ColorName } from 'chalk'
 import { createDirIfNotExist } from '@core/utils/fs-tools'
 import path from 'path'
 import { getInitialConfig } from '@config'
+import { getInvokerDetails } from '@core/utils/misc'
 
 function logTime() {
     return new Date().toLocaleString("ru").replace(', ', ' ')
@@ -109,6 +110,7 @@ export class log {
     }
 
     private prefix(level: LogLevel) {
+        const {functionName, lineNumber} = getInvokerDetails()
         const time = logTime()
         const mark = logLevelToColor(level)(logLevelToSymbol(level))
 
@@ -122,14 +124,20 @@ export class log {
             if (typeof arg === 'string') {
                 const slices = arg.split('\n')
                 let first = true
+                // not add \n if slices not contains \n
                 for (const slice of slices) {
                     let ws = first ? "" : " ".repeat(repetTimes)
                     if (first) { first = false }
-                    ret.push(ws + slice)
+                    // TODO fix
+                    ret.push(ws + slice + (slices.length === 1 && arg.endsWith('\n') ? '' : '\n'))
                 }
             } else {
                 ret.push(arg)
             }
+        }
+        // remove last \n if its string
+        if (typeof ret[ret.length - 1] === 'string' && ret[ret.length - 1].endsWith('\n')) {
+            ret[ret.length - 1] = ret[ret.length - 1].slice(0, -1)
         }
         return ret
     }

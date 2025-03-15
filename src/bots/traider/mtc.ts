@@ -1,4 +1,4 @@
-import { Identificable } from "@core/types/identificable";
+import { asId, Identificable } from "@core/types/identificable";
 import { IRunnable } from "@core/types/runnable";
 import log from '@logger';
 import { sleep, timeoutPromise } from "@utils/time";
@@ -40,6 +40,8 @@ export abstract class MasterTraderCtrl<
 {
     static slaveOrdinaryNumber = 0n
 
+    public readonly id: string
+
     private _isRunning: boolean = false
     protected sharedSequalizer: Sequalizer
 
@@ -49,7 +51,7 @@ export abstract class MasterTraderCtrl<
     private full_curve_id
 
     constructor(
-        public readonly id: string,
+        id: string,
         protected readonly tradeAsset: AssetType,
         curveSaves: {
             full: ExCurveSaveTradePoints,
@@ -59,6 +61,7 @@ export abstract class MasterTraderCtrl<
         protected tradeApi: TradeApi,
         protected walletMngr: WMType,
     ) {
+        this.id = asId(id)
         this.sharedSequalizer = new Sequalizer()
 
         for (const slave of this.slaves) {

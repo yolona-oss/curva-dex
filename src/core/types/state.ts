@@ -9,6 +9,10 @@ export abstract class AbstractState<Ctx> {
 export abstract class AbstractCtx<StateType extends AbstractState<any>> {
     protected _ctx_state!: StateType
 
+    protected get CurrentCtxStateObj() {
+        return this._ctx_state
+    }
+
     constructor(initialState: StateType) {
         this.transitionTo(initialState)
     }

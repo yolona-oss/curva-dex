@@ -1,4 +1,4 @@
-import { Identificable } from "@core/types/identificable";
+import { asId, Identificable } from "@core/types/identificable";
 import { Sequalizer } from "@utils/sequalizer";
 import { HMSTime } from "@utils/time";
 import { Cloner } from "@utils/cloner";
@@ -32,7 +32,9 @@ export abstract class SlaveTraderCtrl<
             TradeAPI extends BaseTradeApi<TradeAsset> = BaseTradeApi<any>,
             TradeAsset extends IBaseTradeAsset = IBaseTradeAsset>
         extends EventEmitter
-        implements Identificable<string> {
+        implements Identificable {
+
+    public readonly id: string
 
     protected _metrics: STCMetrics<TradeAsset>
 
@@ -41,13 +43,14 @@ export abstract class SlaveTraderCtrl<
     on_cmd_failed: (cmd: OfferCmd<TradeAsset>) => void = () => {}
 
     constructor(
-        public readonly id: string,
+        id: string,
         protected tradeApi: TradeAPI,
         metricsHistory: ISTCMetricsSave<TradeAsset>|null = null,
         wallet: IDEXWallet,
         protected sequalizer: Sequalizer|null = null
     ) {
         super()
+        this.id = asId(id)
         this._metrics = new STCMetrics(metricsHistory)
         this.traider = {
             wallet: Object.assign({}, wallet)

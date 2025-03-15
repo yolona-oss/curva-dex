@@ -5,6 +5,7 @@ import { TestService } from "./user-services"
 //import { PumpFunService, PFName, PFDescription } from './pump.fun.service'
 import { SingleThrottler } from "@core/utils/single-throttler"
 import { CmdArgument, IArgumentCompiled } from "@core/ui/types/command"
+import log from "@core/application/logger"
 
 class AksArgs {
     @CmdArgument({
@@ -54,7 +55,7 @@ export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegiste
                 args: new AksArgs()
             },
             callback: async function(args: IArgumentCompiled[], ctx: BaseUIContext) {
-                console.log(args)
+                log.trace(args)
                 let aiName = args.find(arg => arg.position == 0)?.value
                 const avaliableAis = [ "misterial" ]
                 let msg
@@ -83,7 +84,7 @@ export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegiste
                         }
                     }
                     const api = api_all[aiName as keyof typeof api_all]
-                    console.log(api)
+                    log.trace(api)
                     const res = await fetch(api.url, {
                         method: 'POST',
                         headers: {

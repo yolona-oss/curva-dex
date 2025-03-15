@@ -1,8 +1,30 @@
-import { IArgumentCompiled } from "../types";
+import { decodePositionalName, IArgumentCompiled } from "../types";
 
 export class ArgProxy {
     constructor(
-        private readonly read: IArgumentCompiled[]
-    ) { }
+        private readonly args: IArgumentCompiled[]
+    ) {
+        //this.maxPos = this.args.filter(arg => arg.position != null).length
+    }
 
+    has(name: string) {
+        const v = this.args.find(arg => arg.name === name || decodePositionalName(arg.name).name == name)
+        return v != null && v.value != undefined && v.value != ''
+    }
+
+    get(name: string) {
+        return this.args.find(arg => arg.name === name || decodePositionalName(arg.name).name == name)?.value
+    }
+
+    getOrThrow(name: string) {
+        const v = this.args.find(arg => arg.name === name || decodePositionalName(arg.name).name == name)
+        if (v == null || v.value == undefined || v.value == '') {
+            throw `Arg: "${name}" not found`
+        }
+        return v.value
+    }
+
+    getPos(number: number) {
+        return this.args.find(arg => arg.position === number)?.value
+    }
 }

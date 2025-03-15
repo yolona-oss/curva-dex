@@ -1,6 +1,6 @@
 import { Makaper } from "./makaper"
 import { IBaseMarkup } from "../types/markup"
-import { CBState } from "./interpreter"
+import { CBParser } from "./interpreter/parser"
 import { ICommandCompiled } from "@core/ui/types/command"
 
 export class EvaluationResult {
@@ -10,7 +10,7 @@ export class EvaluationResult {
     private error?: string
 
     constructor(
-        state: CBState,
+        parser: CBParser<any>,
         info: string|string[],
         config: {
             compiled?: ICommandCompiled
@@ -22,7 +22,7 @@ export class EvaluationResult {
         this.done = config.compiled ? true : (config.done ?? false)
         this.compiled = config.compiled
         this.error = config.error
-        this.markup = Makaper.markup(state, {
+        this.markup = Makaper.markup(parser, {
             text: {
                 info: info,
                 addTo: config.addTo

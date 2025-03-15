@@ -15,7 +15,11 @@ import {
     ICmdRegisterEntry,
 } from "./types";
 import { CommandBuilder } from "./builder";
-import { HandleCallbackExecution, HandleCmdBuilder, HandleSequenceCommand } from "./handlers";
+import {
+    HandleCallbackInvokation,
+    HandleCmdBuilder,
+    HandleSequenceCommand
+} from "./handlers";
 import { isContainsAll } from "@core/utils/array";
 import { anyToString } from "@core/utils/misc";
 import { Account, IAccountSession, Manager } from "@core/db";
@@ -72,7 +76,7 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
         this.chain.use(new HandleCommandAlias<UIContextType>)
         this.chain.use(new HandleCmdBuilder<UIContextType>)
         this.chain.use(new HandleSequenceCommand<UIContextType>)
-        this.chain.use(new HandleCallbackExecution<UIContextType>)
+        this.chain.use(new HandleCallbackInvokation<UIContextType>)
     }
 
     public async handleCommand(command: string, ctx: UIContextType): Promise<IHandleCommandResult> {
@@ -89,9 +93,7 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
         }
 
         try {
-            console.log(`"-----------`)
-            console.log(ctx.text)
-            console.log(`-----------"`)
+            log.trace(`"--COMPOSER RESVS---\n${ctx.text}\n-------------------"`)
             return await this.chain.handle({
                 composer: this,
                 command: command,
@@ -406,7 +408,7 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
     public debug() {
         for (const [name, cb] of this.callbacks) {
             name;
-            console.log(`${name}:`, cb)
+            log.trace(`${name}:`, cb)
         }
     }
     }

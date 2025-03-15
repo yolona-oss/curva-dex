@@ -1,13 +1,5 @@
 import { IMarkupOption } from "../types/markup"
-
-export const PAIR_ARGUMENT_PREFIX = '--'
-
-// INFO: must be lower case
-export const DefaultBuilderCallbacks = {
-    execute: "__execute",
-    cancel: "__cancel",
-    switchCtx: "__switchctx"
-}
+import { DefaultBuilderCallbacks } from "./default-callbacks"
 
 export const defaultBuilderMarkupOptions: IMarkupOption[] = [
     {

@@ -7,6 +7,7 @@ import { IBaseTradeAsset } from "./../types/asset"
 import { MAX_SLIPPAGE_DECIMAL } from "../constants"
 
 import { retrier } from "@utils/async-tools"
+import { asId, Identificable } from "@core/types/identificable"
 
 export interface ICmdPushOffer_ExeOpts {
     retries?: number,
@@ -30,8 +31,8 @@ export interface ICmdPushOfferOpts<TradeAsset extends IBaseTradeAsset = IBaseTra
     exe: ICmdPushOffer_ExeOpts
 }
 
-export class OfferCmd<TradeAsset extends IBaseTradeAsset = IBaseTradeAsset> extends EventEmitter implements ICommand<void> {
-    private id: string
+export class OfferCmd<TradeAsset extends IBaseTradeAsset = IBaseTradeAsset> extends EventEmitter implements ICommand<void>, Identificable<string> {
+    public readonly id: string
     private api: BaseTradeApi<TradeAsset>
     private cmd_opt: ICmdPushOfferOpts<TradeAsset>
     private side: TradeSideType
@@ -43,7 +44,7 @@ export class OfferCmd<TradeAsset extends IBaseTradeAsset = IBaseTradeAsset> exte
         side: TradeSideType
     }) {
         super()
-        this.id = config.id
+        this.id = asId(config.id)
         this.api = config.api.clone()
         this.cmd_opt = Object.assign({}, config.cmd_opt)
         this.side = config.side

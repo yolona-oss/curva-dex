@@ -1,2 +1,2 @@
 export { CBInterpreter } from './interpreter'
-export { CBState, type ICBStateRaw } from './state'
+export { CBParser, type ICBParserStateRaw } from './parser'

@@ -12,7 +12,7 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
 
     private async startNewBuild(userId: string, command: string, args: string[], ctx: UICtx, builder: CommandBuilder, chComposer: CHComposer<UICtx>): Promise<ICmdHandlerResponce|void> {
         log.trace(`Checking for availability to start build: ${command}`)
-        log.trace(`Command: `, command, `Args: `, args)
+        log.trace(`Command: ${command}\nArgs: ${args}`)
         if (!chComposer.isAllArgsPassed(command, args)) {
             const avalibleCtxs = CommandBuilder.selectReadingContexts(command, userId, chComposer)
 
