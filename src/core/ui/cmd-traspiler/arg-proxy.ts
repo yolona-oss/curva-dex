@@ -1,6 +1,6 @@
 import { decodePositionalName, IArgumentCompiled } from "../types";
 
-export class ArgProxy {
+export class CmdArgumentProxy {
     constructor(
         private readonly args: IArgumentCompiled[]
     ) {
@@ -19,7 +19,7 @@ export class ArgProxy {
     getOrThrow(name: string) {
         const v = this.args.find(arg => arg.name === name || decodePositionalName(arg.name).name == name)
         if (v == null || v.value == undefined || v.value == '') {
-            throw `Arg: "${name}" not found`
+            throw `Argument: "${name}" not passed to command`
         }
         return v.value
     }

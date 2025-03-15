@@ -8,6 +8,7 @@ import { CBParser, ParserPerformedAction, PChainReq } from "../parser";
 import { EvaluationResult } from "../../ev-result";
 import log from "@core/application/logger";
 import { chainHandlerFactory } from "@core/utils/chain";
+import { CmdArgumentProxy } from "@core/ui/cmd-traspiler/arg-proxy";
 
 type ExtendedCBChainRes = ParserPerformedAction | 'cancel' | 'execute'
 
@@ -42,24 +43,20 @@ export class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
     }
 
     step(input: string): EvaluationResult {
-        log.trace(`#--Interpreter-- Input: "${input}" ----#`)
-
         this.lexer.setInput(input)
         const token = this.lexer.getNextToken()
-        log.trace(`Lexer found token: ${JSON.stringify(token, null, 2)}`)
 
         if (!token) {
             return this.end()
         }
 
         const action = this.parser.parseNextToken(token)
-        log.trace(`Token transitioned to action: ${action}`)
 
         return this.processAction(action)
     }
 
     protected processAction(action: ExtendedCBChainRes): EvaluationResult {
-        log.trace(`#--Interpreter-- Action: "${action}" ----#`)
+        log.trace(`CBInterpreter::BaseInterpreterComponent: Action: ${action}`)
 
         switch (action) {
             case 'none':
@@ -168,9 +165,11 @@ export class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
     }
 
     protected compile(): ICommandCompiled {
+        console.log(this.parser.ReadArgs)
         return {
             command: this.parser.BuildingCommand,
-            args: this.parser.ReadArgs
+            proxy: new CmdArgumentProxy(this.parser.ReadArgs),
+            raw: this.parser.ReadArgs
         }
     }
 }

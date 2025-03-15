@@ -12,25 +12,24 @@ export class CommandInvoker<TContext extends BaseUIContext> {
     ) { }
 
     async invoke(invokerId: string, cmdCompiled: ICommandCompiled, ctx: TContext) {
-        const { command, args } = cmdCompiled
+        const { command } = cmdCompiled
         const cb = this.composer.getCallbackFromCommandName(command)
         if (isFunc(cb.callback)) {
-            return await this.invokeFunc(invokerId, command, args, ctx)
+            return await this.invokeFunc(invokerId, cmdCompiled, ctx)
         } else {
-            return await this.invokeService(invokerId, command, args, ctx)
+            return await this.invokeService(invokerId, cmdCompiled, ctx)
         }
     }
 
-    async invokeFunc(_: string, command: string, readArgs: IArgumentCompiled[], ctx: TContext) {
+    async invokeFunc(_: string, { command, proxy }: ICommandCompiled, ctx: TContext) {
         const cb = this.composer.getCallbackFromCommandName(command)
 
         try {
-            const commandArgs = readArgs.filter(a => a.ctx === "args" && a.value)
             const exec = cb.callback as ICmdFunction<TContext>
             if (this.composer.isBuiltInCommand(command)) {
                 exec.bind(this.composer)
             }
-            const res = await exec(commandArgs, ctx)
+            const res = await exec(proxy, ctx)
             if (res?.error) {
                 log.error(`Command "${command}" exec error: ${res.error}`)
                 return {
@@ -79,7 +78,7 @@ export class CommandInvoker<TContext extends BaseUIContext> {
         }
     }
 
-    async invokeService(userId: string, serviceName: string, readArgs: IArgumentCompiled[], ctx: TContext) {
+    async invokeService(userId: string, { command: serviceName, raw: readArgs }: ICommandCompiled, ctx: TContext) {
         if (this.composer.isServiceActive(userId, serviceName)) {
             return {
                 success: false,

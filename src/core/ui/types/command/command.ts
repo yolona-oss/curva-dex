@@ -10,8 +10,8 @@ import { BaseUIContext } from "@core/ui"
  * args - command arguments names. Optional argumets must be starts with ? e.g ["arg1", "arg2", "?arg3"] - arg3 will be optional
  */
 interface CommandSklet extends Partial<WithNeighbors> {
-    command: string
-    description: string
+    readonly command: string
+    readonly description: string
     args?: ICmdArgumentDefenition
 }
 
@@ -20,15 +20,18 @@ export type IUICommand = CommandSklet
 
 /** @description IUICommand with arguments read metadata */
 export interface IUICommandProcessed extends IUICommand {
-    args: (CmdArgumentMeta & {name: string})[]
+    readonly args: (CmdArgumentMeta & {name: string})[]
 }
 
 /** RENAME IT! its used only as dto representation of current composer callbacks */
 export type IUICommandWithOutArgs = Omit<CommandSklet, "args">
 
+import { CmdArgumentProxy } from "@core/ui/cmd-traspiler/arg-proxy"
+
 export interface ICommandCompiled {
-    command: string
-    args: IArgumentCompiled[]
+    readonly command: string
+    readonly proxy: CmdArgumentProxy
+    readonly raw: IArgumentCompiled[]
 }
 
 export function isFunc(mixin: ICallbackType<any>): mixin is ICmdFunction<any> {
@@ -41,7 +44,7 @@ export function isService(mixin: ICallbackType<any>): mixin is ICmdService {
 
 // Callback types
 type FuncResultType = ({error?: string})|void
-export type ICmdFunction<Ctx extends BaseUIContext> = (args: IArgumentCompiled[], ctx: Ctx) => Promise<FuncResultType>
+export type ICmdFunction<Ctx extends BaseUIContext> = (args: CmdArgumentProxy, ctx: Ctx) => Promise<FuncResultType>
 //export type ICmdObscuredFunction<Ctx> = (ctx: Ctx, ...args: any[]) => Promise<FuncResultType>
 export type ICmdService = BaseCommandService<any, any, any, any>
 export type ICallbackType<UI extends BaseUIContext> = ICmdFunction<UI> | ICmdService
@@ -51,7 +54,7 @@ export type ICallbackType<UI extends BaseUIContext> = ICmdFunction<UI> | ICmdSer
  * Mapped to use in composer
  */
 export interface IUICommandCallback<Ctx extends BaseUIContext> extends IUICommandProcessed {
-    callback: ICallbackType<Ctx>
+    readonly callback: ICallbackType<Ctx>
 }
 
 /** @description Describes the UI commands mapping to parse from */

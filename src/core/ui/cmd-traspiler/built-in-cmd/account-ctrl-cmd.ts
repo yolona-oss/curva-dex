@@ -8,7 +8,7 @@ import { CHComposer } from "../ch-composer"
 import "reflect-metadata";
 import { extractValueFromObject } from "@core/utils/object"
 import { UiUnicodeSymbols } from "@core/ui"
-import { ArgProxy } from "../arg-proxy";
+import { CmdArgumentProxy } from "../arg-proxy";
 
 async function getAllUserModules(accountId: string): Promise<string[]> {
     const account = await Account.findById(accountId)
@@ -52,9 +52,7 @@ const SetVariableCommand: BuiltInCommand = {
     command: BuiltInAccountCommandsEnum.SET_VARIABLE,
     description: "Create or update variable for user execution context",
     args: SetVariableArgs,
-    callback: async function(this: CHComposer<any>, args: IArgumentCompiled[], ctx) {
-        const proxy = new ArgProxy(args)
-
+    callback: async function(this: CHComposer<any>, args: CmdArgumentProxy, ctx) {
         const userId = String(ctx.manager!.userId)
         const user = await Manager.findOne({userId: Number(userId)})
         const account = await Account.findById(user!.account)
@@ -62,9 +60,9 @@ const SetVariableCommand: BuiltInCommand = {
             throw `Account ${user!.account} not found. User: ${userId}`
         }
 
-        const module_name = proxy.getOrThrow('module')
-        const path = proxy.getOrThrow('path')
-        const value = proxy.getOrThrow('value')
+        const module_name = args.getOrThrow('module')
+        const path = args.getOrThrow('path')
+        const value = args.getOrThrow('value')
 
         console.log(`SetVariableCommand: ${module_name}, ${path}, ${value}`)
         const { account_module } = await account.getModuleByNameOrCreate(module_name)
@@ -103,9 +101,7 @@ const RemoveVariableCommand: BuiltInCommand = {
     command: BuiltInAccountCommandsEnum.REMOVE_VARIABLE,
     description: "Remove variable for user execution context",
     args: RemoveVariableArgs,
-    callback: async function(this: CHComposer<any>, args: IArgumentCompiled[], ctx) {
-        const proxy = new ArgProxy(args)
-
+    callback: async function(this: CHComposer<any>, args: CmdArgumentProxy, ctx) {
         const userId = String(ctx.manager!.userId)
         const user = await Manager.findOne({userId: Number(userId)})
         const account = await Account.findById(user!.account)
@@ -113,8 +109,8 @@ const RemoveVariableCommand: BuiltInCommand = {
             throw `${UiUnicodeSymbols.error} Account "${user!.account}" ${UiUnicodeSymbols.magnifierGlass} not found.\nUser: ${UiUnicodeSymbols.user} "${userId}"`
         }
 
-        const module_name = proxy.getOrThrow('module')
-        const path = proxy.getOrThrow('path')
+        const module_name = args.getOrThrow('module')
+        const path = args.getOrThrow('path')
 
         const account_module = await account.getModuleByName(module_name)
         if (!account_module) {
@@ -150,9 +146,7 @@ const GetVariableCommand: BuiltInCommand = {
     command: BuiltInAccountCommandsEnum.GET_VARIABLE,
     description: "Get variable for user execution context",
     args: GetVariableArgs,
-    callback: async function(this: CHComposer<any>, args: IArgumentCompiled[], ctx) {
-        const proxy = new ArgProxy(args)
-
+    callback: async function(this: CHComposer<any>, args: CmdArgumentProxy, ctx) {
         const userId = String(ctx.manager!.userId)
         const user = await Manager.findOne({userId: Number(userId)})
         const account = await Account.findById(user!.account)
@@ -160,8 +154,8 @@ const GetVariableCommand: BuiltInCommand = {
             throw `Account ${user!.account} not found. User: ${userId}`
         }
 
-        const module_name = proxy.getOrThrow('module')
-        const path = proxy.getOrThrow('path')
+        const module_name = args.getOrThrow('module')
+        const path = args.getOrThrow('path')
 
         const account_module = await account.getModuleByName(module_name)
         if (!account_module) {

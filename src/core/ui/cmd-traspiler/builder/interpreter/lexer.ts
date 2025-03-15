@@ -1,4 +1,8 @@
+import log from "@core/application/logger"
+
 export type CBTokenType = 'TEXT' | 'SINGLE_DASH' | 'DOUBLE_DASH' // | 'EOF' - only incremental reading not need EOF
+
+const DASHES = ['-', '—']
 
 export type CBLexerToken = {
     type: CBTokenType,
@@ -23,6 +27,7 @@ export class Lexer {
     }
 
     public setInput(input: string): void {
+        log.trace(`Lexer: New input: ${input}`)
         this.input = input
         this.pos = 0
         this.currentChar = this.input[this.pos]
@@ -40,6 +45,7 @@ export class Lexer {
     }
 
     private text(): CBLexerToken {
+        log.trace(`Lexer: reading text`)
         let result = ''
         while (this.currentChar !== null && !/\s/.test(this.currentChar)) {
             if (this.currentChar === '\\') {
@@ -65,7 +71,9 @@ export class Lexer {
     }
 
     private dash(): CBLexerToken {
-        if (this.currentChar === '-' && this.input[this.pos + 1] === '-') {
+        log.trace(`Lexer: reading dash`)
+        if (DASHES.includes(this.currentChar!) && DASHES.includes(this.input[this.pos + 1])) {
+            log.trace(`Lexer: reading double dash`)
             this.advance(); // Skip the first dash
             this.advance(); // Skip the second dash
             let result = ''
@@ -74,7 +82,8 @@ export class Lexer {
                 this.advance()
             }
             return { type: 'DOUBLE_DASH', value: result }
-        } else if (this.currentChar === '-') {
+        } else if (DASHES.includes(this.currentChar!)) {
+            log.trace(`Lexer: reading single dash`)
             this.advance(); // Skip the dash
             let result = ''
             while (this.currentChar !== null && !/\s/.test(this.currentChar)) {
@@ -90,8 +99,8 @@ export class Lexer {
         if (this.currentChar === null) {
             return null; // No more tokens
         }
-
         if (/\s/.test(this.currentChar)) {
+            console.log(this.currentChar, "ws")
             this.skipWhitespace()
         }
 
@@ -99,7 +108,7 @@ export class Lexer {
             return null; // No more tokens after skipping whitespace
         }
 
-        if (this.currentChar === '-') {
+        if (DASHES.includes(this.currentChar!)) {
             return this.dash()
         }
 

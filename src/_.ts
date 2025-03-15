@@ -1,29 +1,12 @@
-import { Chain, chainFallbackHandler, chainHandlerFactory } from '@core/utils/chain'
+import { SingleThrottler } from "@core/utils/single-throttler";
 
-const chain = new Chain<number, string>()
-
-chain.setFallThrowResponse('kitty4')
-chain.use(chainHandlerFactory<number, string>((req) => {
-    if (req === 1) {
-        return 'kitty1'
+(async () => {
+    SingleThrottler.Instance.SetThrottleDelay('test', 5000)
+    console.log(`Throttle test. Throttle delay: ${SingleThrottler.Instance.ThrottleDelay('test')}`)
+    while (true) {
+        await SingleThrottler.Instance.throttle('test', async () => {
+            console.log('test')
+            console.log(new Date().toLocaleTimeString("ru"))
+        })
     }
-    return
-}))
-
-chain.useFirst(chainHandlerFactory<number, string>((req) => {
-    if (req === 1) {
-        return 'kitty2'
-    }
-    return
-}))
-
-chain.useFirst(chainHandlerFactory<number, string>((req) => {
-    if (req === 1) {
-        return 'kitty3'
-    }
-    return
-}))
-
-chain.use(chainFallbackHandler('kitty__4'))
-
-console.log(chain.handle(3))
+})()

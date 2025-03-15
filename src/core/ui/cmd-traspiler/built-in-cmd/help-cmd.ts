@@ -4,10 +4,10 @@ import { CHComposer } from "../ch-composer"
 import { BuiltInCommand } from "../types/built-in-cmd"
 import { IComposerUICmdCallback } from "../types"
 import { anyToString } from "@core/utils/misc"
-import { UiUnicodeSymbols } from "@core/ui"
-import { ArgProxy } from "../arg-proxy"
+import { BaseUIContext, UiUnicodeSymbols } from "@core/ui"
+import { CmdArgumentProxy } from "../arg-proxy"
 
-export const serviceToString = <Ctx>(cmdName: string, cmdCb: IComposerUICmdCallback<Ctx>) => {
+export const serviceToString = <Ctx extends BaseUIContext>(cmdName: string, cmdCb: IComposerUICmdCallback<Ctx>) => {
     const executor = cmdCb.callback as ICmdService
     return `Service /${cmdName},\n
 Description:\n  ${cmdCb.description},\n
@@ -18,7 +18,7 @@ Prev: ${cmdCb.prev ?? "None"}\n\
 `
 }
 
-export const commonToString = <Ctx>(cmdName: string, cmdCb: IComposerUICmdCallback<Ctx>) => {
+export const commonToString = <Ctx extends BaseUIContext>(cmdName: string, cmdCb: IComposerUICmdCallback<Ctx>) => {
     const argsStr = cmdCb.args?.map(a => a.name).join(",\n")
     return `Command ${cmdName},\n\
 Description: ${cmdCb.description},\n\
@@ -49,7 +49,7 @@ ${argsStr ? `Arguments:\n  ${argsStr}\n` : ""}\
 const CommonHelp: BuiltInCommand = {
     command: BuiltInHelpCommandsEnum.HELP_COMMAND,
     description: "List all available commands.",
-    callback: async function(this: CHComposer<any>, _: IArgumentCompiled[], ctx) {
+    callback: async function(this: CHComposer<any>, _, ctx) {
         const commands = this.toUICommands()
         const commandsStr = uiCommandsToString(commands)
         await ctx.reply(commandsStr)
@@ -75,13 +75,8 @@ const ConcreetHelp: BuiltInCommand = {
     command: BuiltInHelpCommandsEnum.CHELP_COMMAND,
     description: "Print help for concreet command",
     args: ConcreetHelpArgs,
-    callback: async function(this: CHComposer<any>, args: IArgumentCompiled[], ctx) {
-        const proxy = new ArgProxy(args)
-
-        const command = proxy.getOrThrow('command')
-        if (!command) {
-            throw `Arg: Command name not found`
-        }
+    callback: async function(this: CHComposer<any>, args: CmdArgumentProxy, ctx) {
+        const command = args.getOrThrow('command')
 
         try {
             const cb = this.getCallbackFromCommandName(command)

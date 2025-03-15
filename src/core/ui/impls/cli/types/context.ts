@@ -4,7 +4,7 @@ import { AvailableUIsEnum } from "@core/ui";
 
 export interface CLIContext extends BaseUIContext {
     type: AvailableUIsEnum.CLI;
-    manager?: IManager & { userId: number|string }
+    manager: IManager & { userId: number|string }
     userSession: {
         state: string;
         data: Record<string, any>;

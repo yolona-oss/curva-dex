@@ -3,7 +3,7 @@ import { BuiltInSeqCommandsEnum } from "../constants"
 import { CHComposer } from "../ch-composer"
 import { BuiltInCommand } from "../types/built-in-cmd"
 import { anyToString } from "@core/utils/misc"
-import { BaseUIContext, IArgumentCompiled } from "@core/ui"
+import { BaseUIContext } from "@core/ui"
 
 async function handle(this: CHComposer<any>, ctx: BaseUIContext, cmd: string) {
     const userId = String(ctx.manager!.userId)
@@ -26,7 +26,7 @@ async function handle(this: CHComposer<any>, ctx: BaseUIContext, cmd: string) {
 const NextInSeqCommand: BuiltInCommand = {
     command: BuiltInSeqCommandsEnum.NEXT_COMMAND,
     description: "Proceed in current command sequnce.",
-    callback: async function(this: CHComposer<any>, _: IArgumentCompiled[], ctx) {
+    callback: async function(this: CHComposer<any>, _, ctx) {
         await handle.bind(this)(ctx, BuiltInSeqCommandsEnum.NEXT_COMMAND)
     }
 }
@@ -36,7 +36,7 @@ const NextInSeqCommand: BuiltInCommand = {
 const BackInSeqCommand: BuiltInCommand = {
     command: BuiltInSeqCommandsEnum.BACK_COMMAND,
     description: "Go back in current command sequnce.",
-    callback: async function(this: CHComposer<any>, _: IArgumentCompiled[], ctx) {
+    callback: async function(this: CHComposer<any>, _, ctx) {
         await handle.bind(this)(ctx, BuiltInSeqCommandsEnum.BACK_COMMAND)
     }
 }
@@ -46,7 +46,7 @@ const BackInSeqCommand: BuiltInCommand = {
 const CancelSeqCommand: BuiltInCommand = {
     command: BuiltInSeqCommandsEnum.CANCEL_COMMAND,
     description: "Cancel current command sequnce.",
-    callback: async function(this: CHComposer<any>, _: IArgumentCompiled[], ctx) {
+    callback: async function(this: CHComposer<any>, _, ctx) {
         await handle.bind(this)(ctx, BuiltInSeqCommandsEnum.CANCEL_COMMAND)
     }
 }

@@ -4,7 +4,7 @@ import { ICmdRegisterManyEntry } from "@core/ui/cmd-traspiler"
 import { TestService } from "./user-services"
 //import { PumpFunService, PFName, PFDescription } from './pump.fun.service'
 import { SingleThrottler } from "@core/utils/single-throttler"
-import { CmdArgument, IArgumentCompiled } from "@core/ui/types/command"
+import { CmdArgument } from "@core/ui/types/command"
 import log from "@core/application/logger"
 
 class AksArgs {
@@ -54,33 +54,26 @@ export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegiste
                 description: "Ask something from AI",
                 args: new AksArgs()
             },
-            callback: async function(args: IArgumentCompiled[], ctx: BaseUIContext) {
+            callback: async function(args, ctx: BaseUIContext) {
                 log.trace(args)
-                let aiName = args.find(arg => arg.position == 0)?.value
+                let aiName = args.get('ai')
                 const avaliableAis = [ "misterial" ]
-                let msg
+                const msg = args.getOrThrow('message')
                 if (aiName) {
                     if (!avaliableAis.includes(aiName)) {
                         ctx.reply(`AI "${aiName}" not found`)
                         return
                     }
-                    msg = args.slice(1).join(" ")
                 } else {
                     aiName = "misterial"
-                    msg = args.join(" ")
                 }
                 await ctx.reply(`${aiName} AI selected`)
 
-                if (!msg) {
-                    await ctx.reply("Please provide a message")
-                    return
-                }
-
-                const answer = await SingleThrottler.Instance.throttle<string>("ask", async () => {
+                //const answer = await SingleThrottler.Instance.throttle<string>("ask", async () => {
                     let api_all = {
                         misterial: {
                             url: 'https://api.mistral.ai/v1/chat/completions',
-                            key: process.env[`AI_API_KEY_MISTERAL`]
+                            key: process.env[`AI_API_KEY_MISTERIAL`]
                         }
                     }
                     const api = api_all[aiName as keyof typeof api_all]
@@ -106,9 +99,10 @@ export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegiste
                         })
                     })
                     const json = await res.json()
-                    return json.choices[0].message.content
-                })
-                await ctx.reply(answer)
+                console.log(res)
+                    //return json.choices[0].message.content
+                //})
+                await ctx.reply(json)
             }
         },
         {

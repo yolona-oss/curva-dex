@@ -5,7 +5,7 @@ import { ParserStateType } from "./parser"
 export class StateSnap {
     constructor(
         public readonly currentCtx: CmdArgumentContextType,
-        public readonly waitingFor: ParserStateType,
+        public readonly state: ParserStateType,
         public readonly read: IArgumentCompiled[]
     ) {}
 }

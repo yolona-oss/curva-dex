@@ -7,14 +7,14 @@ const COMMAND_ARG_DESC_KEY = Symbol('descriptor:command-argument');
  * @description Command argument descriptor-like defenition
  */
 export interface CmdArgumentMeta {
-    required: boolean
-    standalone: boolean
-    description: string
-    validator: (arg: string) => boolean
+    readonly required: boolean
+    readonly standalone: boolean
+    readonly description: string
+    readonly validator: (arg: string) => boolean
 
-    position: number|null
-    pairOptions?: CmdArgumentPairOptionsType<CmdArgumentOptionSetter>
-    defaultValue?: string
+    readonly position: number|null
+    readonly pairOptions?: CmdArgumentPairOptionsType<CmdArgumentOptionSetter>
+    readonly defaultValue?: string
 }
 
 /**

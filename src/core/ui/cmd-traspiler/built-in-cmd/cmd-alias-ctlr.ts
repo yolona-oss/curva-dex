@@ -4,7 +4,7 @@ import {CHComposer } from "../ch-composer"
 import { BuiltInCommand } from "../types/built-in-cmd"
 import { CmdAlias } from "@core/db"
 import { UiUnicodeSymbols } from "@core/ui"
-import { ArgProxy } from "../arg-proxy"
+import { CmdArgumentProxy } from "../arg-proxy"
 
 export const MAX_ALIAS_NAME_LEN = 32
 
@@ -32,11 +32,9 @@ const AliasCommand: BuiltInCommand = {
     command: BuiltInAliasCommandsEnum.ALIAS_COMMAND,
     description: "Print help for concreet command",
     args: AliasArgs,
-    callback: async function(this: CHComposer<any>, args: IArgumentCompiled[], ctx) {
-        const proxy = new ArgProxy(args)
-
-        const aliasName = proxy.getOrThrow('alias')
-        const commandStr = proxy.getOrThrow('command')
+    callback: async function(this: CHComposer<any>, args: CmdArgumentProxy, ctx) {
+        const aliasName = args.getOrThrow('alias')
+        const commandStr = args.getOrThrow('command')
 
         const owner_id = ctx.manager!._id
 
@@ -51,7 +49,7 @@ const AliasCommand: BuiltInCommand = {
         if (aliases.find(a => a.alias === aliasName)) {
             throw `Alias "${aliasName}" already exists`
         }
-        await CmdAlias.create({alias: args[0], command: commandStr, owner_id})
+        await CmdAlias.create({alias: aliasName, command: commandStr, owner_id})
     }
 }
 
@@ -68,8 +66,8 @@ const UnaliasCommand: BuiltInCommand = {
     command: BuiltInAliasCommandsEnum.UNALIAS_COMMAND,
     description: "Unalias command",
     args: UnAliasArgs,
-    callback: async function(this: CHComposer<any>, args: IArgumentCompiled[], ctx) {
-        const aliasName = args[0]
+    callback: async function(this: CHComposer<any>, args: CmdArgumentProxy, ctx) {
+        const aliasName = args.getOrThrow('alias')
         const owner_id = ctx.manager!._id
 
         const res = await CmdAlias.deleteOne({alias: aliasName, owner_id})
@@ -85,7 +83,7 @@ const ListAliases: BuiltInCommand = {
     command: BuiltInAliasCommandsEnum.LIST_ALIASES_COMMAND,
     description: "Show all user aliases",
     args: [],
-    callback: async function(this: CHComposer<any>, _: IArgumentCompiled[], ctx) {
+    callback: async function(this: CHComposer<any>, _, ctx) {
         const owner_id = ctx.manager!._id
 
         const aliases = await CmdAlias.find({owner_id})

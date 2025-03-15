@@ -50,6 +50,7 @@ export class CBDescriptorCompiler<UICtx extends BaseUIContext> {
             ctx: 'args' as CmdArgumentContextType,
             name: a.name,
             required: a.required,
+            standalone: a.standalone,
             description: a.description,
             pairOptions: await exposeCmdArgumentOptions(command, a.pairOptions, chComposer, ctx.manager as IManager),
             position: a.position,

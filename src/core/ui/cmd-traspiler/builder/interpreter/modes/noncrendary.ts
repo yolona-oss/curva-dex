@@ -16,6 +16,7 @@ export class InterpreterModeNonCrendary extends BaseInterpreterComponent {
             chips.push(match[1] ? match[1] : match[0])
         }
 
+        log.trace(`----------- chips: `, chips)
         if (chips.length >= 1) {
             return chips
         }

@@ -14,8 +14,9 @@ import {
  * @param comprehensive - every argument must be processed
  * @param required - parse will be done on all required arguments read
  * @param non-crendary - mode to read ready compiled arguments.
+ * @param incremental - 
  */
-export type InterpreterMode = "comprehensive" | "required" | "non-crendary"
+export type InterpreterMode = "comprehensive" | "required" | "non-crendary" | 'incremental'
 
 const default_mode: InterpreterMode = "required"
 
@@ -24,27 +25,15 @@ const default_mode: InterpreterMode = "required"
  * @param {InterpreterMode} mode [mode="required"] - setup interpritation completion triger
  */
 export class CBInterpreter extends AbstractCtx<BaseInterpreterComponent> {
-    private mode: InterpreterMode
+    private mode!: InterpreterMode
 
     constructor(
         private parser: CBParser,
         mode: InterpreterMode = default_mode
     ) {
         super(new BaseInterpreterComponent(parser))
-        this.mode = mode
         log.trace(`Interpreter mode: ${mode}`)
-        log.trace(`Initial context: ${parser.CurrentContext}`)
-        switch (mode) {
-            case "comprehensive":
-                this.transitionTo(new InterpreterModeComprehensive(this.parser))
-                break
-            case "required":
-                this.transitionTo(new InterpreterModeRequired(this.parser))
-                break;
-            case "non-crendary":
-                this.transitionTo(new InterpreterModeNonCrendary(this.parser))
-                break;
-        }
+        this.switchTo(mode)
     }
 
     switchTo(mode: InterpreterMode) {
@@ -53,7 +42,6 @@ export class CBInterpreter extends AbstractCtx<BaseInterpreterComponent> {
             return
         }
 
-        this.transitionTo(new BaseInterpreterComponent(this.parser))
         switch (mode) {
             case "comprehensive":
                 this.transitionTo(new InterpreterModeComprehensive(this.parser))
@@ -64,9 +52,14 @@ export class CBInterpreter extends AbstractCtx<BaseInterpreterComponent> {
             case "non-crendary":
                 this.transitionTo(new InterpreterModeNonCrendary(this.parser))
                 break;
+            case "incremental":
+                this.transitionTo(new BaseInterpreterComponent(this.parser))
+                break
             default:
-                throw `Unknown interpreter mode: ${mode}`
+                log.error(`Interpreter mode switch error: ${mode}. Switching to default mode.`)
+                this.transitionTo(new BaseInterpreterComponent(this.parser))
         }
+        this.mode = mode
     }
 
     step(input: string): EvaluationResult {

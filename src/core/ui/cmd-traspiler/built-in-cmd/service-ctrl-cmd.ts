@@ -5,7 +5,7 @@ import { BuiltInCommand } from "../types/built-in-cmd"
 import { CHComposer } from "../ch-composer"
 import { anyToString } from "@core/utils/misc"
 import { UiUnicodeSymbols } from "@core/ui"
-import { ArgProxy } from "../arg-proxy"
+import { CmdArgumentProxy } from "../arg-proxy"
 
 class ServiceStopArgs {
     @CmdArgument({
@@ -24,12 +24,10 @@ const ServiceStopCommand: BuiltInCommand = {
     command: BuiltInServiceCommandsEnum.STOP_COMMAND,
     description: "Stop service with passed name <service-name>.",
     args: ServiceStopArgs,
-    callback: async function(this: CHComposer<any>, args: IArgumentCompiled[], ctx) {
-        const proxy = new ArgProxy(args)
+    callback: async function(this: CHComposer<any>, args: CmdArgumentProxy, ctx) {
+        const userId = String(ctx.manager.userId)
 
-        const userId = String(ctx.manager!.userId)
-
-        const serviceName = proxy.getOrThrow('service')
+        const serviceName = args.getOrThrow('service')
         try {
             const res = await this.terminateService(userId, serviceName)
             await ctx.reply(`${UiUnicodeSymbols.success} Service "${serviceName}" terminated: ${res}`)
@@ -57,15 +55,13 @@ const ServiceRunCommand: BuiltInCommand = {
     command: BuiltInServiceCommandsEnum.RUN_COMMAND,
     description: "Run service with passed name <service-name>. NOCONFIG!!!",
     args: ServiceRunArgs,
-    callback: async function(this: CHComposer<any>, args: IArgumentCompiled[], ctx) {
-        const porxy = new ArgProxy(args)
-
+    callback: async function(this: CHComposer<any>, args: CmdArgumentProxy, ctx) {
         const userId = String(ctx.manager!.userId)
 
-        const serviceName = porxy.getOrThrow('service')
+        const serviceName = args.getOrThrow('service')
 
         try {
-            const res = await this.CommandInvoker.invoke(userId, {command: serviceName, args: []}, ctx)
+            const res = await this.CommandInvoker.invoke(userId, {command: serviceName, proxy: new CmdArgumentProxy([]), raw: []}, ctx)
             await ctx.reply(`${UiUnicodeSymbols.success} Service "${serviceName}" started: ${res}`)
         } catch (e: any) {
             await ctx.reply(`Service ${serviceName} termination error: ${anyToString(e)}.`)
@@ -121,17 +117,17 @@ const ServiceSendMsgCommand: BuiltInCommand = {
     command: BuiltInServiceCommandsEnum.SEND_MSG_COMMAND,
     description: "Send message to service with passed name <service-name> and <message> with optional args.",
     args: ServiceSendMsgArgs,
-    callback: async function(this: CHComposer<any>, args: IArgumentCompiled[], ctx) {
+    callback: async function(this: CHComposer<any>, args: CmdArgumentProxy, ctx) {
         const userId = String(ctx.manager!.userId)
-        const serviceName = args[0]
-        const messageName = args[1]
-        const messageArgs = args.slice(2)
+        const serviceName = args.getOrThrow('service')
+        const messageName = args.getOrThrow('message')
+        const messageArgs = args.get('args') ?? ''
         try {
             const activeService = this.UserActiveServices(userId).find(s => s.name === serviceName)
             if (!activeService) {
                 throw `Service ${serviceName} not found`
             }
-            const res = await activeService.receiveMsg(messageName, messageArgs)
+            const res = await activeService.receiveMsg(messageName, messageArgs.split(' '))
             await ctx.reply(`Message ${messageName} sent: ${res}`)
         } catch(e: any) {
             await ctx.reply(`Message ${messageName} sending error: ${anyToString(e)}.`)

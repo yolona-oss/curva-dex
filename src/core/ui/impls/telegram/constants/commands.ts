@@ -3,11 +3,12 @@ import { FilesWrapper, Manager } from '@core/db';
 import { TelegramUI } from '../ui'
 import { TgCommand, TextContext } from '../types'
 import { shuffle } from '@core/utils/array';
-import { CmdArgument, IArgumentCompiled } from '@core/ui/types/command';
+import { CmdArgument } from '@core/ui/types/command';
 import log from '@logger';
 import { anyToString } from '@core/utils/misc';
 import { ICmdRegisterEntry } from '@core/ui/cmd-traspiler';
 import { BaseUIContext } from '@core/ui';
+import { CmdArgumentProxy } from '@core/ui/cmd-traspiler/arg-proxy';
 
 export function toRegister(cmd: TgCommand): ICmdRegisterEntry<BaseUIContext> {
     return {
@@ -69,14 +70,11 @@ const SetNameCommand: TgCommand = {
     command: "setname",
     description: "Set your name",
     args: SetNameArgs,
-    callback: async function(this: TelegramUI, args: IArgumentCompiled[], ctx) {
-        const name = args.find(arg => arg.position === 1)?.value;
-        if (name && name.length > 0) {
-            await ctx.manager!.updateOne({ $set: { name: name } });
-            await ctx.reply("Now your will called " + name);
-        } else {
-            await ctx.reply('No string passed, try: "/setname The Emperor"');
-        }
+    callback: async function(this: TelegramUI, args: CmdArgumentProxy, ctx) {
+        const name = args.getOrThrow("name")
+
+        await ctx.manager!.updateOne({ $set: { name: name } });
+        await ctx.reply("Now your will called " + name);
     }
 }
 
@@ -135,13 +133,8 @@ const SetGreetingCommand: TgCommand = {
     command: "setgreeting",
     description: "On or Off bot startup greeting",
     args: SetGreetingArgs,
-    callback: async function(this: TelegramUI, args: IArgumentCompiled[], ctx) {
-        const greeting = args.find(arg => arg.position === 1)?.value;
-
-        if (!greeting) {
-            await ctx.reply('No string passed, try: __"/setgreeting on"__');
-            return;
-        }
+    callback: async function(this: TelegramUI, args: CmdArgumentProxy, ctx) {
+        const greeting = args.getOrThrow("greeting")
 
         await ctx.manager!.updateOne({ $set: { useGreeting: (greeting === 'on') } });
         await ctx.reply("Startup greeting setted to: " + greeting)

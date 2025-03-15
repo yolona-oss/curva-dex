@@ -57,7 +57,7 @@ export class Makaper {
                 case "message":
                     return ` - ${UiUnicodeSymbols.mail} ${arg.name}: ${arg.value}`
             }
-            return ` - ${UiUnicodeSymbols.warning} (unkown ctx: "${arg.ctx}") ${arg.name}: ${arg.value}`
+            //return ` - ${UiUnicodeSymbols.warning} (unkown ctx: "${arg.ctx}") ${arg.name}: ${arg.value}`
         }
 
         const argGroupToString = (name: string, group: IArgumentCompiled[]) => {
@@ -153,7 +153,7 @@ Building command: - ${UiUnicodeSymbols.arrowRight} "${parser.BuildingCommand}".\
         }
 
         // TODO its too not open-close 
-        if (parser.WaitingFor === 'CTX') {
+        if (parser.State === 'CTX') {
             markuped = parser.AvaliableContexts.map(ctx => Makaper.toMarkup({text: ctx, type: "value", isRead: false}))
         }
 
@@ -161,13 +161,15 @@ Building command: - ${UiUnicodeSymbols.arrowRight} "${parser.BuildingCommand}".\
             text.overwrite :
             this.BuildingString(parser.toState(), infoText, text.addTo)
 
+        const created_options = [
+            ...markuped,
+            ...(options.defaultsOverwrite ?? defaultBuilderMarkupOptions),
+            ...(options.defaultsAppend ?? [])
+        ]
+
         return {
             text: mk_text,
-            options: [
-                ...markuped,
-                ...(options.defaultsOverwrite ?? defaultBuilderMarkupOptions),
-                ...(options.defaultsAppend ?? [])
-            ]
+            options: created_options
         }
     }
 }

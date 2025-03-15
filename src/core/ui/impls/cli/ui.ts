@@ -1,10 +1,10 @@
 import { CLIContext } from './types';
-import { CHComposer } from '@core/ui/cmd-traspiler';
+import { CHComposer, CLI_USER_ID, CLI_USER_NAME } from '@core/ui/cmd-traspiler';
 
 import { WithInit } from '@core/types/with-init';
 import { IUI } from '@core/ui/types'
 import { AvailableUIsEnum, AvailableUIsType } from '@core/ui/impls';
-import { FilesWrapper, Manager } from '@core/db';
+import { FilesWrapper, IManager, Manager } from '@core/db';
 
 import { LockManager } from '@utils/lock-manager';
 import log from '@logger';
@@ -23,7 +23,7 @@ export class CLIUI extends WithInit implements IUI<CLIContext> {
         super()
         this.context = {
             type: AvailableUIsEnum.CLI,
-            //manager: {},
+            manager: {} as IManager & { userId: number|string },
             userSession: { state: '', data: {} },
             text: "",
             reply: async (message: string) => {
@@ -64,7 +64,7 @@ export class CLIUI extends WithInit implements IUI<CLIContext> {
             throw new Error("CLIUI::run() already running")
         }
 
-        let manager = await Manager.findOne({userId: -1})
+        let manager = await Manager.findOne({userId: CLI_USER_ID})
         if (!manager) {
             const avatar = await FilesWrapper.getDefaultAvatar()
             if (!avatar) {
@@ -73,8 +73,8 @@ export class CLIUI extends WithInit implements IUI<CLIContext> {
 
             manager = await Manager.create({
                 isAdmin: true,
-                name: "CliAdmin",
-                userId: -1,
+                name: CLI_USER_NAME,
+                userId: CLI_USER_ID,
                 online: false,
                 avatar: avatar.id,
                 useGreeting: true

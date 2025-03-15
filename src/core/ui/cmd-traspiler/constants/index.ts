@@ -8,7 +8,8 @@ import {
 } from "./built-in-cmd-enum"
 
 export const BLANK_USER_ID = asId("__pussy_killer__")
-export const CLI_USER_ID = asId("__gandonio__")
+export const CLI_USER_NAME = asId("__gandonio__")
+export const CLI_USER_ID = -100500
 
 export const BuiltInCmdNames = [
     ...Object.values(BuiltInSeqCommandsEnum),

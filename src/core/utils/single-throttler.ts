@@ -1,5 +1,7 @@
 import { sleep } from "./time"
 
+const DEFAULT_THROTTLE_DELAY = 1000
+
 export class SingleThrottler {
     private static instance?: SingleThrottler
 
@@ -14,19 +16,19 @@ export class SingleThrottler {
         return this.instance
     }
 
-    set SetThrottleDelay(throttleDelay: number) {
+    SetThrottleDelay(group: string, throttleDelay: number) {
         if (throttleDelay <= 0) {
             throw new Error("ThrottleDelay must be greater than 0")
         }
-        this.throttleDelay = throttleDelay
+        this.throttleDelay.set(group, throttleDelay)
     }
 
-    get ThrottleDelay() {
-        return this.throttleDelay
+    ThrottleDelay(group: string) {
+        return this.throttleDelay.get(group) || DEFAULT_THROTTLE_DELAY
     }
 
     private throttleMap: Map<string, number> = new Map<string, number>() // { actionGroup: lastExecutedTime }
-    private throttleDelay: number = 1000
+    private throttleDelay: Map<string, number> = new Map<string, number>()
 
     public async throttle<T>(actionGroup: string, action: () => Promise<T>): Promise<T> {
         if (!this.throttleMap.has(actionGroup)) {
@@ -35,8 +37,9 @@ export class SingleThrottler {
 
         const lastExecutedTime = this.throttleMap.get(actionGroup)!
 
-        if (Date.now() - lastExecutedTime < this.throttleDelay) {
-            await sleep(this.throttleDelay - (Date.now() - lastExecutedTime))
+        const delay = this.throttleDelay.get(actionGroup) || DEFAULT_THROTTLE_DELAY
+        if (Date.now() - lastExecutedTime < delay) {
+            await sleep(delay - (Date.now() - lastExecutedTime))
         }
 
         this.throttleMap.set(actionGroup, Date.now())
