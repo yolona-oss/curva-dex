@@ -19,11 +19,20 @@ export type ParserStateType =
 | 'PAIR_VALUE'  // value for PAIR
 | 'IDLE'        // idle state, waits for pair, standalone, positional or ctx
 
+const stateTransiteMap: Record<ParserStateType, ParserStateType[]> = {
+    'IDLE': ['CTX', 'STAND_ALONE', 'POSITIONAL', 'PAIR', 'PAIR_VALUE'],
+    'CTX': ['IDLE'],
+    'PAIR_VALUE': ['IDLE'],
+    'STAND_ALONE': ['IDLE'],
+    'POSITIONAL': ['IDLE'],
+    'PAIR': ['PAIR_VALUE']
+}
+
 /**
  * @see ParserPerformedAction
  */
 export type ParserPerformedAction =
-  'none' // no action
+'none' // no action
 
 | 'set-pair'       // set pair name and value
 | 'set-pair-name'  // set only pair name
@@ -337,23 +346,13 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
 
     ////////
 
-
-    private readonly stateTransiteMap: Record<ParserStateType, ParserStateType[]> = {
-        'IDLE': ['CTX', 'STAND_ALONE', 'POSITIONAL', 'PAIR', 'PAIR_VALUE'],
-        'CTX': ['IDLE'],
-        'PAIR_VALUE': ['IDLE'],
-        'STAND_ALONE': ['IDLE'],
-        'POSITIONAL': ['IDLE'],
-        'PAIR': ['PAIR_VALUE']
-    }
-
     private transitState(to: ParserStateType): void {
         log.trace(`Parser change state from ${this.state} to ${to}`)
         if (to === this.state) {
             return
         }
 
-        if (this.stateTransiteMap[this.state].includes(to)) {
+        if (stateTransiteMap[this.state].includes(to)) {
             this.state = to
             return
         }
