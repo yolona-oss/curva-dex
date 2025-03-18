@@ -1,17 +1,17 @@
-export type IMarkupOptionType = "name" | "value" | "defaultMk"
+export type IMarkupOptionType = "name" | "value" | "aux"
 
-export interface IMarkupOption {
+export interface IMarkupButton {
     text: string,
-    type: "name" | "value" | "defaultMk",
+    type: IMarkupOptionType,
     isRead?: boolean
-    callback_data: string
+    data: string
 }
 
 /**
  * @param text - text to describe current action
- * @param options - list of options to choose from
+ * @param buttons - list of options to choose from
  */
 export interface IBaseMarkup {
     text: string
-    options?: IMarkupOption[]
+    buttons?: IMarkupButton[]
 }

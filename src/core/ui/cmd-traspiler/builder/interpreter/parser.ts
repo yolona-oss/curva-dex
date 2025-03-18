@@ -12,6 +12,7 @@ import { CBLexerToken } from "./lexer";
 
 import log from "@core/application/logger";
 import { Chain, chainFallbackHandler, chainHandlerFactory, IChainHandler } from "@core/utils/chain";
+import { removeObjectByFieldsMutate } from "@core/utils/array";
 
 /**
  * @see ParserStateType to get more info
@@ -70,13 +71,13 @@ export type PChainReq = CBLexerToken
 //export type PChainHandler = IChainHandler<PChainReq, PChainRes>
 
 export class CBParser<PChainResGType extends ParserPerformedAction|string = ParserPerformedAction> {
-    private command!: string
-    private switchCtxKeyword!: string
-    private avaliableCtxs!: CmdArgumentContextType[]
+    private readonly command!: string
+    private readonly switchCtxKeyword!: string
+    private readonly avaliableCtxs!: CmdArgumentContextType[]
     private currentCtx!: CmdArgumentContextType
-    private descriptor!: IUICommandDescriptor
+    private readonly descriptor!: IUICommandDescriptor
     private state!: ParserStateType
-    private read!: IArgumentCompiled[]
+    private readArgs!: IArgumentCompiled[]
 
     private snaper = new StateSnaper()
 
@@ -84,33 +85,16 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
 
     constructor(
         command: string,
-        avalibleCtxs: CmdArgumentContextType[],
-        descriptor: IUICommandDescriptor,
-        switchCtxKeyword: string,
-        initialCtx: CmdArgumentContextType|null = null
-    ) {
-        this.reset(command, avalibleCtxs, descriptor, switchCtxKeyword, initialCtx)
-        this.tknParseChain = new Chain<PChainReq, PChainResGType>()
-    }
-
-    private _appliedHandlers = new Array<IChainHandler<PChainReq, PChainResGType>>()
-    public applyHandler(handler: IChainHandler<PChainReq, PChainResGType>) {
-        this._appliedHandlers.push(handler)
-    }
-
-    private reset(
-        cmd: string,
         avaliableCtxs: CmdArgumentContextType[],
         descriptor: IUICommandDescriptor,
         switchCtxKeyword: string,
         initialCtx: CmdArgumentContextType|null = null
     ) {
-        log.trace(`--RESET-PARSER-STATE--`)
         this.setupChain()
 
         this.switchCtxKeyword = switchCtxKeyword
         this.snaper = new StateSnaper()
-        this.command = cmd
+        this.command = command
 
         avaliableCtxs.forEach(ctx => this.validateContext(ctx))
         this.avaliableCtxs = avaliableCtxs
@@ -118,7 +102,13 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
 
         this.currentCtx = initialCtx ? initialCtx : this.avaliableCtxs[0]
         this.state = 'IDLE'
-        this.read = []
+        this.readArgs = []
+        this.tknParseChain = new Chain<PChainReq, PChainResGType>()
+    }
+
+    private _appliedHandlers = new Array<IChainHandler<PChainReq, PChainResGType>>()
+    public applyHandler(handler: IChainHandler<PChainReq, PChainResGType>) {
+        this._appliedHandlers.push(handler)
     }
 
     /* -------------------- *
@@ -134,7 +124,6 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
      * -------------------- */
 
     private setupChain() {
-
         log.trace(`--Registering parser chain handlers--\nFallback value: 'none'`)
         this.tknParseChain = new Chain<PChainReq, PChainResGType>()
 
@@ -187,7 +176,7 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
 
         const setPairValueHandler = chainHandlerFactory<PChainReq, PChainResGType>((req) => {
             log.trace(`setPairValueHandler: ${req.value}`)
-            if (req.type == 'TEXT' && req.value && this.state == 'PAIR_VALUE' && this.read.length !== 0) {
+            if (req.type == 'TEXT' && req.value && this.state == 'PAIR_VALUE' && this.readArgs.length !== 0) {
                 return this.setPairValue(req.value)
             }
             return
@@ -252,7 +241,7 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
             descriptor: this.descriptor,
             currentCtx: this.currentCtx,
             state: this.state,
-            read: this.read,
+            read: this.readArgs,
         })
     }
 
@@ -260,8 +249,21 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
         this.snaper.memorize({
             currentCtx: this.currentCtx,
             state: this.state,
-            read: deepClone(this.read)
+            read: deepClone(this.readArgs)
         })
+    }
+
+    public back() {
+        console.log(`Back from state: ${this.state}`)
+        const snap = this.snaper.back
+        if (snap) {
+            this.currentCtx = snap.currentCtx
+            this.state = snap.state
+            this.readArgs = snap.read
+            log.trace(`Back to state: ${snap.state}`)
+        } else {
+            throw 'Can\'t back parser state'
+        }
     }
 
     get State() {
@@ -281,11 +283,11 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
     }
 
     get ReadArgs() {
-        return this.read
+        return this.readArgs
     }
 
     get LastReadArg() {
-        return this.read[this.read.length - 1]
+        return this.readArgs[this.readArgs.length - 1]
     }
 
     get Descriptor() {
@@ -305,7 +307,7 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
     }
 
     get ReadPositionals() {
-        return this.read.filter(arg => arg.position != null).sort((arg1, arg2) => arg1.position! - arg2.position!)
+        return this.readArgs.filter(arg => arg.position != null).sort((arg1, arg2) => arg1.position! - arg2.position!)
     }
 
     get DescPositionals() {
@@ -359,12 +361,12 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
 
     isRead(input: string, ctx?: CmdArgumentContextType) {
         ctx = this.ctxOrCurrent(ctx)
-        return this.read.some(arg => arg.name === input && arg.ctx === ctx)
+        return this.readArgs.some(arg => arg.name === input && arg.ctx === ctx)
     }
 
     isNameRead(input: string, ctx?: CmdArgumentContextType) {
         ctx = this.ctxOrCurrent(ctx)
-        const searchArray = this.read.filter(arg => arg.ctx === (ctx))
+        const searchArray = this.readArgs.filter(arg => arg.ctx === (ctx))
         for (const read of searchArray) {
             if (read.name === input && read.value != '') {
                 return true
@@ -380,12 +382,12 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
 
     isStandaloneRead(input: string, ctx?: CmdArgumentContextType) {
         ctx = this.ctxOrCurrent(ctx)
-        return this.read.some(arg => arg.name === input && arg.ctx === ctx && arg.standalone === true)
+        return this.readArgs.some(arg => arg.name === input && arg.ctx === ctx && arg.standalone === true)
     }
 
     isPosRead(pos: number, ctx?: CmdArgumentContextType) {
         ctx = this.ctxOrCurrent(ctx)
-        return this.read.some(arg => arg.position === pos && arg.ctx === ctx && arg.value != '')
+        return this.readArgs.some(arg => arg.position === pos && arg.ctx === ctx && arg.value != '')
     }
 
     findDescriptor(name: string, ctx?: CmdArgumentContextType) {
@@ -408,8 +410,6 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
     }
     
     setNextValueSetting(input: string): PChainResGType {
-        this.snap()
-
         const desc = this.findDescriptor(input)!
 
         this.nextValueSet = {
@@ -417,7 +417,6 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
             arg_name: input
         }
         this.transitState('WAIT_NEXT_V')
-        console.log(`waiting: "${input}" typed to: "${this.nextValueSet.type}"`)
         return 'wait-next-inited' as PChainResGType
     }
 
@@ -425,7 +424,6 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
      * set read from this.nextValueSet if its dont undef
      */
     setFromNextValue(input: string): PChainResGType {
-        this.snap()
         let ret
 
         if (this.nextValueSet === undefined) {
@@ -464,7 +462,6 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
      * initiates context selection
      */
     private switchToContextSelection(): PChainResGType {
-        this.snap()
         this.transitState('CTX')
 
         return 'ctx-selection' as PChainResGType
@@ -474,7 +471,6 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
      * switches to new context
      */
     private switchToContext(ctx: CmdArgumentContextType): PChainResGType {
-        this.snap()
         this.currentCtx = ctx
 
         this.transitState('IDLE')
@@ -486,7 +482,6 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
      * creates entry for positional
      */
     private setPositional(value: string, pos?: number): PChainResGType {
-        this.snap()
         const maxPos = this.descriptor.args.filter(arg => arg.position && arg.ctx == this.currentCtx).length
         pos = pos ?? this.NextPositionalInd
         if (pos > maxPos) {
@@ -496,8 +491,8 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
         if (!desc) {
             throw `Cannot find descriptor for positional: ${pos}`
         }
-        this.removePosRead(pos)
-        this.read.push({
+        this.removeArgByPos(pos)
+        this.readArgs.push({
             name: encodePositionalName(desc.name, pos),
             value: value,
             standalone: false,
@@ -515,13 +510,12 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
      * NOW ITS USE TOGGLE LOGIC
      */
     private setStandalone(input: string): PChainResGType {
-        this.snap()
 
         if (this.isStandaloneRead(input)) {
-            this.removeStandaloneRead(input)
+            this.removeStandaloneArg(input)
             return 'removed-standalone' as PChainResGType
         } else {
-            this.read.push({
+            this.readArgs.push({
                 name: input,
                 value: 'true',
                 standalone: true,
@@ -536,11 +530,10 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
      * creates entry for pair and set its name
      */
     private setPairName(input: string): PChainResGType {
-        this.snap()
-        this.removePairRead(input)
+        this.removeArgByName(input)
 
         const desc = this.findDescriptor(input)!
-        this.read.push({
+        this.readArgs.push({
             name: input,
             value: '',
             standalone: false,
@@ -557,41 +550,38 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
     * set value to pair of last read pair name
     */
     private setPairValue(input: string): PChainResGType {
-        this.snap()
-        this.read[this.read.length - 1].value = input
+        this.readArgs[this.readArgs.length - 1].value = input
         this.transitState('IDLE')
 
         return 'set-pair-value' as PChainResGType
     }
 
-    private removePairRead(input: string, fromCtx?: CmdArgumentContextType): PChainResGType {
-        this.snap()
+    private removeArgByName(name: string, fromCtx?: CmdArgumentContextType): PChainResGType {
         fromCtx = this.ctxOrCurrent(fromCtx)
-        let before = this.read.length
-        this.read = this.read.filter(arg => arg.name !== input && arg.ctx !== fromCtx)
-        return before - this.read.length === 1 ? 'removed-pair' as PChainResGType : 'none' as PChainResGType
+        let before = this.readArgs.length
+        removeObjectByFieldsMutate(this.readArgs, { name: name, ctx: fromCtx })
+        return before - this.readArgs.length === 1 ? 'removed-pair' as PChainResGType : 'none' as PChainResGType
     }
 
-    private removePosRead(pos: number, fromCtx?: CmdArgumentContextType): PChainResGType {
-        this.snap()
+    private removeArgByPos(pos: number, fromCtx?: CmdArgumentContextType): PChainResGType {
         fromCtx = this.ctxOrCurrent(fromCtx)
-        let before = this.read.length
-        this.read = this.read.filter(arg => arg.position !== pos && arg.ctx !== fromCtx)
-        return before - this.read.length === 1 ? 'removed-positional' as PChainResGType : 'none' as PChainResGType
+        let before = this.readArgs.length
+        removeObjectByFieldsMutate(this.readArgs, { position: pos, ctx: fromCtx })
+        return before - this.readArgs.length === 1 ? 'removed-positional' as PChainResGType : 'none' as PChainResGType
     }
 
-    private removeStandaloneRead(name: string, fromCtx?: CmdArgumentContextType): PChainResGType {
-        this.snap()
+    private removeStandaloneArg(name: string, fromCtx?: CmdArgumentContextType): PChainResGType {
         fromCtx = this.ctxOrCurrent(fromCtx)
-        let before = this.read.length
-        this.read = this.read.filter(arg => arg.standalone && arg.name !== name && arg.ctx !== fromCtx)
-        return before - this.read.length === 1 ? 'removed-standalone' as PChainResGType : 'none' as PChainResGType
+        let before = this.readArgs.length
+        removeObjectByFieldsMutate(this.readArgs, { name: name, standalone: true, ctx: fromCtx })
+        return before - this.readArgs.length === 1 ? 'removed-standalone' as PChainResGType : 'none' as PChainResGType
     }
 
     parseNextToken(token: CBLexerToken): PChainResGType {
         this.setupChain()
         log.trace(`Parsing token: ${token.type}`)
         log.trace(`Parsing throw handlers queue len of ${this.tknParseChain.Handlers.length}`)
+        this.snap()
         return this.tknParseChain.handle(token)
     }
 }

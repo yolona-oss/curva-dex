@@ -64,7 +64,7 @@ export abstract class BaseCommandService<
     abstract receiveMsg(msg: string, args: string[]): Promise<void>
     abstract clone(userId: string, input?: Partial<CmdServiceData>, newName?: string): BaseCommandService<TSessionData>
 
-    sendMsg(msg: string) {
+    protected sendMsg(msg: string) {
         this.emit("message", msg)
     }
 

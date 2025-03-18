@@ -49,8 +49,10 @@ class TestServiceInteractMessages extends BaseCmdServiceInteractMessages {
 class TestServiceParameters extends BaseCmdServiceParameters {
     @CmdArgument({
         required: false,
+        position: null,
+        standalone: false,
         pairOptions: async () => new Array(10).fill(0).map(() => genRandomNumber(genRandomNumberBetween(1, 3)).toString()),
-        defaultValue: "1",
+        defaultValue: "123",
         validator: (arg) => !Number.isNaN(Number(arg)),
         description: "Start value"
     })
@@ -77,6 +79,8 @@ export class TestService extends BaseCommandService<TestServiceSessionData, Base
         name: string = TestServiceName
     ) {
         super(userId, defaultTestServiceData, input, name)
+        console.log(`Constructor input: `, input)
+        console.log(`Constructor data: `, this.data)
     }
 
     private isPaused = false
@@ -101,11 +105,14 @@ export class TestService extends BaseCommandService<TestServiceSessionData, Base
     }
 
     clone(userId: string, input: Partial<TestServiceDataType>, newName?: string): BaseCommandService<TestServiceSessionData> {
+        console.log(`Cloner input: `, input)
         return new TestService(userId, input, newName)
     }
 
     async runWrapper() {
-        this.emit('message', `Start with ${this.i}, target value ${this.max}, prev target: ${this.data.sessionData.prev_max ?? 0}`)
+        console.log(`Service data: `, this.data)
+        this.i = BigInt(this.data.params.startValue ?? 1)
+        this.sendMsg(`Start with ${this.i}, target value ${this.max}, prev target: ${this.data.sessionData.prev_max ?? 0}`)
         while (true) {
             if (!super.isRunning()) {
                 break

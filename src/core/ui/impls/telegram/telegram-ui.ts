@@ -75,14 +75,14 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
     }
 
     private setTextHandler() {
-        this.bot.on("text", async (ctx, next) => {
+        this.bot.on('message', async (ctx, next) => {
             log.trace("#TEXT----------")
             const firstWord = ctx.text?.split(" ")[0]
             const fullText = ctx.text ? ctx.text : ""
             const asCommand = firstWord?.slice(1) ?? "";
             const isCommandAlike = firstWord && firstWord.startsWith("/");
             log.trace(`Text input: "[First word: "${firstWord}"; Full text: "${fullText}"; As command: "${asCommand}"; Is command alike: "${isCommandAlike}"]`)
-            await this.handleInput(isCommandAlike ? asCommand : fullText, fullText, ctx);
+            await this.handleInput(isCommandAlike ? asCommand : fullText, fullText, ctx as TgContext);
 
             if (next) {
                 return await next()
@@ -195,8 +195,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
     private async setup() {
         await this.setupAuth()
         await this.setupHistorySave()
-        // VV this dont work somehow
-        //await this.setupReplyRedifinition()
+        await this.setupReplyRedifinition()
         await this.setupCommands()
         await this.setupActions()
     }
@@ -329,25 +328,25 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
     // NOTE: check text length for each btn and select correct perline for each row(after determine max line len)
     private createKeyboard(markup: IBaseMarkup, perLine = 3) {
         let arr: Array<Array<InlineKeyboardButton.CallbackButton>> = []
-        const mk_options = markup.options
+        const mk_options = markup.buttons
         if (!mk_options) {
             return [[]]
         }
         for (let i = 0; i < mk_options.length; i += perLine) {
             arr.push(
-                mk_options.slice(i, i + perLine).filter(m => m.type != 'defaultMk').map(m => 
+                mk_options.slice(i, i + perLine).filter(m => m.type != 'aux').map(m => 
                     telegraf.Markup.button.callback(
-                        m.isRead ? `${UiUnicodeSymbols.eye} ${m.text}` : m.text,
-                        "builder_"+m.callback_data
+                        m.text,
+                        "builder_"+m.data
                     )
                 )
             )
         }
 
         const defaultMkArray: Array<InlineKeyboardButton.CallbackButton> = []
-        mk_options.filter(m => m.type == 'defaultMk').forEach(m => {
+        mk_options.filter(m => m.type == 'aux').forEach(m => {
             defaultMkArray.push(
-                telegraf.Markup.button.callback(`${UiUnicodeSymbols.gear} ${m.text}`, "builder_"+m.callback_data)
+                telegraf.Markup.button.callback(`${UiUnicodeSymbols.gear} ${m.text}`, "builder_"+m.data)
             )
         })
         return arr.concat([defaultMkArray])

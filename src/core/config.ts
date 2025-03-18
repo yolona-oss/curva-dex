@@ -64,6 +64,7 @@ const ConfigSign = object({
     }),
 
     log_level: string(),
+    log_to_file: boolean()
 })
 
 const EMPTY_CONFIG: ConfigType = {
@@ -102,6 +103,7 @@ const EMPTY_CONFIG: ConfigType = {
     },
 
     log_level: "trace",
+    log_to_file: false
 }
 
 export async function createConfigIfNotExists() {
@@ -205,6 +207,7 @@ export async function createConfigIfNotExists() {
             },
 
             log_level,
+            log_to_file: false,
         }
 
         writeConfig(user_config)

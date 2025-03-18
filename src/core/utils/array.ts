@@ -72,3 +72,21 @@ export function shuffle<T>(array: T[]) {
     }
     return array; 
 }; 
+
+export function removeObjectByFieldsMutate<T>(
+    arr: T[],
+    criteria: Partial<T>
+): void {
+    for (let i = arr.length - 1; i >= 0; i--) {
+        let match = true;
+        for (const key in criteria) {
+            if (criteria.hasOwnProperty(key) && arr[i][key] !== criteria[key]) {
+                match = false;
+                break;
+            }
+        }
+        if (match) {
+            arr.splice(i, 1); // Remove the object at index `i`
+        }
+    }
+}

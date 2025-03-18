@@ -83,11 +83,24 @@ export class log {
     private static log_file: string
     private static cur_level: LogLevel = LogLevel.TRACE
     private static prefix_len: number // if log level change we need to update this, but now log level marks are same size
+    private log_to_file: (...arg: any[]) => void
 
     private constructor() {
         log.cur_level = stringToLogLevel(getInitialConfig().log_level)
         log.prefix_len = this.prefix(LogLevel.TRACE).length - 10 // wtf?
+        if (getInitialConfig().log_to_file) {
+            this.log_to_file = (...arg: any[]) => {
+                try {
+                    appendFileSync(log.log_file, logTime() + ' - ' + arg.join(" ") + "\n")
+                } catch (e) {
+                    console.error(e)
+                }
+            }
+        } else {
+            this.log_to_file = () => { }
+        }
     }
+
 
     static get Instance(): log {
         if (!log.instance) {
@@ -99,14 +112,6 @@ export class log {
             log.instance = new log();
         }
         return log.instance;
-    }
-
-    private log_to_file(...arg: any[]) {
-        try {
-            appendFileSync(log.log_file, logTime() + ' - ' + arg.join(" ") + "\n")
-        } catch (e) {
-            console.error(e)
-        }
     }
 
     private prefix(level: LogLevel) {

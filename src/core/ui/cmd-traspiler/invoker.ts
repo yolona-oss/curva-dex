@@ -114,9 +114,9 @@ export class CommandInvoker<TContext extends BaseUIContext> {
             messages
         }
         log.trace(`----Invoke-args\n
-${JSON.stringify(config, null, 2)}\n
-${JSON.stringify(params, null, 2)}\n
-${JSON.stringify(messages, null, 2)}`)
+config:   ${JSON.stringify(config, null, 2)}
+params:   ${JSON.stringify(params, null, 2)}
+messages: ${JSON.stringify(messages, null, 2)}`)
 
         const serviceInstance = exe.clone(userId, inputData)
 

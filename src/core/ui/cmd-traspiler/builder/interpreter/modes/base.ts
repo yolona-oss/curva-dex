@@ -10,7 +10,7 @@ import log from "@core/application/logger";
 import { chainHandlerFactory } from "@core/utils/chain";
 import { CmdArgumentProxy } from "@core/ui/cmd-traspiler/arg-proxy";
 
-type ExtendedCBChainRes = ParserPerformedAction | 'cancel' | 'execute'
+type ExtendedCBChainRes = ParserPerformedAction | 'cancel' | 'cancel-op' | 'execute'
 
 /**
  * Base component that contain main interpritation logic for command builder
@@ -29,7 +29,7 @@ export class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
 
         this.parser.applyHandler(chainHandlerFactory<PChainReq, ExtendedCBChainRes>(function(this: BaseInterpreterComponent, req) {
             log.trace(`Cancel handler: ${req.value}`)
-            if (req.type == 'TEXT' && this.parser.State === 'IDLE' && req.value && req.value === DefaultBuilderCallbacks.cancel) {
+            if (req.type == 'TEXT' && this.parser.State === 'IDLE' && req.value && req.value === DefaultBuilderCallbacks.cancelBuild) {
                 return 'cancel'
             }
             return
@@ -39,6 +39,14 @@ export class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
             log.trace(`Execute handler: ${req.value}`)
             if (req.type == 'TEXT' && this.parser.State === 'IDLE' && req.value && req.value === DefaultBuilderCallbacks.execute) {
                 return 'execute'
+            }
+            return
+        }, this))
+
+        this.parser.applyHandler(chainHandlerFactory<PChainReq, ExtendedCBChainRes>(function(this: BaseInterpreterComponent, req) {
+            log.trace(`Cancel op handler: ${req.value}`)
+            if (req.type == 'TEXT' && req.value && req.value === DefaultBuilderCallbacks.cancelOp) {
+                return 'cancel-op'
             }
             return
         }, this))
@@ -75,6 +83,14 @@ export class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
                     { done: true, addTo: 'end' }
                 )
 
+            case 'cancel-op':
+                this.parser.back()
+                return new EvaluationResult(
+                    this.parser,
+                    `\n${UiUnicodeSymbols.cross} Operation canceled by user`,
+                    { done: false, addTo: 'end' }
+                )
+
             case 'execute':
                 const compiled = this.compile()
                 return new EvaluationResult(
@@ -94,7 +110,7 @@ export class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
                 log.trace('Handling set-pair-name: Setting only pair name.');
                 return new EvaluationResult(
                     this.parser,
-                    `Pair name was set.`, { argName: this.parser.LastReadArg.name }
+                    `Pair name was set.`
                 )
 
             case 'set-pair-value':

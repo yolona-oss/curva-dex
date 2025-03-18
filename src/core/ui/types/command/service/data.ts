@@ -13,6 +13,8 @@ export abstract class BaseCmdServiceConfig {
 export class BaseCmdServiceParameters {
     @CmdArgument({
         required: false,
+        position: null,
+        standalone: false,
         pairOptions: sessionOptsWithRand,
         validator: sessionIdValidator,
         description: "Session id to restore state from."
@@ -31,6 +33,8 @@ export class BaseCmdServiceParameters {
 export class BaseCmdServiceInteractMessages {
     @CmdArgument({
         required: false,
+        position: null,
+        standalone: false,
         description: "Echo message",
         defaultValue: "R U GAY?"
     })

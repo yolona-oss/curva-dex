@@ -13,7 +13,6 @@ export class EvaluationResult {
         parser: CBParser<any>,
         info: string|string[],
         config: {
-            argName?: string
             compiled?: ICommandCompiled
             done?: boolean
             error?: string
@@ -28,9 +27,6 @@ export class EvaluationResult {
                 info: info,
                 addTo: config.addTo
             },
-            options: {
-                argName: config.argName
-            }
         })
     }
 

@@ -30,8 +30,8 @@ export class StateSnaper {
         }
     }
 
-    get previous() {
-        return this.snaps.pop()
+    get back() {
+        return this.snaps.pop(2)
     }
 
     get latest() {

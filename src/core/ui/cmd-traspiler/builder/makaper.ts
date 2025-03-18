@@ -1,16 +1,10 @@
 import { UiUnicodeSymbols } from "@core/ui"
 import { IArgumentCompiled } from "@core/ui/types"
 import { CBParser, ICBParserStateRaw } from './interpreter/parser'
-import { defaultBuilderMarkupOptions } from './default-markup'
-import { IMarkupOptionType, IMarkupOption, IBaseMarkup } from "../types/markup"
+import { BuilderMarkups } from './default-markup'
+import { IMarkupButton, IBaseMarkup } from "../types/markup"
 
-// toMarkup only
-interface toMarkupOptType {
-    text: string,
-    cb_value?: string,
-    type: IMarkupOptionType,
-    isRead?: boolean
-}
+type Optional<T, K extends keyof T> = Pick<Partial<T>, K> & Omit<T, K>;
 
 interface IMakaperBuildOpts {
     text?: {
@@ -19,9 +13,7 @@ interface IMakaperBuildOpts {
         addTo?: "begining"|"end"
     },
     options?: {
-        argName?: string
-        defaultsOverwrite?: IMarkupOption[],
-        defaultsAppend?: IMarkupOption[],
+        extra_buttons?: IMarkupButton[],
     }
 }
 
@@ -34,25 +26,26 @@ const d_options = {
 export class Makaper {
     private constructor() {}
 
-    static toMarkup(opt: toMarkupOptType): IMarkupOption {
+    static toMarkup(opt: Optional<IMarkupButton, 'data'>): IMarkupButton {
         return {
             text: opt.text,
             type: opt.type,
             isRead: opt.isRead ?? false,
-            callback_data: opt.cb_value ?? opt.text
+            data: opt.data ?? opt.text
         }
     }
 
 
-    static BuildingString(parserState: ICBParserStateRaw, info = "", addTo: "begining"|"end" = "begining"): string {
-        const command = parserState.command
-        let buildStr = `${UiUnicodeSymbols.hammer} Building "${command}"\n\nReaded:\n`
+    static BuildingString(state: ICBParserStateRaw, info = "", addTo: "begining"|"end" = "end"): string {
+        const command = state.command
+        info = info.length > 0 ? `${UiUnicodeSymbols.info} - ${info}` : ""
+        let buildStr = `${UiUnicodeSymbols.hammer} Building "${command}"\n`
 
-        const readArgToStr = (arg: IArgumentCompiled) => {
+        const settedArgToStr = (arg: IArgumentCompiled) => {
             switch (arg.ctx) {
                 case "args":
                     // TODO positionals
-                    return ` - ${UiUnicodeSymbols.hammer} <${arg.name}>: ${arg.value}`
+                    return ` - ${UiUnicodeSymbols.hammer} **${arg.name}**: ${arg.value}`
                 case "config":
                     return ` - ${UiUnicodeSymbols.gear} ${arg.name}: ${arg.value}`
                 case "params":
@@ -60,29 +53,28 @@ export class Makaper {
                 case "message":
                     return ` - ${UiUnicodeSymbols.mail} ${arg.name}: ${arg.value}`
             }
-            //return ` - ${UiUnicodeSymbols.warning} (unkown ctx: "${arg.ctx}") ${arg.name}: ${arg.value}`
         }
 
         const argGroupToString = (name: string, group: IArgumentCompiled[]) => {
             let str = `\n* ${name}:`
             for (const arg of group) {
-                str += '\n' + readArgToStr(arg)
+                str += '\n' + settedArgToStr(arg)
             }
             return str
         }
 
-        const args = parserState.read.filter(arg => arg.ctx === "args")
-        const configs = parserState.read.filter(arg => arg.ctx === "config")
-        const params = parserState.read.filter(arg => arg.ctx === "params")
-        const messages = parserState.read.filter(arg => arg.ctx === "message")
+        const args = state.read.filter(arg => arg.ctx === "args")
+        const configs = state.read.filter(arg => arg.ctx === "config")
+        const params = state.read.filter(arg => arg.ctx === "params")
+        const messages = state.read.filter(arg => arg.ctx === "message")
 
-        buildStr += args.length > 0 ? '\n' + argGroupToString("Arguments", args) : ''
-        buildStr += configs.length > 0 ? '\n' + argGroupToString("Configs", configs) : ''
-        buildStr += params.length > 0 ? '\n' + argGroupToString("Parameters", params) : ''
-        buildStr += messages.length > 0 ? '\n' + argGroupToString("Messages", messages) : ''
+        buildStr += args.length > 0 ? argGroupToString("Arguments", args) : ''
+        buildStr += configs.length > 0 ? argGroupToString("Configs", configs) : ''
+        buildStr += params.length > 0 ? argGroupToString("Parameters", params) : ''
+        buildStr += messages.length > 0 ? argGroupToString("Messages", messages) : ''
 
         if (addTo === "begining") {
-            buildStr = `${info}\n${buildStr}`
+            buildStr = `${info}\n\n${buildStr}`
         } else if (addTo === "end") {
             buildStr = `${buildStr}\n\n${info}`
         }
@@ -126,52 +118,38 @@ Building command: - ${UiUnicodeSymbols.arrowRight} "${parser.BuildingCommand}".\
 
         const infoText = Array.isArray(text.info) ? text.info.join('\n') : text.info
 
-        const descArgs = parser.toRawState().descriptor.args
-        let markuped: IMarkupOption[] = []
-
-        if (options.argName) {
-            const arg = descArgs.find(arg => arg.name === options.argName)
-            if (arg) {
-                markuped = arg.pairOptions?.map(opt =>
-                    this.toMarkup({
-                        text: `${opt}`,
-                        cb_value: opt,
-                        type: 'value'
-                    })
-                ) ?? []
-            }
-        } else {
-            markuped = descArgs.filter(arg => arg.ctx === parser.CurrentContext).map(arg => {
-                const isPair = arg.standalone == false && arg.position == null
-                const isStandalone = arg.standalone
-                return this.toMarkup({
-                    text: `${arg.name}${parser.isRead(arg.name, arg.ctx) ? " " + UiUnicodeSymbols.check : ""}`,
-                    cb_value: `${isPair ? '--' : isStandalone ? '-' : ''}${arg.name}`,
-                    type: 'name',
-                    isRead: parser.isNameRead(arg.name)
+        let auxButtons = BuilderMarkups.default
+        let byStateButtons: IMarkupButton[] = []
+        
+        // BIG BUTTY CONDITION HERE
+        if (parser.State === 'PAIR_VALUE') {// show pair options
+            const desc = parser.findDescriptor(parser.LastReadArg.name)!
+            byStateButtons = desc.pairOptions?.map(opt =>
+                this.toMarkup({
+                    text: `${opt}`,
+                    data: opt,
+                    type: 'value'
                 })
-            })
-        }
-
-        if (parser.State === 'CTX') {
-            markuped = parser.AvaliableContexts.map(ctx => Makaper.toMarkup({
+            ) ?? []
+            auxButtons = BuilderMarkups.selection
+        } else if (parser.State === 'CTX') { // show context options
+            byStateButtons = parser.AvaliableContexts.map(ctx => Makaper.toMarkup({
                 text: `${ctx}${parser.CurrentContext === ctx ? " " + UiUnicodeSymbols.check : ""}`,
-                cb_value: ctx,
+                data: ctx,
                 type: "value",
                 isRead: false})
             )
-        }
-
-        if (parser.State === 'WAIT_NEXT_V') {
+            auxButtons = BuilderMarkups.selection
+        } else if (parser.State === 'WAIT_NEXT_V') { // show next value set options
             const type = parser.NextValueSetType
             const val = parser.NextValueSetValue
             if (type === 'standalone') {
                 const isToggledOn = parser.isStandaloneRead(val!)
-                markuped = [
+                byStateButtons = [
                     this.toMarkup({
                         text: `Toggle-${isToggledOn ? "Off" : "On"}`,
                         type: 'value',
-                        cb_value: val!,
+                        data: val!,
                     }),
                 ]
                 text.info += `Click to toggle standalone "${val}" to ${isToggledOn ? "Off" : "On"}`
@@ -181,32 +159,43 @@ Building command: - ${UiUnicodeSymbols.arrowRight} "${parser.BuildingCommand}".\
                     throw new Error(`Cannot find descriptor for positional setted by next value setter handler: ${val}`)
                 }
                 text.info += `input positional(${desc_l.position}) value:`
-                markuped = desc_l.pairOptions?.map(opt =>
+                byStateButtons = desc_l.pairOptions?.map(opt =>
                     this.toMarkup({
                         text: `${opt}`,
-                        cb_value: opt,
+                        data: opt,
                         type: 'value'
                     })
                 ) ?? []
             } else {
                 throw new Error(`Unknown next value set type ${type}`)
             }
+            auxButtons = BuilderMarkups.selection
+        } else { // show avalable args
+            byStateButtons = parser.Descriptor.args.filter(desc => desc.ctx === parser.CurrentContext).map(desc => {
+                const isPair = desc.standalone == false && desc.position == null
+                const isStandalone = desc.standalone
+                return this.toMarkup({
+                    text: `${desc.name}${parser.isRead(desc.name, desc.ctx) ? " " + UiUnicodeSymbols.check : ""}`,
+                    data: `${isPair ? '--' : isStandalone ? '-' : ''}${desc.name}`,
+                    type: 'name',
+                    isRead: parser.isNameRead(desc.name)
+                })
+            })
         }
 
-        console.log(text.overwrite)
         const mk_text = text.overwrite ?
             text.overwrite :
             this.BuildingString(parser.toRawState(), infoText, text.addTo)
 
-        const created_options = [
-            ...markuped,
-            ...(options.defaultsOverwrite ?? defaultBuilderMarkupOptions),
-            ...(options.defaultsAppend ?? [])
+        const mergedButtons = [
+            ...byStateButtons,
+            ...auxButtons,
+            ...(options.extra_buttons ?? [])
         ]
 
         return {
             text: mk_text,
-            options: created_options
+            buttons: mergedButtons
         }
     }
 }
