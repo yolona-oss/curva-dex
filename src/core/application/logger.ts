@@ -110,7 +110,7 @@ export class log {
     }
 
     private prefix(level: LogLevel) {
-        const {functionName, lineNumber} = getInvokerDetails()
+        //const {functionName, lineNumber} = getInvokerDetails()
         const time = logTime()
         const mark = logLevelToColor(level)(logLevelToSymbol(level))
 

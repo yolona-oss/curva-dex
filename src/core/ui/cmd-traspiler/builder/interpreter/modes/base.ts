@@ -29,7 +29,7 @@ export class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
 
         this.parser.applyHandler(chainHandlerFactory<PChainReq, ExtendedCBChainRes>(function(this: BaseInterpreterComponent, req) {
             log.trace(`Cancel handler: ${req.value}`)
-            if (req.type == 'TEXT' && this.State === 'IDLE' && req.value && req.value === DefaultBuilderCallbacks.cancel) {
+            if (req.type == 'TEXT' && this.parser.State === 'IDLE' && req.value && req.value === DefaultBuilderCallbacks.cancel) {
                 return 'cancel'
             }
             return
@@ -94,21 +94,21 @@ export class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
                 log.trace('Handling set-pair-name: Setting only pair name.');
                 return new EvaluationResult(
                     this.parser,
-                    `Pair name was set.`,
+                    `Pair name was set.`, { argName: this.parser.LastReadArg.name }
                 )
 
             case 'set-pair-value':
                 log.trace('Handling set-pair-value: Setting only pair value after pair name is set.');
                 return new EvaluationResult(
                     this.parser,
-                    `Pair value was set.`,
+                    `Pair value was set.`
                 )
 
             case 'set-standalone':
                 log.trace('Handling set-standalone: Setting standalone option.');
                 return new EvaluationResult(
                     this.parser,
-                    `Standalone option was set.`,
+                    `Standalone option was set.`
                 )
 
             case 'set-positional':

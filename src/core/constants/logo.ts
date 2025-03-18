@@ -1,4 +1,7 @@
 import { inCenter } from "@utils/console"
+import chalk from 'chalk'
+
+const bar = (fill: string = "#") => new Array(process.stdout.columns).fill(fill).join("")
 
 //const lines_small = [
 //"____                  _     ____                     _   _           _ ",
@@ -29,7 +32,7 @@ const lines_small = [
 
 const lines_big = [
 "              _____                    _____                    _____                            _____                    _____                    _____         ", 
-"             /\\    \\                  /\\    \\                  /\\    \\                          /\\    \\                  /\\    \\                  /\\    \\        ", 
+"           /\\    \\                  /\\    \\                  /\\    \\                          /\\    \\                  /\\    \\                  /\\    \\        ", 
 "           /::\\    \\                /::\\____\\                /::\\    \\                        /::\\____\\                /::\\____\\                /::\\    \\        ",
 "          /::::\\    \\              /::::|   |               /::::\\    \\                      /:::/    /               /:::/    /               /::::\\    \\       ",
 "         /::::::\\    \\            /:::::|   |              /::::::\\    \\                    /:::/    /               /:::/    /               /::::::\\    \\      ",
@@ -59,4 +62,4 @@ const lines = console_width > lines_big_line_width ?
     lines_big : console_width > lines_small_line_width ?
         lines_small : [TEXT]
 
-export const FIGLET_LOGO = lines.map(l => inCenter(l)).join("\n")
+export const FIGLET_LOGO = chalk.yellow.bold(lines.map(l => inCenter(l)).join("\n"))

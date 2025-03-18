@@ -157,12 +157,13 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
         const setNextReadValueHandler = chainHandlerFactory<PChainReq, PChainResGType>((req) => {
             log.trace(`setNextReadValueHandler: ${req.value}`)
             if (req.type == 'TEXT' && req.value && this.state == 'IDLE') {
-                if (!this.isDescriptorExists(req.value)) {
-                    console.log(`Descriptor not found: ${req.value}`)
+                const desc = this.findDescriptor(req.value)
+                if (!desc) {
                     return
                 }
-                console.log(`Descriptor found: ${req.value}`)
-                return this.setNextValueSetting(req.value)
+                if (desc.standalone === true || desc.position !== null) {
+                    return this.setNextValueSetting(req.value)
+                }
             }
             return
         })
@@ -214,14 +215,13 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
         })
 
         for (const hndl of this._appliedHandlers) {
-            console.log(hndl)
             this.tknParseChain.use(hndl)
         }
 
         this.tknParseChain.use(setCtxHandler)
         this.tknParseChain.use(setCtxSelectionHandler)
-        this.tknParseChain.use(setPairNameHandler)
         this.tknParseChain.use(setPairValueHandler)
+        this.tknParseChain.use(setPairNameHandler)
 
         // must be before setting positional and standalone now
         this.tknParseChain.use(setFromNextReadValueHandler)
@@ -282,6 +282,10 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
 
     get ReadArgs() {
         return this.read
+    }
+
+    get LastReadArg() {
+        return this.read[this.read.length - 1]
     }
 
     get Descriptor() {
@@ -413,6 +417,7 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
             arg_name: input
         }
         this.transitState('WAIT_NEXT_V')
+        console.log(`waiting: "${input}" typed to: "${this.nextValueSet.type}"`)
         return 'wait-next-inited' as PChainResGType
     }
 

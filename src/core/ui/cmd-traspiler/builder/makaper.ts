@@ -141,14 +141,16 @@ Building command: - ${UiUnicodeSymbols.arrowRight} "${parser.BuildingCommand}".\
                 ) ?? []
             }
         } else {
-            markuped = descArgs.filter(arg => arg.ctx === parser.CurrentContext).map(arg => 
-                this.toMarkup({
-                    text: `name${parser.isRead(arg.name, arg.ctx) ? " " + UiUnicodeSymbols.check : ""}`,
-                    cb_value: arg.name,
+            markuped = descArgs.filter(arg => arg.ctx === parser.CurrentContext).map(arg => {
+                const isPair = arg.standalone == false && arg.position == null
+                const isStandalone = arg.standalone
+                return this.toMarkup({
+                    text: `${arg.name}${parser.isRead(arg.name, arg.ctx) ? " " + UiUnicodeSymbols.check : ""}`,
+                    cb_value: `${isPair ? '--' : isStandalone ? '-' : ''}${arg.name}`,
                     type: 'name',
                     isRead: parser.isNameRead(arg.name)
                 })
-            )
+            })
         }
 
         if (parser.State === 'CTX') {
@@ -172,6 +174,7 @@ Building command: - ${UiUnicodeSymbols.arrowRight} "${parser.BuildingCommand}".\
                         cb_value: val!,
                     }),
                 ]
+                text.info += `Click to toggle standalone "${val}" to ${isToggledOn ? "Off" : "On"}`
             } else if (type === 'positional') {
                 const desc_l = parser.findDescriptor(val!)
                 if (!desc_l) {
@@ -190,6 +193,7 @@ Building command: - ${UiUnicodeSymbols.arrowRight} "${parser.BuildingCommand}".\
             }
         }
 
+        console.log(text.overwrite)
         const mk_text = text.overwrite ?
             text.overwrite :
             this.BuildingString(parser.toRawState(), infoText, text.addTo)

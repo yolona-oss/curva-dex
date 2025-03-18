@@ -11,6 +11,7 @@ class AksArgs {
     @CmdArgument({
         required: false,
         position: null,
+        standalone: false,
         pairOptions: ["misterial"],
         defaultValue: "misterial",
         validator: () => true,
