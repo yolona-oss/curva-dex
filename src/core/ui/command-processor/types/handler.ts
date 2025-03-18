@@ -2,11 +2,11 @@ import { BaseUIContext, IUICommand } from "@core/ui"
 import { IvokeableType, IUI_InvokableCommand } from "@core/ui/types/command"
 import { IBaseMarkup } from "./markup"
 
-export interface IDispatcherUICmdInvokable<Ctx extends BaseUIContext> extends Omit<IUI_InvokableCommand<Ctx>, 'command'> {
+export interface IUICommandEntry<Ctx extends BaseUIContext> extends Omit<IUI_InvokableCommand<Ctx>, 'command'> {
     seqBounded: boolean
 }
 
-export interface IHandleCommandResult {
+export interface IHandleResult {
     success: boolean
     markup: IBaseMarkup
 }

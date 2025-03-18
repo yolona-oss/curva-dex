@@ -37,7 +37,7 @@ export function asId(id: string): string {
 }
 
 export function genRandId(): string {
-    return 
+    return crypto.randomUUID()
 }
 
 /**

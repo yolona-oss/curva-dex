@@ -4,13 +4,13 @@ import { BaseUIContext } from "@core/ui/types";
 
 import log from '@logger';
 
-import { SequenceHandler } from "./sequence-handler";
+import { CommandSequenceHandler } from "./sequence-handler";
 import { BaseCommandService } from "@core/ui/types/command/service";
 
 import { Chain } from "@core/utils/chain";
 import {
-    IDispatcherUICmdInvokable,
-    IHandleCommandResult,
+    IUICommandEntry,
+    IHandleResult,
     ICmdRegisterManyEntry,
     ICmdRegisterEntry,
 } from "./types";
@@ -56,20 +56,21 @@ import { ICommandHandlerChain } from "./handlers/abstract-handler";
 
 // TODO split to service manager
 export class CmdDispatcher<UIContextType extends BaseUIContext> extends WithInit {
-    private activeServices: Map<string, Array<BaseCommandService<any>>> // userId -> services
-    private invokables: Map<string, IDispatcherUICmdInvokable<UIContextType>> // command -> invokable
+    private active_services: Map<string, Array<BaseCommandService<any>>> // userId -> services
+    private cmd_registry: Map<string, IUICommandEntry<UIContextType>> // command -> invokable
 
-    private sequenceHandler?: SequenceHandler
+    /** Sequence handler need to now about all neighbors of commands to initialize,
+     * because it will be initialized in this.done() */
+    private sequenceHandler!: CommandSequenceHandler
     private cmdBuilder: CommandBuilder
     private cmdInvoker: CommandInvoker<UIContextType>
-
     private chain: ICommandHandlerChain<UIContextType>
 
     constructor() {
         super()
         this.chain = new Chain()
-        this.invokables = new Map()
-        this.activeServices = new Map()
+        this.cmd_registry = new Map()
+        this.active_services = new Map()
         this.cmdBuilder = new CommandBuilder()
         this.cmdInvoker = new CommandInvoker(this)
 
@@ -79,7 +80,7 @@ export class CmdDispatcher<UIContextType extends BaseUIContext> extends WithInit
         this.chain.use(new HandleInvokation<UIContextType>)
     }
 
-    public async handleCommand(command: string, userText: string, ctx: UIContextType): Promise<IHandleCommandResult> {
+    public async handleCommand(command: string, userText: string, ctx: UIContextType): Promise<IHandleResult> {
         const args = this.getArgs(userText)
         const _userId = ctx.manager?.userId
 
@@ -135,7 +136,7 @@ export class CmdDispatcher<UIContextType extends BaseUIContext> extends WithInit
     }
 
     private validateCmdName(command: string) {
-        if (command in this.invokables) {
+        if (command in this.cmd_registry) {
             throw new Error("CommandHandler.register() command already registered: " + command);
         }
         //if (BuiltInCommandNames.includes(command)) {
@@ -157,7 +158,7 @@ export class CmdDispatcher<UIContextType extends BaseUIContext> extends WithInit
             }
         }
 
-        this.invokables.set(
+        this.cmd_registry.set(
             command.command,
             {
                 invokable: invokable,
@@ -192,18 +193,18 @@ export class CmdDispatcher<UIContextType extends BaseUIContext> extends WithInit
             toRegister(ListAliases as any, this),
         ])
 
-        const cbNames = this.invokables.keys().toArray()
+        const cbNames = this.cmd_registry.keys().toArray()
         if (!isContainsAll(cbNames, BuiltInCommandNames)) {
             throw new Error("CommandHandler::done() not all built-in commands registered");
         }
 
-        if (!validateWithNeighborsMap(this.invokables)) {
+        if (!validateWithNeighborsMap(this.cmd_registry)) {
             throw new Error("CommandHandler::done() invalid invokables map");
         }
 
-        const targets: string[] = Array.from(this.invokables.keys())
-        const naighbors: IDispatcherUICmdInvokable<UIContextType>[] = Array.from(this.invokables.values())
-        this.sequenceHandler = new SequenceHandler(
+        const targets: string[] = Array.from(this.cmd_registry.keys())
+        const naighbors: IUICommandEntry<UIContextType>[] = Array.from(this.cmd_registry.values())
+        this.sequenceHandler = new CommandSequenceHandler(
             Array.from(
                 targets.map((v, i) =>
                     ({
@@ -219,7 +220,7 @@ export class CmdDispatcher<UIContextType extends BaseUIContext> extends WithInit
     }
 
     async stopAllServices() {
-        for (const [userId, services] of this.activeServices) {
+        for (const [userId, services] of this.active_services) {
             log.info(" -- Stoping services for user: " + userId)
             const terminatePromises = []
             for (const s of services) {
@@ -259,7 +260,7 @@ export class CmdDispatcher<UIContextType extends BaseUIContext> extends WithInit
     }
 
     isAllArgsPassed(command: string, passedArgs: string[]): boolean {
-        const cmd = this.invokables.get(command)
+        const cmd = this.cmd_registry.get(command)
         if (!cmd) {
             log.error(`While processing command "${command}" with passed arguments "${passedArgs.join(", ")}", command not found`)
             return true // maybe dispatch exception?
@@ -282,7 +283,7 @@ export class CmdDispatcher<UIContextType extends BaseUIContext> extends WithInit
     }
 
     isCommandRegistered(command: string) {
-        return this.invokables.has(command)
+        return this.cmd_registry.has(command)
     }
 
     get CommandInvoker() {
@@ -298,15 +299,15 @@ export class CmdDispatcher<UIContextType extends BaseUIContext> extends WithInit
     }
 
     get ActiveServices() {
-        return this.activeServices
+        return this.active_services
     }
 
     UserActiveServices(userId: string): Array<BaseCommandService<any>> {
-        const s = this.activeServices.get(userId)
+        const s = this.active_services.get(userId)
         if (!s) {
-            this.activeServices.set(userId, [])
+            this.active_services.set(userId, [])
         }
-        return this.activeServices.get(userId)!
+        return this.active_services.get(userId)!
     }
 
     RemoveUserAcitveService(userId: string, serviceName: string) {
@@ -344,15 +345,15 @@ export class CmdDispatcher<UIContextType extends BaseUIContext> extends WithInit
     }
 
     isServiceActive(userId: string, serviceName: string) {
-        const services = this.activeServices.get(userId)
+        const services = this.active_services.get(userId)
         if (!services) {
             return false
         }
         return services.map(s => s.name).includes(serviceName)
     }
 
-    getInvokable(command: string): IDispatcherUICmdInvokable<UIContextType> {
-        const cb = this.invokables.get(command)
+    getInvokable(command: string): IUICommandEntry<UIContextType> {
+        const cb = this.cmd_registry.get(command)
         if (!cb) {
             log.error(`Command ${UiUnicodeSymbols.arrowRight} "${command}" not found.`)
             throw `Command ${UiUnicodeSymbols.arrowRight} "${command}" not found.`
@@ -367,7 +368,7 @@ export class CmdDispatcher<UIContextType extends BaseUIContext> extends WithInit
 
     public getRegistredServiceNames(): string[] {
         let ret: string[] = []
-        this.invokables.forEach((v) => {
+        this.cmd_registry.forEach((v) => {
             if (isService(v.invokable)) {
                 ret.push(v.invokable.name)
             }
@@ -377,7 +378,7 @@ export class CmdDispatcher<UIContextType extends BaseUIContext> extends WithInit
 
     public getRegistredCommandNames(): string[] {
         let ret: string[] = []
-        for (const [key, value] of this.invokables) {
+        for (const [key, value] of this.cmd_registry) {
             if (isFunc(value.invokable)) {
                 ret.push(key)
             }
@@ -386,9 +387,9 @@ export class CmdDispatcher<UIContextType extends BaseUIContext> extends WithInit
     }
 
     public toUICommands(): IUICommandProcessed[] {
-        let commands = this.invokables.keys().toArray()
-        const cmd_descriptions = this.invokables.values().map(v => v.description).toArray()
-        const cmd_args = this.invokables.values().map(v => v.args).toArray()
+        let commands = this.cmd_registry.keys().toArray()
+        const cmd_descriptions = this.cmd_registry.values().map(v => v.description).toArray()
+        const cmd_args = this.cmd_registry.values().map(v => v.args).toArray()
 
         const registredCmds: IUICommandProcessed[] = new Array(commands.length).fill(0).map(
             (_, i) => ({

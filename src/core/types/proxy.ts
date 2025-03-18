@@ -32,4 +32,4 @@ export class Proxy implements ProxyType {
     }
 }
 
-export type ProxyType = Infer<typeof ProxyTypeSign>;
+export type ProxyType = Infer<typeof ProxyTypeSign>

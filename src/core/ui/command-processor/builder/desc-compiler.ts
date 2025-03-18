@@ -1,6 +1,6 @@
 import { BaseUIContext } from "@core/ui"
 import { IArgumentDescriptor, IUICommandDescriptor } from "@core/ui/types"
-import { IDispatcherUICmdInvokable } from "./../types"
+import { IUICommandEntry } from "./../types"
 import { ICmdService } from "@core/ui/types/command";
 import { CmdArgumentContextType } from "@core/ui/types/command";
 import { CmdDispatcher } from "./../dispatcher"
@@ -45,7 +45,7 @@ export class CBDescriptorCompiler<UICtx extends BaseUIContext> {
         }
     }
 
-    private async configureFunctionDesc(command: string, cb: IDispatcherUICmdInvokable<UICtx>, dispatcher: CmdDispatcher<UICtx>, ctx: UICtx): Promise<IUICommandDescriptor> {
+    private async configureFunctionDesc(command: string, cb: IUICommandEntry<UICtx>, dispatcher: CmdDispatcher<UICtx>, ctx: UICtx): Promise<IUICommandDescriptor> {
         const promise = cb.args?.map(async (a) => ({
             ctx: 'args' as CmdArgumentContextType,
             name: a.name,
@@ -64,10 +64,10 @@ export class CBDescriptorCompiler<UICtx extends BaseUIContext> {
     }
 
     // TODO set configreAs types in other place and disperce to all code base
-    private async configureDescriptors(configureAs: "function" | "service", userId: string, cb: IDispatcherUICmdInvokable<UICtx>, command: string, dispatcher: CmdDispatcher<UICtx>, ctx: UICtx): Promise<IUICommandDescriptor> {
+    private async configureDescriptors(configureAs: "function" | "service", userId: string, cb: IUICommandEntry<UICtx>, command: string, dispatcher: CmdDispatcher<UICtx>, ctx: UICtx): Promise<IUICommandDescriptor> {
         switch (configureAs) {
             case "function":
-                return this.configureFunctionDesc(command, cb as IDispatcherUICmdInvokable<UICtx>, dispatcher, ctx)
+                return this.configureFunctionDesc(command, cb as IUICommandEntry<UICtx>, dispatcher, ctx)
             case "service":
                 return await this.configureServiceDesc(cb.invokable as ICmdService, userId, dispatcher)
         }

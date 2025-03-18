@@ -23,7 +23,7 @@ export interface IUICommandProcessed extends IUICommand {
     readonly args: (CmdArgumentMeta & {name: string})[]
 }
 
-/** RENAME IT! its used only as dto representation of current dispatcher invokables */
+/** RENAME IT! */
 export type IUICommandWithOutArgs = Omit<CommandSklet, "args">
 
 import { CmdArgumentProxy } from "@core/ui/command-processor/arg-proxy"

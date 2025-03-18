@@ -1,9 +1,9 @@
 import { CmdDispatcher } from "../dispatcher"
 import { Chain, IChainHandler } from "@core/utils/chain"
-import { IHandleCommandResult } from "../types"
+import { IHandleResult } from "../types"
 import { BaseUIContext } from "@core/ui"
 
-export type ICmdHandlerResponce = IHandleCommandResult
+export type ICmdHandlerResponce = IHandleResult
 export interface ICmdHandlerRequest<Ctx extends BaseUIContext> {
     dispatcher: CmdDispatcher<Ctx>,
     text: string,

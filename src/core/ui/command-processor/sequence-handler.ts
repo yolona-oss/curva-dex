@@ -1,7 +1,7 @@
 import { Stack } from '@utils/struct/stack'
 import { WithNeighbors } from '@core/types/with-neighbors'
 import { BuiltInSeqCommandsEnum } from './constants/built-in-cmd-enum'
-import { IHandleCommandResult } from './types'
+import { IHandleResult } from './types'
 
 interface ISequenceType {
     target: string
@@ -9,7 +9,7 @@ interface ISequenceType {
     next: Array<string>
 }
 
-export class SequenceHandler {
+export class CommandSequenceHandler {
     private sequences: Map<string, Stack<string>>
     private handlingSeq: Array<ISequenceType>
 
@@ -35,7 +35,7 @@ export class SequenceHandler {
         })
     }
 
-    private handleBuiltInSeqCommands(command: string, selSequence: Stack<string>|undefined, seqId: string): IHandleCommandResult&{skip?: boolean} {
+    private handleBuiltInSeqCommands(command: string, selSequence: Stack<string>|undefined, seqId: string): IHandleResult&{skip?: boolean} {
         switch (command) {
             case BuiltInSeqCommandsEnum.NEXT_COMMAND:
                 // TODO handle next if command seq allow this and no arguments or defaults provided
@@ -109,7 +109,7 @@ export class SequenceHandler {
     /**
     *  @returns void on skip
     */
-    public handle(seqId: number|string, command: string): IHandleCommandResult|void {
+    public handle(seqId: number|string, command: string): IHandleResult|void {
         seqId = String(seqId)
         const selSequence = this.sequences.get(seqId)
         const handlingSeq = this.handlingSeq.find((item) => item.target === command)

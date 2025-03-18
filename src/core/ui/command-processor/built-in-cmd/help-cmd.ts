@@ -2,12 +2,12 @@ import { CmdArgument, ICmdService, isService, IUICommandProcessed } from "@core/
 import { BuiltInHelpCommandsEnum } from "../constants"
 import { CmdDispatcher } from "../dispatcher"
 import { BuiltInCommand } from "../types/built-in-cmd"
-import { IDispatcherUICmdInvokable } from "../types"
+import { IUICommandEntry } from "../types"
 import { anyToString } from "@core/utils/misc"
 import { BaseUIContext, UiUnicodeSymbols } from "@core/ui"
 import { CmdArgumentProxy } from "../arg-proxy"
 
-export const serviceToString = <Ctx extends BaseUIContext>(cmdName: string, cmdCb: IDispatcherUICmdInvokable<Ctx>) => {
+export const serviceToString = <Ctx extends BaseUIContext>(cmdName: string, cmdCb: IUICommandEntry<Ctx>) => {
     const executor = cmdCb.invokable as ICmdService
     return `Service /${cmdName},\n
 Description:\n  ${cmdCb.description},\n
@@ -18,7 +18,7 @@ Prev: ${cmdCb.prev ?? "None"}\n\
 `
 }
 
-export const commonToString = <Ctx extends BaseUIContext>(cmdName: string, cmdCb: IDispatcherUICmdInvokable<Ctx>) => {
+export const commonToString = <Ctx extends BaseUIContext>(cmdName: string, cmdCb: IUICommandEntry<Ctx>) => {
     const argsStr = cmdCb.args?.map(a => a.name).join(",\n")
     return `Command ${cmdName},\n\
 Description: ${cmdCb.description},\n\

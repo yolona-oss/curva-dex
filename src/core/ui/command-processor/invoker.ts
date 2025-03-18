@@ -3,7 +3,7 @@ import {CmdDispatcher } from "./dispatcher"
 import { IArgumentCompiled } from "@core/ui/types"
 import log from '@logger';
 import { anyToString } from "@core/utils/misc"
-import { IHandleCommandResult } from "./types";
+import { IHandleResult } from "./types";
 
 const SEND_SUCCESS = false
 
@@ -12,7 +12,7 @@ export class CommandInvoker<TContext extends BaseUIContext> {
         protected dispatcher: CmdDispatcher<TContext>,
     ) { }
 
-    async invoke(invokerId: string, cmdCompiled: ICommandCompiled, ctx: TContext): Promise<IHandleCommandResult> {
+    async invoke(invokerId: string, cmdCompiled: ICommandCompiled, ctx: TContext): Promise<IHandleResult> {
         const { command } = cmdCompiled
         const cb = this.dispatcher.getInvokable(command)
         if (isFunc(cb.invokable)) {
@@ -22,7 +22,7 @@ export class CommandInvoker<TContext extends BaseUIContext> {
         }
     }
 
-    async invokeFunc(_: string, { command, proxy }: ICommandCompiled, ctx: TContext): Promise<IHandleCommandResult> {
+    async invokeFunc(_: string, { command, proxy }: ICommandCompiled, ctx: TContext): Promise<IHandleResult> {
         const cb = this.dispatcher.getInvokable(command)
 
         try {
@@ -85,7 +85,7 @@ export class CommandInvoker<TContext extends BaseUIContext> {
         }
     }
 
-    async invokeService(userId: string, { command: serviceName, raw: readArgs }: ICommandCompiled, ctx: TContext): Promise<IHandleCommandResult> {
+    async invokeService(userId: string, { command: serviceName, raw: readArgs }: ICommandCompiled, ctx: TContext): Promise<IHandleResult> {
         if (this.dispatcher.isServiceActive(userId, serviceName)) {
             return {
                 success: false,

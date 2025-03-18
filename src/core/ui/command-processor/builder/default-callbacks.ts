@@ -1,18 +1,14 @@
 // TODO: rename file
-import { asId } from "@core/types/identificable";
+import { genRandId } from "@core/types/identificable";
 
 export const BuilderActionSigns = {
-    execute: asId(crypto.randomUUID()),
-    cancelBuild: asId(crypto.randomUUID()),
-    switchCtx: asId(crypto.randomUUID()),
-    cancelOp: asId(crypto.randomUUID()),
-    changeInterpritationMode: asId(crypto.randomUUID())
+    execute:     genRandId(),
+    cancelBuild: genRandId(),
+    switchCtx:   genRandId(),
+    cancelOp:    genRandId(),
+    changeInterpritationMode: genRandId() 
 }
 
 export function isBuilderActionSign(input: string) {
-    return [
-        BuilderActionSigns.cancelBuild,
-        BuilderActionSigns.execute,
-        BuilderActionSigns.switchCtx
-    ].includes(input)
+    return Object.values(BuilderActionSigns).includes(input)
 }
