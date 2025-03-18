@@ -11,7 +11,7 @@ import { StateSnaper } from "./state-span";
 import { CBLexerToken } from "./lexer";
 
 import log from "@core/application/logger";
-import { Chain, chainFallbackHandler, chainHandlerFactory, IChainHandler } from "@core/utils/chain";
+import { Chain, createChainFallbackHandler, chainHandlerFactory, IChainHandler } from "@core/utils/chain";
 import { removeObjectByFieldsMutate } from "@core/utils/array";
 
 /**
@@ -209,7 +209,7 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
 
         this.tknParseChain.use(setPosHandler)
         this.tknParseChain.use(setStandaloneHandler)
-        this.tknParseChain.use(chainFallbackHandler<PChainReq, PChainResGType>('none' as PChainResGType))
+        this.tknParseChain.use(createChainFallbackHandler<PChainReq, PChainResGType>('none' as PChainResGType))
     }
 
     private validateContext(ctx: CmdArgumentContextType) {

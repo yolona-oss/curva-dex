@@ -12,8 +12,8 @@ export function anyToString(error: any): string {
 
 export function camelCase(input: string) { 
     return input.toLowerCase().replace(/-(.)/g, function(_, group1) {
-        return group1.toUpperCase();
-    });
+        return group1.toUpperCase()
+    })
 }
 
 export function getInvokerDetails(): { fileName: string; functionName: string; lineNumber: string } {

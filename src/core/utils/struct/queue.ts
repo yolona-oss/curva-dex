@@ -1,21 +1,21 @@
-import { IQueue } from "@core/types/queue";
+import { IQueue } from "@core/types/queue"
 export type { IQueue }
 
 export class Queue<T> implements IQueue<T> {
-    private storage: T[] = [];
+    private storage: T[] = []
 
     constructor(private capacity: number = Infinity) {}
 
     enqueue(item: T): void {
         if (this.size() === this.capacity) {
-            throw Error("Queue has reached max capacity, you cannot add more items");
+            throw Error("Queue has reached max capacity, you cannot add more items")
         }
-        this.storage.push(item);
+        this.storage.push(item)
     }
     dequeue(): T | undefined {
-        return this.storage.shift();
+        return this.storage.shift()
     }
     size(): number {
-        return this.storage.length;
+        return this.storage.length
     }
 }

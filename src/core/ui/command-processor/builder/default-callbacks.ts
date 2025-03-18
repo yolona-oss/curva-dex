@@ -2,10 +2,11 @@
 import { asId } from "@core/types/identificable";
 
 export const BuilderActionSigns = {
-    execute: asId("__execute"),
-    cancelBuild: asId("__cancelBuild"),
-    switchCtx: asId("__switchctx"),
-    cancelOp: asId("__cancelOp")
+    execute: asId(crypto.randomUUID()),
+    cancelBuild: asId(crypto.randomUUID()),
+    switchCtx: asId(crypto.randomUUID()),
+    cancelOp: asId(crypto.randomUUID()),
+    changeInterpritationMode: asId(crypto.randomUUID())
 }
 
 export function isBuilderActionSign(input: string) {

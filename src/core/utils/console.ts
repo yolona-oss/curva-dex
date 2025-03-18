@@ -12,8 +12,8 @@ export function inCenter(text: string, fill = " ") {
 }
 
 export function clearScreen() {
-    let lines = process.stdout.getWindowSize()[1];
+    let lines = process.stdout.getWindowSize()[1]
     for(let i = 0; i < lines; i++) {
-        console.log('\r\n');
+        console.log('\r\n')
     }
 }

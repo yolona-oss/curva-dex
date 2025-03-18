@@ -36,6 +36,10 @@ export function asId(id: string): string {
     return transformToValidId(id)
 }
 
+export function genRandId(): string {
+    return 
+}
+
 /**
  * Type guard to check if an object is `Identifiable` and its `id` is valid according to `isId`.
  * @param obj - The object to check.

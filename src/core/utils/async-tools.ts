@@ -1,6 +1,6 @@
 import { sleep } from "./time"
 import { mergeDefaults } from "./mergeDefaults"
-import log from '@logger';
+import log from '@logger'
 
 export interface RetrierOpts {
     retries: number
@@ -17,19 +17,19 @@ const retrierOptsDefaults: RetrierOpts = {
 export async function timeouted<T>(task: () => Promise<T>, timeout: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
-      reject(new Error("Operation timed out"));
-    }, timeout);
+      reject(new Error("Operation timed out"))
+    }, timeout)
 
     task()
       .then((result) => {
-        clearTimeout(timer);
-        resolve(result);
+        clearTimeout(timer)
+        resolve(result)
       })
       .catch((error) => {
-        clearTimeout(timer);
-        reject(error);
-      });
-  });
+        clearTimeout(timer)
+        reject(error)
+      })
+  })
 }
 
 export async function retrier<T>(fn: () => Promise<T>, opts: Partial<RetrierOpts> = {}): Promise<T> {

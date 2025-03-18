@@ -1,20 +1,20 @@
-import { IRunnable } from "@core/types/runnable";
+import { IRunnable } from "@core/types/runnable"
 import { ICommand } from '@core/types/command'
-import { AbstractState } from "@core/types/state";
-import { asId, Identificable, isIdentifiable } from "@core/types/identificable";
+import { AbstractState } from "@core/types/state"
+import { asId, Identificable, isIdentifiable } from "@core/types/identificable"
 
 import { HMSTime, sleep } from './time'
 
-import log from '@logger';
+import log from '@logger'
 
-import EventEmitter from "events";
+import EventEmitter from "events"
 
 type ITask<CmdRes = void, DataType = never> = {
-    command: ICommand<CmdRes>;
+    command: ICommand<CmdRes>
     data?: DataType,
-    after?: string;
-    delay?: HMSTime;
-} & Identificable;
+    after?: string
+    delay?: HMSTime
+} & Identificable
 
 interface SequalizerMetrics {
     activeTasks: number
@@ -243,21 +243,21 @@ export class Sequalizer implements IRunnable {
         //                await this.waitTask(task.after)
         //                this.ctx.setConcurrency(this.ctx.getConcurrency() - 1)
         //            }
-        //            const result = await task.command.execute.apply(thisArg);
-        //            resolve(result);
+        //            const result = await task.command.execute.apply(thisArg)
+        //            resolve(result)
         //        } catch (error) {
-        //            reject(error);
+        //            reject(error)
         //        }
-        //    };
+        //    }
         //
         //    this.taskQueue.push({
         //        ...task,
         //        command: { execute: boundExecute }
         //    })
-        //    this.processQueue();
+        //    this.processQueue()
         //})
 
-        this.processQueue();
+        this.processQueue()
     }
 
     public unenqueue(id: string) {
@@ -291,7 +291,7 @@ export class Sequalizer implements IRunnable {
             ||
             this.taskQueue.length === 0
         ) {
-            return;
+            return
         }
 
         // NOTE: ?? may crush ?? other async microtask may shitf last before this?

@@ -41,7 +41,7 @@ export class HMSTime {
 
     toString(format: string = "Y-m-d H:i:s:v"): string {
         //return `${this.hour}:${this.minutes}:${this.seconds}:${this.milliseconds}`
-        let d = this.toDate();
+        let d = this.toDate()
         return format
             .replace(/Y/gm, d.getFullYear().toString())
             .replace(/m/gm, ('0' + (d.getMonth() + 1)).substr(-2))
@@ -49,7 +49,7 @@ export class HMSTime {
             .replace(/H/gm, ('0' + (d.getHours() + 0)).substr(-2))
             .replace(/i/gm, ('0' + (d.getMinutes() + 0)).substr(-2))
             .replace(/s/gm, ('0' + (d.getSeconds() + 0)).substr(-2))
-            .replace(/v/gm, ('0000' + (d.getMilliseconds() % 1000)).substr(-3));
+            .replace(/v/gm, ('0000' + (d.getMilliseconds() % 1000)).substr(-3))
     }
 
     toJSON(): IHMSMTime {

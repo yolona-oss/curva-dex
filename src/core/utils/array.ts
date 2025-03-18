@@ -1,68 +1,68 @@
-import { isObjectsEqual } from "./object";
+import { isObjectsEqual } from "./object"
 
 export function intersect<T>(a: T[], b: T[]): T[] {
-    return a.filter(x => b.includes(x));
+    return a.filter(x => b.includes(x))
 }
 
 export function difference<T>(a: T[], b: T[]): T[] {
-    return a.filter(x => !b.includes(x));
+    return a.filter(x => !b.includes(x))
 }
 
 export function union<T>(a: T[], b: T[]): T[] {
-    return [...a, ...b];
+    return [...a, ...b]
 }
 
 export function unique<T>(a: T[]): T[] {
-    return [...new Set(a)];
+    return [...new Set(a)]
 }
 
 export function isUnique<T>(a: T[]): boolean {
-    return a.length === unique(a).length;
+    return a.length === unique(a).length
 }
 
 export function isEqual_JsonSort<T>(a: T[], b: T[]): boolean {
-    return JSON.stringify(a.sort()) === JSON.stringify(b.sort());
+    return JSON.stringify(a.sort()) === JSON.stringify(b.sort())
 }
 
 export function isEqual_Simple<T>(arr1: T[], arr2: T[]): boolean {
     return arr1.length === arr2.length &&
-        arr1.every((value, index) => value === arr2[index]);
+        arr1.every((value, index) => value === arr2[index])
 }
 
 export function isEqual_Deep<T>(arr1: T[], arr2: T[]): boolean {
-    if (arr1.length !== arr2.length) return false;
+    if (arr1.length !== arr2.length) return false
 
     for (let i = 0; i < arr1.length; i++) {
         if (typeof arr1[i] === 'object' && typeof arr2[i] === 'object') {
-            if (!isObjectsEqual(arr1[i], arr2[i])) return false;
+            if (!isObjectsEqual(arr1[i], arr2[i])) return false
         } else if (arr1[i] !== arr2[i]) {
-            return false;
+            return false
         }
     }
 
-    return true;
+    return true
 }
 
-//const map2 = new Map(this.array2.map(x => [x.type, s]));
+//const map2 = new Map(this.array2.map(x => [x.type, s]))
 //const intersect = this.array1.filter(a1 => 
-//  map.has(a1.type));
+//  map.has(a1.type))
 
 export function isContainsAll<T>(base: T[], overlap: T[]): boolean {
     //return isEqual(base.filter(b => overlap.some(o => b === o)), overlap)
-    return overlap.every(val => base.includes(val));
+    return overlap.every(val => base.includes(val))
 }
 
 //export function isArrayFullyOverlapping<T>(base: T[], overlap: T[]): boolean {
-//    if (base.length === 0) return true;
-//    if (overlap.length === 0) return base.length === 0;
-//    return base.every((item) => overlap.includes(item));
+//    if (base.length === 0) return true
+//    if (overlap.length === 0) return base.length === 0
+//    return base.every((item) => overlap.includes(item))
 //}
 //
 //export function isArrayPartiallyOverlapping<T>(base: T[], overlap: T[]): boolean {
-//    if (base.length === 0) return true;
-//    if (overlap.length === 0) return base.length === 0;
-//    const overlapSet = new Set(overlap);
-//    return base.every((item) => overlapSet.has(item));
+//    if (base.length === 0) return true
+//    if (overlap.length === 0) return base.length === 0
+//    const overlapSet = new Set(overlap)
+//    return base.every((item) => overlapSet.has(item))
 //}
 
 export function shuffle<T>(array: T[]) { 
@@ -78,11 +78,11 @@ export function removeObjectByFieldsMutate<T>(
     criteria: Partial<T>
 ): void {
     for (let i = arr.length - 1; i >= 0; i--) {
-        let match = true;
+        let match = true
         for (const key in criteria) {
             if (criteria.hasOwnProperty(key) && arr[i][key] !== criteria[key]) {
-                match = false;
-                break;
+                match = false
+                break
             }
         }
         if (match) {

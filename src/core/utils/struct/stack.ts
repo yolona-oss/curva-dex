@@ -2,7 +2,7 @@ import { IStack } from "@core/types/stack"
 export type { IStack }
 
 export class Stack<T> implements IStack<T> {
-    private storage: T[] = [];
+    private storage: T[] = []
 
     constructor(private capacity: number = Infinity) {}
 
@@ -11,10 +11,10 @@ export class Stack<T> implements IStack<T> {
      */
     push(...items: T[]): void {
         if (this.size() + items.length >= this.capacity) {
-            throw Error("Stack has reached max capacity, you cannot add more items");
+            throw Error("Stack has reached max capacity, you cannot add more items")
         }
         
-        this.storage.push(...items);
+        this.storage.push(...items)
     }
 
     /**
@@ -34,29 +34,29 @@ export class Stack<T> implements IStack<T> {
     * Returns the last item in the stack
     */
     peek(): T | undefined {
-        return this.storage[this.size() - 1];
+        return this.storage[this.size() - 1]
     }
 
     /**
     * Returns the number of items in the stack
     */
     size(): number {
-        return this.storage.length;
+        return this.storage.length
     }
 
     drop(): void {
-        this.storage = [];
+        this.storage = []
     }
 
     isEmpty(): boolean {
-        return this.size() === 0;
+        return this.size() === 0
     }
 
     includes(item: T): boolean {
-        return this.storage.includes(item);
+        return this.storage.includes(item)
     }
 
     reverse(): T[] {
-        return this.storage.reverse();
+        return this.storage.reverse()
     }
 }

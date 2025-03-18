@@ -1,7 +1,7 @@
 import { AppCmdhub } from '@core/cmdhub'
 import { CmdDispatcher } from '@core/ui/command-processor'
 import { TgContext } from '@core/ui/impls/telegram'
-import log from '@logger';
+import log from '@logger'
 
 import { ImplRegistrySetup } from './impl-registry-setup'
 import { InitializeUserCommands } from './user-commands'

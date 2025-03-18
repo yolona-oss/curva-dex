@@ -1,6 +1,6 @@
 export namespace Extender {
 
-    type TimePrefix = 'ns' | 'ms' | 's' | 'm' | 'h' | 'd' | 'y' | 'M';
+    type TimePrefix = 'ns' | 'ms' | 's' | 'm' | 'h' | 'd' | 'y' | 'M'
 
     type NumberStringPrefix<T extends string> = 
       T extends `${infer NumberPart}${infer Prefix}` 
@@ -9,19 +9,19 @@ export namespace Extender {
             ? T
             : never
           : never
-        : never;
+        : never
 
     /**
      * NOTE: Not handle lean years and every month have 365/12 days
      */
     export function stringToMs<T extends string>(time: NumberStringPrefix<T>): number {
-        const numMatch = (time as string).match(/\d+/);
+        const numMatch = (time as string).match(/\d+/)
         if (!numMatch) {
-            throw new Error('Invalid time format number');
+            throw new Error('Invalid time format number')
         }
         const prefixMatch = (time as string).match(/[a-zA-Z]+/)
         if (!prefixMatch) {
-            throw new Error('Invalid time format prefix');
+            throw new Error('Invalid time format prefix')
         }
         const num = parseInt(numMatch[0])
         const postfix = prefixMatch[0]
@@ -43,7 +43,7 @@ export namespace Extender {
             case 'M':
                 return num * 1000 * 60 * 60 * 24 * 365 / 12
             default:
-                throw new Error('Invalid time format prefix');
+                throw new Error('Invalid time format prefix')
         }
     }
 }

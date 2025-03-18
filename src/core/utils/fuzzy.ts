@@ -8,14 +8,14 @@ type fuzzyMathMapOpts = {
 }
 
 export function fuzzyMatchMap(s: fuzzyMathMapOpts[]): boolean {
-    let ret = false;
+    let ret = false
     s.forEach(e => {
-        const match = fuzzy.match(e.search, e.input, { caseSensitive: false },);
+        const match = fuzzy.match(e.search, e.input, { caseSensitive: false },)
         if (match && match.score > e.minScore) {
-            ret = true;
+            ret = true
         }
     })
-    return ret;
+    return ret
 }
 
 export function fuzzyMatchMapSimple(search: string[], input: string, minScore: number = 50) {

@@ -131,12 +131,12 @@ export function removeFieldFromObject<T, Path extends string>(
             if (Array.isArray(current) && /^\d+$/.test(key as string)) {
                 const index = parseInt(key as string, 10)
                 if (index >= 0 && index < current.length) {
-                    current = current[index];
+                    current = current[index]
                 } else {
                     throw new Error(`Invalid array index: ${index}`)
                 }
             } else if (key in current) {
-                current = current[key];
+                current = current[key]
             } else {
                 throw new Error(`Invalid path: ${path}`)
             }
@@ -150,7 +150,7 @@ export function removeFieldFromObject<T, Path extends string>(
         if (Array.isArray(current)) {
             throw new Error(`Cannot remove array element by index: ${finalKey.toString()}`)
         } else {
-            delete current[finalKey];
+            delete current[finalKey]
         }
     } else {
         throw new Error(`Invalid path: ${path}`)

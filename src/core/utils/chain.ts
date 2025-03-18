@@ -13,7 +13,7 @@ interface IChain {
 }
 
 export class Chain<Request, Response> implements IChain {
-    private handlers: IChainHandler<Request, Response>[] = [];
+    private handlers: IChainHandler<Request, Response>[] = []
     private fallThrowRes: Response = {} as Response
 
     get Handlers() {
@@ -87,7 +87,7 @@ export function chainHandlerFactory<Request, Response>(
 /**
  * Use as last in chain hanler to return fallback value
  */
-export function chainFallbackHandler<Request, Response>(
+export function createChainFallbackHandler<Request, Response>(
     fallbackValue: Response
 ): IChainHandler<Request, Response> {
     return chainHandlerFactory<Request, Response>(
