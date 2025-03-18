@@ -1,5 +1,5 @@
 import { AppCmdhub } from '@core/cmdhub'
-import { CHComposer } from '@core/ui/cmd-traspiler'
+import { CmdDispatcher } from '@core/ui/command-processor'
 import { TgContext } from '@core/ui/impls/telegram'
 import log from '@logger';
 
@@ -12,7 +12,7 @@ const ui = 'telegram'
 async function bootstrap() {
     ImplRegistrySetup()
 
-    let handler = new CHComposer<Ctx>()
+    let handler = new CmdDispatcher<Ctx>()
     const cmds = InitializeUserCommands<Ctx>()
     handler.registerMany(cmds)
     handler.done()

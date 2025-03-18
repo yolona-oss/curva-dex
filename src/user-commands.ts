@@ -1,5 +1,5 @@
 import { BaseUIContext } from "@core/ui"
-import { ICmdRegisterManyEntry } from "@core/ui/cmd-traspiler"
+import { ICmdRegisterManyEntry } from "@core/ui/command-processor"
 
 import { TestService } from "./user-services"
 import { PumpFunService, PFName, PFDescription } from './pump.fun.service'
@@ -35,7 +35,7 @@ export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegiste
                 description: "Check sequence first",
                 next: ["check_seq_2"]
             },
-            callback: async function(_: any, ctx: BaseUIContext) {
+            invokable: async function(_: any, ctx: BaseUIContext) {
                 await ctx.reply("now you can call cmd: /check_seq_2")
             }
         },
@@ -45,7 +45,7 @@ export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegiste
                 description: "Check sequence cmd",
                 prev: "check_seq_1"
             },
-            callback: async function(_: any, ctx: BaseUIContext) {
+            invokable: async function(_: any, ctx: BaseUIContext) {
                 await ctx.reply("check_seq_2 success")
             }
         },
@@ -55,7 +55,7 @@ export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegiste
                 description: "Ask something from AI",
                 args: new AksArgs()
             },
-            callback: async function(args, ctx: BaseUIContext) {
+            invokable: async function(args, ctx: BaseUIContext) {
                 log.trace(args)
                 let aiName = args.get('ai')
                 const avaliableAis = [ "misterial" ]
@@ -112,14 +112,14 @@ export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegiste
                 command: "test_service",
                 description: "Test service",
             },
-            callback: new TestService()
+            invokable: new TestService()
         },
         {
             command: {
                 command: PFName,
                 description: PFDescription,
             },
-            callback: new PumpFunService()
+            invokable: new PumpFunService()
         }
 
     ]

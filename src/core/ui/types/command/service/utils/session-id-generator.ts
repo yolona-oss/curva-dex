@@ -1,14 +1,14 @@
 import { IManager } from "@core/db"
-import { ArgOptionValidator, CHComposer } from "@core/ui/cmd-traspiler"
+import { ArgOptionValidator, CmdDispatcher } from "@core/ui/command-processor"
 import { genRandomString } from "@core/utils/random"
 import { CmdArgumentOptionSetter } from "@core/ui/types/command"
 
-export const sessionOpts: CmdArgumentOptionSetter = async (servName: string, o: CHComposer<any>, manager: IManager) => {
+export const sessionOpts: CmdArgumentOptionSetter = async (servName: string, o: CmdDispatcher<any>, manager: IManager) => {
     const avliableSessions = await o.UserServiceSessions(String(manager.userId), servName)
     return avliableSessions
 }
 
-export const sessionOptsWithRand: CmdArgumentOptionSetter = async (servName: string, o: CHComposer<any>, manager: IManager) => {
+export const sessionOptsWithRand: CmdArgumentOptionSetter = async (servName: string, o: CmdDispatcher<any>, manager: IManager) => {
     const avliableSessions = await sessionOpts(servName, o, manager)
     const randIds = new Array<string>(4).fill('').map(() => genRandomString(4))
     avliableSessions.push(...randIds)

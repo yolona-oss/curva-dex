@@ -3,10 +3,10 @@
 
 import { IManager } from "@core/db"
 import { BaseUIContext } from "@core/ui"
-import { CHComposer } from "@core/ui/cmd-traspiler"
+import { CmdDispatcher } from "@core/ui/command-processor"
 
 type SetterPattern = (...args: any[]) => Promise<string[]>
-export type CmdArgumentOptionSetter = (cmdName: string, composer: CHComposer<any>, manager: IManager) => Promise<string[]>
+export type CmdArgumentOptionSetter = (cmdName: string, dispatcher: CmdDispatcher<any>, manager: IManager) => Promise<string[]>
 export type CmdArgumentPairOptionsType<OptionsSetter extends SetterPattern = CmdArgumentOptionSetter> = string[]|OptionsSetter
 
 export function isCmdArgPairFunc<OptionsSetter extends SetterPattern = CmdArgumentOptionSetter>(options: CmdArgumentPairOptionsType<OptionsSetter>): options is OptionsSetter {
@@ -20,11 +20,11 @@ export function isCmdArgPairStr(options: CmdArgumentPairOptionsType): options is
 export async function exposeCmdArgumentOptions<CtxType extends BaseUIContext = any>(
     cmdName: string,
     options: CmdArgumentPairOptionsType<CmdArgumentOptionSetter>|undefined,
-    composer: CHComposer<CtxType>,
+    dispatcher: CmdDispatcher<CtxType>,
     manager: IManager
 ) {
     if (options instanceof Function) {
-        return await options(cmdName, composer, manager)
+        return await options(cmdName, dispatcher, manager)
     } else if (Array.isArray(options)) {
         return options
     } else {

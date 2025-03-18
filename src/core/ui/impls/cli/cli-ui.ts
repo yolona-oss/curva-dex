@@ -1,5 +1,5 @@
 import { CLIContext } from './types';
-import { CHComposer, CLI_USER_ID, CLI_USER_NAME } from '@core/ui/cmd-traspiler';
+import { CmdDispatcher, CLI_USER_ID, CLI_USER_NAME } from '@core/ui/command-processor';
 
 import { WithInit } from '@core/types/with-init';
 import { IUI } from '@core/ui/types'
@@ -18,7 +18,7 @@ export class CLIUI extends WithInit implements IUI<CLIContext> {
     private cmds: string[]
 
     constructor(
-        public readonly chComposer: CHComposer<CLIContext>
+        public readonly dispatcher: CmdDispatcher<CLIContext>
     ) {
         super()
         this.context = {
@@ -30,7 +30,7 @@ export class CLIUI extends WithInit implements IUI<CLIContext> {
                 console.log('[' + new Date().toLocaleTimeString("ru") + ']' + "[CLI] < " + message);
             }
         };
-        this.cmds = this.chComposer.toUICommands().map(cmd => cmd.command)
+        this.cmds = this.dispatcher.toUICommands().map(cmd => cmd.command)
         console.log(this.cmds)
         this.setInitialized()
     }
@@ -100,7 +100,7 @@ export class CLIUI extends WithInit implements IUI<CLIContext> {
             const [command, ...args] = line.split(' ');
             this.context.userSession.data.args = args; // Save args in context
 
-            const response = await this.chComposer!.handleCommand(command, line, this.context);
+            const response = await this.dispatcher!.handleCommand(command, line, this.context);
             if (response.markup?.text) {
                 this.context.reply(String(response.markup.text));
             }
@@ -116,7 +116,7 @@ export class CLIUI extends WithInit implements IUI<CLIContext> {
         if (this.rl) {
             this.rl.close()
         }
-        await this.chComposer.stopAllServices()
+        await this.dispatcher.stopAllServices()
         this.isActive = false
         log.info(" -- CLI ui stopped");
     }

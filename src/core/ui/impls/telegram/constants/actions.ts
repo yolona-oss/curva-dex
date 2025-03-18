@@ -2,7 +2,7 @@ import { CqContext } from "@core/ui/impls/telegram/types";
 import { getInitialConfig } from "@core/config";
 import { Manager, FilesWrapper } from "@core/db";
 
-import { TelegramUI } from "../ui";
+import { TelegramUI } from "../telegram-ui";
 import { cb_data } from "./callback";
 
 import * as tg from "telegraf";

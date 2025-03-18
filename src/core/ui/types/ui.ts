@@ -1,4 +1,4 @@
-import { CHComposer } from "@core/ui/cmd-traspiler"
+import { CmdDispatcher } from "@core/ui/command-processor"
 import { IRunnable } from "@core/types/runnable"
 import { WithInit } from "@core/types/with-init"
 import { BaseUIContext } from "./context"
@@ -6,7 +6,7 @@ import { LockManager } from "@utils/lock-manager"
 import { AvailableUIsType } from "./../impls"
 
 export interface IUI<CtxType extends BaseUIContext> extends IRunnable, WithInit {
-    readonly chComposer: CHComposer<CtxType>
+    readonly dispatcher: CmdDispatcher<CtxType>
 
     ContextType(): AvailableUIsType
     

@@ -1,14 +1,14 @@
 import { FilesWrapper, Manager } from '@core/db';
 
-import { TelegramUI } from '../ui'
+import { TelegramUI } from '../telegram-ui'
 import { TgCommand, TextContext } from '../types'
 import { shuffle } from '@core/utils/array';
 import { CmdArgument } from '@core/ui/types/command';
 import log from '@logger';
 import { anyToString } from '@core/utils/misc';
-import { ICmdRegisterEntry } from '@core/ui/cmd-traspiler';
+import { ICmdRegisterEntry } from '@core/ui/command-processor';
 import { BaseUIContext } from '@core/ui';
-import { CmdArgumentProxy } from '@core/ui/cmd-traspiler/arg-proxy';
+import { CmdArgumentProxy } from '@core/ui/command-processor/arg-proxy';
 
 export function toRegister(cmd: TgCommand): ICmdRegisterEntry<BaseUIContext> {
     return {
@@ -17,7 +17,7 @@ export function toRegister(cmd: TgCommand): ICmdRegisterEntry<BaseUIContext> {
             description: cmd.description,
             args: cmd.args,
         },
-        callback: cmd.callback
+        invokable: cmd.invokable
     }
 }
 
@@ -50,7 +50,7 @@ const nameDict = [
 const StartCommand: TgCommand = {
     command: "start",
     description: "Start dummy command",
-    callback: async function(this: TelegramUI, _, ctx) {
+    invokable: async function(this: TelegramUI, _, ctx) {
         await ctx.reply("Hello, dummy comman here :-)");
     }
 }
@@ -70,7 +70,7 @@ const SetNameCommand: TgCommand = {
     command: "setname",
     description: "Set your name",
     args: SetNameArgs,
-    callback: async function(this: TelegramUI, args: CmdArgumentProxy, ctx) {
+    invokable: async function(this: TelegramUI, args: CmdArgumentProxy, ctx) {
         const name = args.getOrThrow("name")
 
         await ctx.manager!.updateOne({ $set: { name: name } });
@@ -81,7 +81,7 @@ const SetNameCommand: TgCommand = {
 const SetAvatarFromAccountCommand: TgCommand = {
     command: "set_avatar_from_account",
     description: "Update your avatar from current on account",
-    callback: async function(this: TelegramUI, _, ctx) {
+    invokable: async function(this: TelegramUI, _, ctx) {
         let photos = await (ctx as TextContext).telegram.getUserProfilePhotos((ctx as TextContext).from.id, 0, 1);
         let file   = await (ctx as TextContext).telegram.getFile(photos.photos[0][0].file_id);
         let url    = await (ctx as TextContext).telegram.getFileLink(file.file_id);
@@ -97,7 +97,7 @@ const SetAvatarFromAccountCommand: TgCommand = {
 const GoOfflineCommand: TgCommand = {
     command: "gooffline",
     description: "Go offline",
-    callback: async function(this: TelegramUI, _, ctx) {
+    invokable: async function(this: TelegramUI, _, ctx) {
         await ctx.manager!.updateOne({ $set: { online: false } });
     },
 }
@@ -105,7 +105,7 @@ const GoOfflineCommand: TgCommand = {
 const GoOnlineCommand: TgCommand = {
     command: "goonline",
     description: "Go online",
-    callback: async function(this: TelegramUI, _, ctx) {
+    invokable: async function(this: TelegramUI, _, ctx) {
         await ctx.manager!.updateOne({ $set: { online: true } });
     },
 }
@@ -113,7 +113,7 @@ const GoOnlineCommand: TgCommand = {
 const StatusCommand: TgCommand = {
     command: "status",
     description: "Get your status",
-    callback: async function(this: TelegramUI, _, ctx) {
+    invokable: async function(this: TelegramUI, _, ctx) {
         await ctx.reply("Your status: " + (ctx.manager!.online ? "online" : "offline"))
     }
 }
@@ -133,7 +133,7 @@ const SetGreetingCommand: TgCommand = {
     command: "setgreeting",
     description: "On or Off bot startup greeting",
     args: SetGreetingArgs,
-    callback: async function(this: TelegramUI, args: CmdArgumentProxy, ctx) {
+    invokable: async function(this: TelegramUI, args: CmdArgumentProxy, ctx) {
         const greeting = args.getOrThrow("greeting")
 
         await ctx.manager!.updateOne({ $set: { useGreeting: (greeting === 'on') } });
@@ -145,7 +145,7 @@ const WipeChatCommand: TgCommand = {
     command: "wipe_chat",
     description: "Wipe all chat messages",
     args: [],
-    callback: async function(this: TelegramUI, _, ctx) {
+    invokable: async function(this: TelegramUI, _, ctx) {
         const manager = await Manager.findById(ctx.manager!.id)
         if (manager) {
             const history = await manager.getMessagesHistory()

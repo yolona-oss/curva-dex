@@ -1,10 +1,11 @@
 import { BaseCommandService } from '@core/ui/types/command/service'
 import { BaseCmdServiceConfig, BaseCmdServiceInteractMessages, BaseCmdServiceParameters, CmdServiceData } from '@core/ui/types/command/service'
 
-import { BLANK_USER_ID } from '@core/ui/cmd-traspiler'
+import { BLANK_USER_ID } from '@core/ui/command-processor'
 import { CmdArgument } from '@core/ui/types/command'
 import { genRandomNumber, genRandomNumberBetween, genRandomNumberBetweenWithScatter } from '@utils/random'
 import { sleep } from '@utils/time'
+import log from '@core/application/logger'
 
 const TestServiceName = 'test_service'
 
@@ -129,6 +130,11 @@ export class TestService extends BaseCommandService<TestServiceSessionData, Base
     }
 
     async terminateWrapper() {
-        await this.setSessionDataValue("prev_max", this.max)
+        try {
+            await this.setSessionDataValue("prev_max", this.max)
+        } catch (e) {
+            log.error(`Cannot set session data for "${this.name}": `, e)
+            throw `Cannot set session data for "${this.name}": ${e}`
+        }
     }
 }
