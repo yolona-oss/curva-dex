@@ -35,7 +35,7 @@ export class CLIUI extends WithInit implements IUI<CLIContext> {
         this.setInitialized()
     }
 
-    printCommands(): void {
+    consolePrintCommands(): void {
         console.log(this.cmds)
     }
 
@@ -100,7 +100,7 @@ export class CLIUI extends WithInit implements IUI<CLIContext> {
             const [command, ...args] = line.split(' ');
             this.context.userSession.data.args = args; // Save args in context
 
-            const response = await this.chComposer!.handleCommand(command, this.context);
+            const response = await this.chComposer!.handleCommand(command, line, this.context);
             if (response.markup?.text) {
                 this.context.reply(String(response.markup.text));
             }

@@ -79,8 +79,8 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
         this.chain.use(new HandleCallbackInvokation<UIContextType>)
     }
 
-    public async handleCommand(command: string, ctx: UIContextType): Promise<IHandleCommandResult> {
-        const args = this.getArgs(ctx.text!)
+    public async handleCommand(command: string, userText: string, ctx: UIContextType): Promise<IHandleCommandResult> {
+        const args = this.getArgs(userText)
         const _userId = ctx.manager?.userId
 
         if (!_userId) {
@@ -93,11 +93,11 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
         }
 
         try {
-            log.trace(`"--COMPOSER RESVS---\n${ctx.text}\n-------------------"`)
+            log.trace(`"--COMPOSER RESVS---\n${userText}\n-------------------"`)
             return await this.chain.handle({
                 composer: this,
                 command: command,
-                text: ctx.text!,
+                text: userText,
                 userId: String(_userId),
                 ownerId: String(ctx.manager!._id),
                 args,
@@ -262,7 +262,7 @@ export class CHComposer<UIContextType extends BaseUIContext> extends WithInit {
     isAllArgsPassed(command: string, passedArgs: string[]): boolean {
         const cmd = this.callbacks.get(command)
         if (!cmd) {
-            log.error(`While processing command "${command}" passed arguments, command not found`)
+            log.error(`While processing command "${command}" with passed arguments "${passedArgs.join(", ")}", command not found`)
             return true // maybe dispatch exception?
         }
         if (isFunc(cmd.callback)) {

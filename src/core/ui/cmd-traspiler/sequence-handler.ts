@@ -82,7 +82,8 @@ export class SequenceHandler {
 
         return {
             success: true,
-            skip: true
+            skip: true,
+            markup: {text: `You are not in a command sequence.`}
         }
     }
 

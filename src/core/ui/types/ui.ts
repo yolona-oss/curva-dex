@@ -10,7 +10,7 @@ export interface IUI<CtxType extends BaseUIContext> extends IRunnable, WithInit 
 
     ContextType(): AvailableUIsType
     
-    printCommands(): void
+    consolePrintCommands(): void
 
     lock(lockManager: LockManager): boolean
     unlock(lockManager: LockManager): boolean

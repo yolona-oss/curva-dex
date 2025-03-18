@@ -68,7 +68,9 @@ const SetVariableCommand: BuiltInCommand = {
         const { account_module } = await account.getModuleByNameOrCreate(module_name)
         account_module.set(`data.${path}`, value)
         await account_module.save()
+        console.log(`SetVariableCommand VVV`)
         console.log(account_module.data)
+        console.log(`^^^^^^^^^`)
         await ctx.reply(`Variable "${path}" set to "${value}" on module "${module_name}"`)
     }
 }

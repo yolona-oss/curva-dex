@@ -44,7 +44,7 @@ export class AppCmdhub extends Application<BaseUIContext> {
             return
         }
 
-        this.ui.printCommands()
+        this.ui.consolePrintCommands()
     }
 
     private printBanner() {

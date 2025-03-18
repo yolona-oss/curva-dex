@@ -11,7 +11,7 @@ import { IPumpFunRobotSessionState, stateTransiteMap } from "./state";
 import { SlaveDictionary } from "./slave-dict";
 import { PFTicker, PFTickerCtx } from "./ticker";
 
-import logger from '@logger';
+import log from '@logger';
 import { CmdOfferBuilder } from "@bots/traider/offer-cmd";
 
 interface IRobot_EvMap extends EventMap {

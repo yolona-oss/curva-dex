@@ -2,7 +2,7 @@ import { BaseUIContext } from "@core/ui"
 import { ICmdRegisterManyEntry } from "@core/ui/cmd-traspiler"
 
 import { TestService } from "./user-services"
-//import { PumpFunService, PFName, PFDescription } from './pump.fun.service'
+import { PumpFunService, PFName, PFDescription } from './pump.fun.service'
 import { SingleThrottler } from "@core/utils/single-throttler"
 import { CmdArgument } from "@core/ui/types/command"
 import log from "@core/application/logger"
@@ -113,13 +113,13 @@ export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegiste
             },
             callback: new TestService()
         },
-        //{
-        //    command: {
-        //        command: PFName,
-        //        description: PFDescription,
-        //    },
-        //    mixin: new PumpFunService()
-        //}
+        {
+            command: {
+                command: PFName,
+                description: PFDescription,
+            },
+            callback: new PumpFunService()
+        }
 
     ]
 }

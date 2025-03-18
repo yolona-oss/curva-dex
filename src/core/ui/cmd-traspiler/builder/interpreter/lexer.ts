@@ -100,7 +100,7 @@ export class Lexer {
             return null; // No more tokens
         }
         if (/\s/.test(this.currentChar)) {
-            console.log(this.currentChar, "ws")
+            log.trace(`__lexer: `, this.currentChar, "ws")
             this.skipWhitespace()
         }
 

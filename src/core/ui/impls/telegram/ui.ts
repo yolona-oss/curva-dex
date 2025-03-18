@@ -53,7 +53,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
             log.info(`-- Assigning command: "${chalk.bold(cmd.command)}"`)
             this.bot.command(cmd.command, async (ctx) => {
                 log.trace("@COMM----------")
-                await this.handleCmd(cmd.command, ctx);
+                await this.handleInput(cmd.command, ctx.text, ctx);
             });
         })
     }
@@ -68,7 +68,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
             log.trace("~ACTI----------")
             const action = String(ctx.match.input.slice("builder_".length));
             log.trace(`Action input: `, [ctx.match.input, action])
-            const res = await this.chComposer.handleCommand(action, ctx as any);
+            const res = await this.chComposer.handleCommand(action, action, ctx as any);
             await this.replyByCommandResult(ctx as any, res);
             await ctx.deleteMessage();
         });
@@ -82,7 +82,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
             const asCommand = firstWord?.slice(1) ?? "";
             const isCommandAlike = firstWord && firstWord.startsWith("/");
             log.trace(`Text input: "[First word: "${firstWord}"; Full text: "${fullText}"; As command: "${asCommand}"; Is command alike: "${isCommandAlike}"]`)
-            await this.handleCmd(isCommandAlike ? asCommand : fullText, ctx);
+            await this.handleInput(isCommandAlike ? asCommand : fullText, fullText, ctx);
 
             if (next) {
                 return await next()
@@ -356,16 +356,21 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
     private async replyByCommandResult(ctx: TgContext, response: IHandleCommandResult) {
         const layout = response.markup ? this.createKeyboard(response.markup) : [];
         let keyboard = telegraf.Markup.inlineKeyboard(layout)
-        await ctx.reply(String(response.markup?.text ?? `-- no text :< ??? --`), keyboard);
+        const sendText = response.markup?.text
+        if (sendText && sendText.length) {
+            await ctx.reply(sendText, keyboard);
+        } else {
+            log.debug(`Command "NOT IMPLEMENTED" "${TelegramUI.UserIdFromCtx(ctx)}" has no text to send`)
+        }
     }
 
-    private async handleCmd(cmd: string, ctx: TgContext) {
+    private async handleInput(input: string, userText: string, ctx: TgContext) {
         try {
-            const response = await this.chComposer.handleCommand(cmd, ctx);
+            const response = await this.chComposer.handleCommand(input, userText, ctx);
             await this.replyByCommandResult(ctx, response);
         } catch (e: any) {
             await ctx.reply(`TelegramUI::handleCmd error: ${anyToString(e)}`);
-            log.error(`Command "${cmd}" "${TelegramUI.UserIdFromCtx(ctx)}" error: ${anyToString(e)}`, e);
+            log.error(`Command "${input}" "${TelegramUI.UserIdFromCtx(ctx)}" error: ${anyToString(e)}`, e);
         }
     }
 
@@ -393,7 +398,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         return this.isActive;
     }
 
-    printCommands(): void {
+    consolePrintCommands(): void {
         let cmdString = ''
         for (const cmd of this.chComposer.toUICommands()) {
             cmdString += ` -- ${cmd.command} - ${cmd.description}\n`

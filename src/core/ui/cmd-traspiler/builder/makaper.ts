@@ -25,18 +25,21 @@ interface IMakaperBuildOpts {
     }
 }
 
+const d_text = {
+    info: ""
+}
+const d_options = {
+}
+
 export class Makaper {
     private constructor() {}
 
     static toMarkup(opt: toMarkupOptType): IMarkupOption {
-        if (opt.cb_value === undefined) {
-            opt.cb_value = opt.text
-        }
         return {
             text: opt.text,
             type: opt.type,
-            isRead: opt.isRead,
-            callback_data: opt.cb_value
+            isRead: opt.isRead ?? false,
+            callback_data: opt.cb_value ?? opt.text
         }
     }
 
@@ -89,7 +92,7 @@ export class Makaper {
     // TODO create new name or rebase it
     // mb pass BuildingString function as param to create text
     static __tmpMarkup(parser: CBParser) {
-        const desc = parser.toState().descriptor
+        const desc = parser.toRawState().descriptor
         const args = desc.args.filter(v => v.ctx === 'args')
         const msgs = desc.args.filter(v => v.ctx === 'message')
         const params = desc.args.filter(v => v.ctx === 'params')
@@ -107,7 +110,7 @@ export class Makaper {
         const overwrite =
             `${UiUnicodeSymbols.hammer} Run CmdBuilder\n
 Building command: - ${UiUnicodeSymbols.arrowRight} "${parser.BuildingCommand}".\n
- - Avalible context: ${UiUnicodeSymbols.arrowRight} ${parser.toState().avaliableCtxs.join(", ")}.\n${desc_str}`
+ - Avalible context: ${UiUnicodeSymbols.arrowRight} ${parser.toRawState().avaliableCtxs.join(", ")}.\n${desc_str}`
 
         return Makaper.markup(parser, {
             text: {
@@ -118,26 +121,21 @@ Building command: - ${UiUnicodeSymbols.arrowRight} "${parser.BuildingCommand}".\
     }
 
     static markup(parser: CBParser, {text, options}: IMakaperBuildOpts): IBaseMarkup {
-        if (!text) {
-            text = {
-                info: ""
-            }
-        }
-        if (!options) {
-            options = {
-            }
-        }
+        text = {...d_text, ...text}
+        options = {...d_options, ...options}
 
         const infoText = Array.isArray(text.info) ? text.info.join('\n') : text.info
 
-        const descArgs = parser.toState().descriptor.args
+        const descArgs = parser.toRawState().descriptor.args
         let markuped: IMarkupOption[] = []
+
         if (options.argName) {
             const arg = descArgs.find(arg => arg.name === options.argName)
             if (arg) {
                 markuped = arg.pairOptions?.map(opt =>
                     this.toMarkup({
-                        text: opt,
+                        text: `${opt}`,
+                        cb_value: opt,
                         type: 'value'
                     })
                 ) ?? []
@@ -145,21 +143,56 @@ Building command: - ${UiUnicodeSymbols.arrowRight} "${parser.BuildingCommand}".\
         } else {
             markuped = descArgs.filter(arg => arg.ctx === parser.CurrentContext).map(arg => 
                 this.toMarkup({
-                    text: arg.name,
+                    text: `name${parser.isRead(arg.name, arg.ctx) ? " " + UiUnicodeSymbols.check : ""}`,
+                    cb_value: arg.name,
                     type: 'name',
                     isRead: parser.isNameRead(arg.name)
                 })
             )
         }
 
-        // TODO its too not open-close 
         if (parser.State === 'CTX') {
-            markuped = parser.AvaliableContexts.map(ctx => Makaper.toMarkup({text: ctx, type: "value", isRead: false}))
+            markuped = parser.AvaliableContexts.map(ctx => Makaper.toMarkup({
+                text: `${ctx}${parser.CurrentContext === ctx ? " " + UiUnicodeSymbols.check : ""}`,
+                cb_value: ctx,
+                type: "value",
+                isRead: false})
+            )
+        }
+
+        if (parser.State === 'WAIT_NEXT_V') {
+            const type = parser.NextValueSetType
+            const val = parser.NextValueSetValue
+            if (type === 'standalone') {
+                const isToggledOn = parser.isStandaloneRead(val!)
+                markuped = [
+                    this.toMarkup({
+                        text: `Toggle-${isToggledOn ? "Off" : "On"}`,
+                        type: 'value',
+                        cb_value: val!,
+                    }),
+                ]
+            } else if (type === 'positional') {
+                const desc_l = parser.findDescriptor(val!)
+                if (!desc_l) {
+                    throw new Error(`Cannot find descriptor for positional setted by next value setter handler: ${val}`)
+                }
+                text.info += `input positional(${desc_l.position}) value:`
+                markuped = desc_l.pairOptions?.map(opt =>
+                    this.toMarkup({
+                        text: `${opt}`,
+                        cb_value: opt,
+                        type: 'value'
+                    })
+                ) ?? []
+            } else {
+                throw new Error(`Unknown next value set type ${type}`)
+            }
         }
 
         const mk_text = text.overwrite ?
             text.overwrite :
-            this.BuildingString(parser.toState(), infoText, text.addTo)
+            this.BuildingString(parser.toRawState(), infoText, text.addTo)
 
         const created_options = [
             ...markuped,

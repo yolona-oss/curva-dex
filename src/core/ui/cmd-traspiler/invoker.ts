@@ -3,6 +3,7 @@ import { CHComposer } from "./ch-composer"
 import { IArgumentCompiled } from "@core/ui/types"
 import log from '@logger';
 import { anyToString } from "@core/utils/misc"
+import { IHandleCommandResult } from "./types";
 
 const SEND_SUCCESS = false
 
@@ -11,7 +12,7 @@ export class CommandInvoker<TContext extends BaseUIContext> {
         protected composer: CHComposer<TContext>,
     ) { }
 
-    async invoke(invokerId: string, cmdCompiled: ICommandCompiled, ctx: TContext) {
+    async invoke(invokerId: string, cmdCompiled: ICommandCompiled, ctx: TContext): Promise<IHandleCommandResult> {
         const { command } = cmdCompiled
         const cb = this.composer.getCallbackFromCommandName(command)
         if (isFunc(cb.callback)) {
@@ -21,7 +22,7 @@ export class CommandInvoker<TContext extends BaseUIContext> {
         }
     }
 
-    async invokeFunc(_: string, { command, proxy }: ICommandCompiled, ctx: TContext) {
+    async invokeFunc(_: string, { command, proxy }: ICommandCompiled, ctx: TContext): Promise<IHandleCommandResult> {
         const cb = this.composer.getCallbackFromCommandName(command)
 
         try {
@@ -31,23 +32,29 @@ export class CommandInvoker<TContext extends BaseUIContext> {
             }
             const res = await exec(proxy, ctx)
             if (res?.error) {
-                log.error(`Command "${command}" exec error: ${res.error}`)
+                log.error(`Command "${command}" invokation error: ${res.error}`)
                 return {
                     success: false,
-                    text: `${UiUnicodeSymbols.error} Execution failed: "${res.error ?? "unknown error"}"`
+                    markup: {
+                        text: `${UiUnicodeSymbols.error} Invokation failed: "${res.error ?? "unknown error"}"`
+                    }
                 }
             } else {
-                log.info(`Command "${command}" exec success`)
+                log.info(`Command "${command}" invokation success`)
                 return {
                     success: true,
-                    text: SEND_SUCCESS ? `${UiUnicodeSymbols.success} Execution success` : ""
+                    markup: {
+                        text: SEND_SUCCESS ? `${UiUnicodeSymbols.success} Invokation success` : ""
+                    }
                 }
             }
         } catch (e: any) {
             log.error(`Command ${command} invokation error: ${anyToString(e)}\n`, e)
             return {
                 success: false,
-                text: `Command execution error:\n -- ${anyToString(e)}`
+                markup: {
+                    text: `Command invokation error:\n -- ${anyToString(e)}`
+                }
             }
         }
     }
@@ -78,11 +85,13 @@ export class CommandInvoker<TContext extends BaseUIContext> {
         }
     }
 
-    async invokeService(userId: string, { command: serviceName, raw: readArgs }: ICommandCompiled, ctx: TContext) {
+    async invokeService(userId: string, { command: serviceName, raw: readArgs }: ICommandCompiled, ctx: TContext): Promise<IHandleCommandResult> {
         if (this.composer.isServiceActive(userId, serviceName)) {
             return {
                 success: false,
-                text: `${UiUnicodeSymbols.warning} Service ${UiUnicodeSymbols.arrowRight} "${serviceName}" already active.`
+                markup: {
+                    text: `${UiUnicodeSymbols.warning} Service ${UiUnicodeSymbols.arrowRight} "${serviceName}" already active.`
+                }
             }
         }
 
@@ -90,7 +99,9 @@ export class CommandInvoker<TContext extends BaseUIContext> {
         if (!cb || (isFunc(cb.callback))) {
             return {
                 success: false,
-                text: `${UiUnicodeSymbols.error} Command service ${UiUnicodeSymbols.arrowRight} "${serviceName}" not found.`
+                markup: {
+                    text: `${UiUnicodeSymbols.error} Command service ${UiUnicodeSymbols.arrowRight} "${serviceName}" not found.`
+                }
             }
         }
         const exe = cb.callback as ICmdService
@@ -132,13 +143,17 @@ ${JSON.stringify(messages, null, 2)}`)
             serviceInstance.run()
             return {
                 success: true,
-                text: `Service ${UiUnicodeSymbols.arrowRight} "${serviceName}" ${UiUnicodeSymbols.star} started.`
+                markup: {
+                    text: `Service ${UiUnicodeSymbols.arrowRight} "${serviceName}" ${UiUnicodeSymbols.star} started.`
+                }
             }
         } catch(e: any) {
             log.error(`Error starting service ${serviceName}: ${anyToString(e)}`, e)
             return {
                 success: false,
-                text: `${UiUnicodeSymbols.error} Error starting service ${UiUnicodeSymbols.arrowRight} "${serviceName}":\n -- ${UiUnicodeSymbols.warning} ${anyToString(e)}` 
+                markup: {
+                    text: `${UiUnicodeSymbols.error} Error starting service ${UiUnicodeSymbols.arrowRight} "${serviceName}":\n -- ${UiUnicodeSymbols.warning} ${anyToString(e)}` 
+                }
             }
         }
     }

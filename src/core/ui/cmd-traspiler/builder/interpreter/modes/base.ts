@@ -27,19 +27,21 @@ export class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
         this.parser = parser
         this.lexer = new Lexer()
 
-        //this.parser.applyHandler(chainHandlerFactory<PChainReq, ExtendedCBChainRes>(function(this: BaseInterpreterComponent, req) {
-        //    if (req.type == 'TEXT' && req.value && req.value === DefaultBuilderCallbacks.cancel) {
-        //        return 'cancel'
-        //    }
-        //    return
-        //}, this))
-        //
-        //this.parser.applyHandler(chainHandlerFactory<PChainReq, ExtendedCBChainRes>(function(this: BaseInterpreterComponent, req) {
-        //    if (req.type == 'TEXT' && req.value && req.value === DefaultBuilderCallbacks.execute) {
-        //        return 'execute'
-        //    }
-        //    return
-        //}))
+        this.parser.applyHandler(chainHandlerFactory<PChainReq, ExtendedCBChainRes>(function(this: BaseInterpreterComponent, req) {
+            log.trace(`Cancel handler: ${req.value}`)
+            if (req.type == 'TEXT' && this.State === 'IDLE' && req.value && req.value === DefaultBuilderCallbacks.cancel) {
+                return 'cancel'
+            }
+            return
+        }, this))
+
+        this.parser.applyHandler(chainHandlerFactory<PChainReq, ExtendedCBChainRes>(function(this: BaseInterpreterComponent, req) {
+            log.trace(`Execute handler: ${req.value}`)
+            if (req.type == 'TEXT' && this.parser.State === 'IDLE' && req.value && req.value === DefaultBuilderCallbacks.execute) {
+                return 'execute'
+            }
+            return
+        }, this))
     }
 
     step(input: string): EvaluationResult {
@@ -60,7 +62,11 @@ export class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
 
         switch (action) {
             case 'none':
-                return this.end()
+                return new EvaluationResult(
+                    this.parser,
+                    'nothing to do',
+                    { done: false }
+                )
 
             case 'cancel': 
                 return new EvaluationResult(
@@ -147,6 +153,13 @@ export class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
                     `Positional was removed.`,
                 )
 
+            case 'wait-next-inited':
+                log.trace('Handling wait-next-inited: Waiting for next value.');
+                return new EvaluationResult(
+                    this.parser,
+                    `Waiting for next value.`,
+                )
+
             default:
                 return new EvaluationResult(
                     this.parser,
@@ -157,6 +170,7 @@ export class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
     }
 
     protected end() {
+        log.trace(`End of input reached`)
         return new EvaluationResult(
             this.parser,
             '',
@@ -165,7 +179,7 @@ export class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
     }
 
     protected compile(): ICommandCompiled {
-        console.log(this.parser.ReadArgs)
+        log.trace(`Compiling command: ${this.parser.BuildingCommand}`)
         return {
             command: this.parser.BuildingCommand,
             proxy: new CmdArgumentProxy(this.parser.ReadArgs),

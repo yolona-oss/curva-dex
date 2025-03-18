@@ -72,7 +72,7 @@
     "exclude": [
         //"./src/tmp/**/*",
         "./src/bots/traider/impl/example/**/*",
-        "./src/pump.fun.service/",
+        //"./src/pump.fun.service/",
         "node_modules"
     ]
 }

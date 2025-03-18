@@ -18,7 +18,7 @@ import {
  */
 export type InterpreterMode = "comprehensive" | "required" | "non-crendary" | 'incremental'
 
-const default_mode: InterpreterMode = "required"
+const default_mode: InterpreterMode = "incremental"
 
 /**
  * @param {CBState} state - interpreter state manager and data manipulator

@@ -39,12 +39,13 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
             const stepRes = builder.handle(userId, text)
 
             if (stepRes.IsCompiled) {
+                log.trace(`Build done: invoking command: ${stepRes.Result.command}`)
                 return await chComposer.CommandInvoker.invoke(userId, stepRes.Result, ctx)
             }
 
             return {
                 success: !Boolean(stepRes),
-                ...stepRes.Markup
+                markup: stepRes.Markup
             }
         }
         return

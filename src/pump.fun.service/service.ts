@@ -1,16 +1,10 @@
 import { BaseCommandService } from "@core/ui/types";
 
-import { IPumpFunRobotConfig, defaultCfg } from "./config";
-
 import { PumpFunRobot } from "./robot";
 import { BLANK_USER_ID } from "@core/ui/cmd-traspiler";
-import { IMTCStateSave } from "@bots/traider/mtc";
-import { PumpFunAssetType } from "@bots/traider/impl/pump.fun";
-import { BaseCmdServiceInteractMessages, CmdServiceData } from "@core/ui/types";
-import { IPumpFunRobotSessionState } from "./robot/state";
-import { IPFServiceSessionData, pfDefaultData, pfname, PFServiceDataType } from "./service-data";
+import { IPFServiceSessionData, PFConfigData, pfDefaultData, PFMessagesData, pfname, PFParamsData, PFServiceDataType } from "./service-data";
 
-export class PumpFunService extends BaseCommandService<IPFServiceSessionData, IPumpFunRobotConfig> {
+export class PumpFunService extends BaseCommandService<IPFServiceSessionData, PFConfigData, PFParamsData, PFMessagesData> {
 
     private robot?: PumpFunRobot
 
@@ -27,7 +21,7 @@ export class PumpFunService extends BaseCommandService<IPFServiceSessionData, IP
         )
     }
 
-    clone(userId: string, inputData: Partial<PFServiceData> = {}, newName: string = serviceName) {
+    clone(userId: string, inputData: Partial<PFServiceDataType> = {}, newName: string = pfname) {
         return new PumpFunService(userId, inputData, newName)
     }
 
@@ -62,18 +56,18 @@ export class PumpFunService extends BaseCommandService<IPFServiceSessionData, IP
     }
 
     protected async runWrapper() {
-        //const master_state_save = this.session_data.master_state_save
-        //const dryRun = this.data.params.dryRun ? true : false
-        //this.robot = new PumpFunRobot(
-        //    this.createServicePrefix(),
-        //    //this.config.targetAsset,
-        //    //this.config,
-        //    this.isBlankSession() ? null : master_state_save,
-        //    dryRun
-        //)
+        const master_state_save = this.data.sessionData.master_state_save
+        const dryRun = this.data.params.dryRun ? true : false
+        this.robot = new PumpFunRobot(
+            this.createServicePrefix(),
+            this.data.config.targetAsset,
+            this.data.config,
+            this.isBlankSession ? null : master_state_save,
+            dryRun
+        )
 
-        //await this.robot.Initialize()
-        //await this.robot.start()
+        await this.robot.Initialize()
+        await this.robot.start()
     }
 
     async terminateWrapper() {

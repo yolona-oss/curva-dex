@@ -6,6 +6,7 @@ import { NarrowedContext, Context, Types } from "telegraf";
 
 export interface TgContext extends Context, BaseUIContext {
     type: AvailableUIsEnum.Telegram
+
     manager: IManager
     text: string
     reply: (...args: any[]) => Promise<any>

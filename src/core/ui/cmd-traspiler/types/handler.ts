@@ -8,7 +8,7 @@ export interface IComposerUICmdCallback<Ctx extends BaseUIContext> extends Omit<
 
 export interface IHandleCommandResult {
     success: boolean
-    markup?: IBaseMarkup
+    markup: IBaseMarkup
 }
 
 export interface ICmdRegisterEntry<Ctx extends BaseUIContext> {
