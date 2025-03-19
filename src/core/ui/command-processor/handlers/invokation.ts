@@ -11,7 +11,7 @@ export class HandleInvokation<Ctx extends BaseUIContext> extends AbstractCmdHand
 
         let res: ICmdHandlerResponce|undefined
         try {
-            const compiled = await dispatcher.CommandBuilder.nonCrendaryCompile(userId, command, args.join(' '), uiCtx, dispatcher)
+            const compiled = await dispatcher.CommandBuilder.compile(userId, command, args.join(' '), uiCtx, dispatcher)
             res = await dispatcher.CommandInvoker.invoke(userId, compiled.Result, uiCtx)
         } catch (e: any) {
             log.error("Command execution error: " + anyToString(e))

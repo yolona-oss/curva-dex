@@ -38,7 +38,7 @@ export class Makaper {
 
     static BuildingString(state: ICBParserStateRaw, info = "", addTo: "begining"|"end" = "end"): string {
         const command = state.command
-        info = info.length > 0 ? `${UiUnicodeSymbols.info} - ${info}` : ""
+        info = info.length > 1 ? `${UiUnicodeSymbols.info} - ${info}` : ""
         let buildStr = `${UiUnicodeSymbols.hammer} Building "${command}"\n`
 
         const settedArgToStr = (arg: IArgumentCompiled) => {

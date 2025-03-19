@@ -126,15 +126,10 @@ messages: ${JSON.stringify(messages, null, 2)}`)
             await ctx.reply(message)
         })
         serviceInstance.on('done', async (msg: string = "") => {
-            const services = this.dispatcher.UserActiveServices(userId)
-            if (!services) {
-                log.error(`No active services for user ${userId}`)
-                return
-            }
             this.dispatcher.RemoveUserAcitveService(userId, serviceName)
             log.info("-- Service done: " + serviceName)
-            msg = msg.length ? msg : `${UiUnicodeSymbols.info} - ${msg}`
-            await ctx.reply(` ${UiUnicodeSymbols.success} Service ${UiUnicodeSymbols.arrowRight} "${serviceName}" done.\n-- ${UiUnicodeSymbols.info} ${msg}`)
+            msg = msg.length > 0 ? msg : `${UiUnicodeSymbols.info} - ${msg}`
+            await ctx.reply(`${UiUnicodeSymbols.success} Service ${UiUnicodeSymbols.arrowRight} "${serviceName}" done.\n${msg}`)
         })
         log.info("-- Starting service: " + serviceInstance.name)
 

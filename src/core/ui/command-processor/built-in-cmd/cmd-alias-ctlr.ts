@@ -49,6 +49,7 @@ const AliasCommand: BuiltInCommand = {
         if (aliases.find(a => a.alias === aliasName)) {
             throw `Alias "${aliasName}" already exists`
         }
+        console.log(aliasName, "|", commandStr)
         await CmdAlias.create({alias: aliasName, command: commandStr, owner_id})
     }
 }

@@ -19,6 +19,8 @@ import { Extender } from "@core/utils/extender";
 
 import 'reflect-metadata';
 import { UiUnicodeSymbols } from "@core/ui";
+import { deepClone } from "@core/utils/object";
+import { log } from '@logger'
 
 interface IBaseCmdService_EvMap<T = string> extends EventMap {
     message: (msg: T) => void,
@@ -97,7 +99,7 @@ export abstract class BaseCommandService<
     }
 
     toString() {
-        return `${this.name}-${this.data.sessionId}`
+        return `_${this.name}_-_${this.data.sessionId}_`
     }
 
     async Initialize(): Promise<void> {
@@ -113,6 +115,8 @@ export abstract class BaseCommandService<
             const msg = e instanceof Error ? e.message : e
             throw `${UiUnicodeSymbols.error} Service initialization error:\n-- ${msg}`
         }
+
+        log.info(`Service "${this.toString()}" initialized`)
     }
 
     private async retrieveAccountData() {
@@ -152,6 +156,12 @@ export abstract class BaseCommandService<
 
         const inputData = this.inputServiceData
         const defaultData = this.defaultData
+        const _session_id: string = inputData.params?.s || inputData.params?.sessionId || DEFAULT_ACCOUNT_SESSION_NAME
+        this.data.sessionId = _session_id
+        this.data.params = {
+            ...this.data.params,
+            ...inputData.params
+        }
 
         const { account, owner, session_data, module_data, account_module_session, account_module } = await this.retrieveAccountData()
         

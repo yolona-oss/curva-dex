@@ -55,15 +55,7 @@ export class CmdServiceData<
         public config: TConfig,
         public params: TParams,
         public messages: TMessages,
-        public readonly sessionId: string = DEFAULT_ACCOUNT_SESSION_NAME,
+        public sessionId: string = DEFAULT_ACCOUNT_SESSION_NAME,
         public sessionData: TSessionData = {} as TSessionData
-    ) {
-        if (this.sessionId.trim() == "") {
-            throw "Empty session id"
-        }
-        const paramSession = this.params.sessionId || this.params.s
-        if (paramSession) {
-            this.sessionId = paramSession
-        }
-    }
+    ) { }
 }

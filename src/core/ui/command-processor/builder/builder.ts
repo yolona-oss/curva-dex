@@ -78,7 +78,10 @@ export class CommandBuilder {
         return Makaper.__tmpMarkup(state)
     }
 
-    public async nonCrendaryCompile<UICtx extends BaseUIContext>(
+    /**
+     * Compile command non-crendary
+     */
+    public async compile<UICtx extends BaseUIContext>(
         userId: string,
         command: string,
         input: string,

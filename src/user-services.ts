@@ -80,8 +80,6 @@ export class TestService extends BaseCommandService<TestServiceSessionData, Base
         name: string = TestServiceName
     ) {
         super(userId, defaultTestServiceData, input, name)
-        console.log(`Constructor input: `, input)
-        console.log(`Constructor data: `, this.data)
     }
 
     private isPaused = false
@@ -106,12 +104,10 @@ export class TestService extends BaseCommandService<TestServiceSessionData, Base
     }
 
     clone(userId: string, input: Partial<TestServiceDataType>, newName?: string): BaseCommandService<TestServiceSessionData> {
-        console.log(`Cloner input: `, input)
         return new TestService(userId, input, newName)
     }
 
     async runWrapper() {
-        console.log(`Service data: `, this.data)
         this.i = BigInt(this.data.params.startValue ?? 1)
         this.sendMsg(`Start with ${this.i}, target value ${this.max}, prev target: ${this.data.sessionData.prev_max ?? 0}`)
         while (true) {

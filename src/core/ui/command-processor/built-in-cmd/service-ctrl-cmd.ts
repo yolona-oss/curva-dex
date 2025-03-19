@@ -17,7 +17,6 @@ class ServiceStopArgs {
         }
     })
     service!: String
-
 }
 
 const ServiceStopCommand: BuiltInCommand = {
@@ -30,7 +29,7 @@ const ServiceStopCommand: BuiltInCommand = {
         const serviceName = args.getOrThrow('service')
         try {
             const res = await this.terminateService(userId, serviceName)
-            await ctx.reply(`${UiUnicodeSymbols.success} Service "${serviceName}" terminated: ${res}`)
+            await ctx.reply(`${UiUnicodeSymbols.success} Service "${serviceName}" terminated: ${res ?? "No-service-response"}`)
         } catch(e: any) {
             throw `${UiUnicodeSymbols.error} Service "${serviceName}" termination error:\n  -- ${anyToString(e)}.`
         }

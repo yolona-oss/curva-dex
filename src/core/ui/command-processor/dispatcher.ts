@@ -93,6 +93,7 @@ export class CmdDispatcher<UIContextType extends BaseUIContext> extends WithInit
             }
         }
 
+        command = command.split(" ")[0]
         try {
             return await this.chain.handle({
                 dispatcher: this,
@@ -355,7 +356,6 @@ export class CmdDispatcher<UIContextType extends BaseUIContext> extends WithInit
     getInvokable(command: string): IUICommandEntry<UIContextType> {
         const cb = this.cmd_registry.get(command)
         if (!cb) {
-            log.error(`Command ${UiUnicodeSymbols.arrowRight} "${command}" not found.`)
             throw `Command ${UiUnicodeSymbols.arrowRight} "${command}" not found.`
         }
         return cb!
