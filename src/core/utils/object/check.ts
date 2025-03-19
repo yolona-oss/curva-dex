@@ -2,6 +2,10 @@ export function isEmpty(obj: object) {
     return Object.keys(obj).length === 0
 }
 
+export function isObject(obj: any): boolean {
+    return obj !== null && typeof obj === 'object' && !Array.isArray(obj);
+}
+
 export function isObjectsEqual(obj1: any, obj2: any): boolean {
     const keys1 = Object.keys(obj1)
     const keys2 = Object.keys(obj2)

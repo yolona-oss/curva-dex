@@ -101,7 +101,7 @@ export class Makaper {
 
         const overwrite =
             `${UiUnicodeSymbols.hammer} Run CmdBuilder\n
-Building command: - ${UiUnicodeSymbols.arrowRight} "${parser.BuildingCommand}".\n
+Building command: - ${UiUnicodeSymbols.arrowRight} "${parser.Command}".\n
  - Avalible context: ${UiUnicodeSymbols.arrowRight} ${parser.toRawState().avaliableCtxs.join(", ")}.\n${desc_str}`
 
         return Makaper.markup(parser, {
@@ -123,7 +123,7 @@ Building command: - ${UiUnicodeSymbols.arrowRight} "${parser.BuildingCommand}".\
         
         // BIG BUTTY CONDITION HERE
         if (parser.State === 'PAIR_VALUE') {// show pair options
-            const desc = parser.findDescriptor(parser.LastReadArg.name)!
+            const desc = parser.findDescriptorByName(parser.LastReadArg.name)!
             byStateButtons = desc.pairOptions?.map(opt =>
                 this.toMarkup({
                     text: `${opt}`,
@@ -144,7 +144,7 @@ Building command: - ${UiUnicodeSymbols.arrowRight} "${parser.BuildingCommand}".\
             const type = parser.NextValueSetType
             const val = parser.NextValueSetValue
             if (type === 'standalone') {
-                const isToggledOn = parser.isStandaloneRead(val!)
+                const isToggledOn = parser.isArgumentStandaloneRead(val!)
                 byStateButtons = [
                     this.toMarkup({
                         text: `Toggle-${isToggledOn ? "Off" : "On"}`,
@@ -154,7 +154,7 @@ Building command: - ${UiUnicodeSymbols.arrowRight} "${parser.BuildingCommand}".\
                 ]
                 text.info += `Click to toggle standalone "${val}" to ${isToggledOn ? "Off" : "On"}`
             } else if (type === 'positional') {
-                const desc_l = parser.findDescriptor(val!)
+                const desc_l = parser.findDescriptorByName(val!)
                 if (!desc_l) {
                     throw new Error(`Cannot find descriptor for positional setted by next value setter handler: ${val}`)
                 }
@@ -175,10 +175,10 @@ Building command: - ${UiUnicodeSymbols.arrowRight} "${parser.BuildingCommand}".\
                 const isPair = desc.standalone == false && desc.position == null
                 const isStandalone = desc.standalone
                 return this.toMarkup({
-                    text: `${desc.name}${parser.isRead(desc.name, desc.ctx) ? " " + UiUnicodeSymbols.check : ""}`,
+                    text: `${desc.name}${parser.isArgumentRead(desc.name, desc.ctx) ? " " + UiUnicodeSymbols.check : ""}`,
                     data: `${isPair ? '--' : isStandalone ? '-' : ''}${desc.name}`,
                     type: 'name',
-                    isRead: parser.isNameRead(desc.name)
+                    isRead: parser.isArgumentNameRead(desc.name)
                 })
             })
         }

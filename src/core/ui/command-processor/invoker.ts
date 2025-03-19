@@ -13,6 +13,7 @@ export class CommandInvoker<TContext extends BaseUIContext> {
     ) { }
 
     async invoke(invokerId: string, cmdCompiled: ICommandCompiled, ctx: TContext): Promise<IHandleResult> {
+        log.trace(`Command invoker: Invoking command: ${cmdCompiled.command}, invoker: ${invokerId}`)
         const { command } = cmdCompiled
         const cb = this.dispatcher.getInvokable(command)
         if (isFunc(cb.invokable)) {

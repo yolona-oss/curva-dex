@@ -5,7 +5,7 @@ import { ICmdService } from "@core/ui/types/command";
 import { CmdArgumentContextType } from "@core/ui/types/command";
 import { CmdDispatcher } from "./../dispatcher"
 import { IManager, Manager } from "@core/db"
-import { CmdArgumentMeta, exposeCmdArgumentOptions } from "@core/ui/types/command"
+import { CmdArgumentMetadataRaw, exposeCmdArgumentOptions } from "@core/ui/types/command"
 
 export class CBDescriptorCompiler<UICtx extends BaseUIContext> {
     constructor() { }
@@ -23,7 +23,7 @@ export class CBDescriptorCompiler<UICtx extends BaseUIContext> {
         const serviceArgCtx: CmdArgumentContextType[] = ['params', 'config', 'message']
         const builderArgs: IArgumentDescriptor[] = new Array()
         for (const ctxName of serviceArgCtx) {
-            const descriptor: Record<string, CmdArgumentMeta> = service[ctxName === 'message' ? 'receiveMsgDescriptor' : ctxName === 'config' ? 'configDescriptor' : 'paramsDescriptor']()
+            const descriptor: Record<string, CmdArgumentMetadataRaw> = service[ctxName === 'message' ? 'receiveMsgDescriptor' : ctxName === 'config' ? 'configDescriptor' : 'paramsDescriptor']()
             //console.log(`Descriptor: ${service.name}:${ctxName}`, JSON.stringify(descriptor, null, 4))
 
             for (const key in descriptor) {

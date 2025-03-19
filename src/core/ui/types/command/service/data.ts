@@ -1,20 +1,18 @@
 import { sessionIdValidator, sessionOptsWithRand } from "./utils/session-id-generator";
 
-import { CmdArgument, CmdArgmuentKeyHolder, CmdArgumentMetadata, getCmdArgMetadata } from "@core/ui/types/command";
+import { CmdArgument, CommandArgumentKeyHolder, CommandMetadata, getCmdArgMetadata } from "@core/ui/types/command";
 import { DEFAULT_ACCOUNT_SESSION_NAME } from "@core/db/schemes/account/session";
 
-export function toDescriptor<T extends CmdArgmuentKeyHolder>(instance: T): CmdArgumentMetadata<keyof T> {
+export function toDescriptor<T extends CommandArgumentKeyHolder>(instance: T): CommandMetadata<keyof T> {
     return getCmdArgMetadata(instance)
 }
 
-export abstract class BaseCmdServiceConfig {
+export class GlobalServiceConfig {
 }
 
-export class BaseCmdServiceParameters {
+export class GlobalServiceParam {
     @CmdArgument({
         required: false,
-        position: null,
-        standalone: false,
         pairOptions: sessionOptsWithRand,
         validator: sessionIdValidator,
         description: "Session id to restore state from."
@@ -30,11 +28,9 @@ export class BaseCmdServiceParameters {
     s?: string
 }
 
-export class BaseCmdServiceInteractMessages {
+export class GlobalServiceMessages {
     @CmdArgument({
         required: false,
-        position: null,
-        standalone: false,
         description: "Echo message",
         defaultValue: "R U GAY?"
     })
@@ -42,13 +38,15 @@ export class BaseCmdServiceInteractMessages {
 }
 
 /**
- * sessionId will be setted to default or will be overwrited by params.sessionId. User input will be ignored if params.sessionId is set
+ * @description Data holder object
+ * @param sessionId - must be set after initialization
+ * @param sessionData - must be set after initialization
  */
 export class CmdServiceData<
-        TConfig extends BaseCmdServiceConfig = BaseCmdServiceConfig,
-        TParams extends BaseCmdServiceParameters = BaseCmdServiceParameters,
-        TMessages extends BaseCmdServiceInteractMessages = BaseCmdServiceInteractMessages,
-        TSessionData = {}
+        TConfig extends Object = GlobalServiceConfig,
+        TParams extends Object = GlobalServiceParam,
+        TMessages extends Object = GlobalServiceMessages,
+        TSessionData extends Object = {}
     >
 {
     constructor(

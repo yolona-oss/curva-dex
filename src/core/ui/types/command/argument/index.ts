@@ -1,4 +1,4 @@
-import { CmdArgmuentKeyHolder } from './meta'
+import { CommandArgumentKeyHolder } from './meta'
 
 /**
  * @description Command argument definition
@@ -20,7 +20,7 @@ import { CmdArgmuentKeyHolder } from './meta'
  *      }
  * }
  */
-export type ICmdArgumentDefenition = CmdArgmuentKeyHolder
+export type ICmdArgumentDefenition = CommandArgumentKeyHolder
 
 export function encodePositionalName(name: string, position: number) {
     return `positional-${position}-${name}`

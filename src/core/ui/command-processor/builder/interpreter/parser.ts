@@ -5,7 +5,7 @@
 
 import { deepClone } from "@core/utils/object"
 import { IArgumentCompiled, IUICommandDescriptor } from '@core/ui/types'
-import { CmdArgumentContextType } from "@core/ui/types/command";
+import { CmdArgumentContextType, IArgumentDescriptor } from "@core/ui/types/command";
 import { encodePositionalName, decodePositionalName } from "@core/ui/types/command";
 import { StateSnaper } from "./state-span";
 import { CBLexerToken } from "./lexer";
@@ -13,7 +13,7 @@ import { CBLexerToken } from "./lexer";
 import log from "@core/application/logger";
 import { Chain, createChainFallbackHandler, chainHandlerFactory, IChainHandler } from "@core/utils/chain";
 import { removeObjectByFieldsMutate } from "@core/utils/array";
-import { isArgumentDescPair, isArgumentDescPositional, isArgumentDescStandalone } from "@core/ui/types/command/argument/descriptor-helpers";
+import { getArgumentDescType, isArgumentDescPair, isArgumentDescPositional, isArgumentDescStandalone, useDescriptorCreateArgument } from "@core/ui/types/command/argument/descriptor-helpers";
 
 /**
  * @see ParserStateType to get more info
@@ -79,7 +79,7 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
     private currentCtx!: CmdArgumentContextType
     private readonly descriptor!: IUICommandDescriptor
     private state!: ParserStateType
-    private readArgs!: IArgumentCompiled[]
+    private arguments!: IArgumentCompiled[]
 
     private snaper = new StateSnaper()
 
@@ -92,6 +92,7 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
         switchCtxKeyword: string,
         initialCtx: CmdArgumentContextType|null = null
     ) {
+        log.trace(`Parser created for command: ${command}\nDescriptor: ${JSON.stringify(descriptor)}`)
         this.setupChain()
 
         this.switchCtxKeyword = switchCtxKeyword
@@ -104,7 +105,7 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
 
         this.currentCtx = initialCtx ? initialCtx : this.avaliableCtxs[0]
         this.state = 'IDLE'
-        this.readArgs = []
+        this.arguments = []
         this.tknParseChain = new Chain<PChainReq, PChainResGType>()
     }
 
@@ -145,7 +146,7 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
 
         const setNextReadValueHandler = chainHandlerFactory<PChainReq, PChainResGType>((req) => {
             if (req.type == 'TEXT' && req.value && this.state == 'IDLE') {
-                const desc = this.findDescriptor(req.value)
+                const desc = this.findDescriptorByName(req.value)
                 if (!desc) {
                     return
                 }
@@ -166,14 +167,14 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
         const setPairNameHandler = chainHandlerFactory<PChainReq, PChainResGType>((req) => {
             if (req.type == 'DOUBLE_DASH' && req.value && this.state == 'IDLE') {
                 this.transitState('PAIR')
-                return this.setPairName(req.value)
+                return this.setArgument_pairName(req.value)
             }
             return
         })
 
         const setPairValueHandler = chainHandlerFactory<PChainReq, PChainResGType>((req) => {
-            if (req.type == 'TEXT' && req.value && this.state == 'PAIR_VALUE' && this.readArgs.length !== 0) {
-                return this.setPairValue(req.value)
+            if (req.type == 'TEXT' && req.value && this.state == 'PAIR_VALUE' && this.arguments.length !== 0) {
+                return this.setArgument_pairValue(req.value)
             }
             return
         })
@@ -181,7 +182,7 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
         const setPosHandler = chainHandlerFactory<PChainReq, PChainResGType>((req) => {
             if (req.type == 'TEXT' && req.value && this.state == 'IDLE') {
                 try {
-                    return this.setPositional(req.value)
+                    return this.setArgument_positional(req.value)
                 } catch (e) {
                     log.error(e)
                 }
@@ -192,7 +193,7 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
         const setStandaloneHandler = chainHandlerFactory<PChainReq, PChainResGType>((req) => {
             if (req.type == 'SINGLE_DASH' && req.value && this.state == 'IDLE') {
                 this.transitState('STAND_ALONE')
-                return this.setStandalone(req.value)
+                return this.setArgument_standalone(req.value)
             }
             return
         })
@@ -234,7 +235,7 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
             descriptor: this.descriptor,
             currentCtx: this.currentCtx,
             state: this.state,
-            read: this.readArgs,
+            read: this.arguments,
         })
     }
 
@@ -242,7 +243,7 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
         this.snaper.memorize({
             currentCtx: this.currentCtx,
             state: this.state,
-            read: deepClone(this.readArgs)
+            read: deepClone(this.arguments)
         })
     }
 
@@ -251,7 +252,7 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
         if (snap) {
             this.currentCtx = snap.currentCtx
             this.state = snap.state
-            this.readArgs = snap.read
+            this.arguments = snap.read
         } else {
             throw 'Can\'t back parser state'
         }
@@ -274,47 +275,49 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
     }
 
     get ReadArgs() {
-        return this.readArgs
+        return this.arguments
     }
 
     get LastReadArg() {
-        return this.readArgs[this.readArgs.length - 1]
+        return this.arguments[this.arguments.length - 1]
     }
 
     get Descriptor() {
         return this.descriptor
     }
 
-    get BuildingCommand() {
+    get Command() {
         return this.command
     }
 
-    get DescPosArgs() {
-        return this.descriptor.args.filter(arg => arg.position != null)
+    get DescriptorPosArgs() {
+        return this.descriptor.args.filter(arg => isArgumentDescPositional(arg))
     }
 
-    get DescPairArgs() {
-        return this.descriptor.args.filter(arg => arg.position == null)
+    get DescriptorPairArgs() {
+        return this.descriptor.args.filter(arg => isArgumentDescPair(arg))
     }
 
     get ReadPositionals() {
-        return this.readArgs.filter(arg => arg.position != null).sort((arg1, arg2) => arg1.position! - arg2.position!)
+        return this.arguments
+            .filter(arg => arg.position !== undefined) // TODO
+            .sort((arg1, arg2) => arg1.position! - arg2.position!)
     }
 
-    get DescPositionals() {
-        return this.descriptor.args.filter(arg => arg.position != null).sort((arg1, arg2) => arg1.position! - arg2.position!)
-    }
-
-    get IsDescArgsEmpty() {
+    get IsDescriptorEmpty() {
         return this.descriptor.args.length === 0
     }
 
-    get IsDescArgsRequiredEmpty() {
+    get IsDescriptorRequiredEmpty() {
         return this.descriptor.args.filter(arg => arg.required).length === 0
     }
 
     get NextPositionalInd() {
         return this.ReadPositionals.length + 1
+    }
+
+    get MaxPositionalInd() {
+        return this.DescriptorPosArgs.length
     }
 
     /**
@@ -324,40 +327,48 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
         return ctx ? ctx : this.currentCtx
     }
 
-    private isReadFromDescriptor(desc: IUICommandDescriptor) {
-        for (const arg_d of desc.args) {
-            if (arg_d.position != null) {
-                if (!this.isPosRead(arg_d.position)) {
-                    return false
-                }
-            } else {
-                if (!this.isNameRead(arg_d.name)) {
-                    return false
-                }
+    private isAllArgumentRead_fromDescriptorSlice(descSlice: IUICommandDescriptor) {
+        for (const argDesc of descSlice.args) {
+            switch (getArgumentDescType(argDesc)) {
+                case 'standalone':
+                    if (!this.isArgumentStandaloneRead(argDesc.name)) {
+                        return false
+                    }
+                    break;
+                case 'positional':
+                    if (!this.isArgumentPositionalRead(argDesc.position!)) {
+                        return false
+                    }
+                    break;
+                case 'pair':
+                    if (!this.isArgumentNameRead(argDesc.name)) {
+                        return false
+                    }
+                    break;
+                default:
+                    throw `Invalid argument descriptor type: ${JSON.stringify(argDesc)}`
             }
         }
 
         return true
     }
 
-    isEveryRead() {
-        return this.isReadFromDescriptor(this.descriptor)
+    isEveryArgumentsRead() {
+        return this.isAllArgumentRead_fromDescriptorSlice(this.descriptor)
     }
 
-    isRequiredRead() {
+    isRequiredArgumentsRead() {
         const requiredOnly = deepClone(this.descriptor)
         requiredOnly.args = requiredOnly.args.filter(arg => arg.required)
-        return this.isReadFromDescriptor(requiredOnly)
+        return this.isAllArgumentRead_fromDescriptorSlice(requiredOnly)
     }
 
-    isRead(input: string, ctx?: CmdArgumentContextType) {
+    /**
+     * @returns true if argument name is read and value is empty or ''
+     */
+    isArgumentNameRead(input: string, ctx?: CmdArgumentContextType) {
         ctx = this.ctxOrCurrent(ctx)
-        return this.readArgs.some(arg => arg.name === input && arg.ctx === ctx)
-    }
-
-    isNameRead(input: string, ctx?: CmdArgumentContextType) {
-        ctx = this.ctxOrCurrent(ctx)
-        const searchArray = this.readArgs.filter(arg => arg.ctx === (ctx))
+        const searchArray = this.arguments.filter(arg => arg.ctx === (ctx))
         for (const read of searchArray) {
             if (read.name === input && read.value != '') {
                 return true
@@ -371,22 +382,42 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
         return false
     }
 
-    isStandaloneRead(input: string, ctx?: CmdArgumentContextType) {
+    isArgumentRead(input: string, ctx?: CmdArgumentContextType): boolean {
         ctx = this.ctxOrCurrent(ctx)
-        return this.readArgs.some(arg => arg.name === input && arg.ctx === ctx && arg.standalone === true)
+        const searchArray = this.arguments.filter(arg => arg.ctx === (ctx))
+        for (const read of searchArray) {
+            if (read.name === input) {
+                return true
+            } else if (read.name.startsWith('positional-') && read.value != '') {
+                const { name } = decodePositionalName(read.name)
+                if (name === input) {
+                    return true
+                }
+            }
+        }
+        return false
     }
 
-    isPosRead(pos: number, ctx?: CmdArgumentContextType) {
+    isArgumentStandaloneRead(input: string, ctx?: CmdArgumentContextType): boolean {
         ctx = this.ctxOrCurrent(ctx)
-        return this.readArgs.some(arg => arg.position === pos && arg.ctx === ctx && arg.value != '')
+        return this.arguments.some(arg => arg.name === input && arg.ctx === ctx && arg.standalone === true)
     }
 
-    findDescriptor(name: string, ctx?: CmdArgumentContextType) {
+    isArgumentPositionalRead(pos: number, ctx?: CmdArgumentContextType): boolean {
+        ctx = this.ctxOrCurrent(ctx)
+        return this.arguments.some(arg => arg.position === pos && arg.ctx === ctx && arg.value != '')
+    }
+
+    findDescriptorByName(name: string, ctx?: CmdArgumentContextType): IArgumentDescriptor | undefined {
         return this.descriptor.args.find(arg => arg.name === name && arg.ctx === (ctx ?? this.currentCtx))
     }
 
+    findReadArgumentByDescritor(desc: IArgumentDescriptor): IArgumentCompiled | undefined {
+        return this.arguments.find(arg => arg.name === desc.name && arg.ctx === desc.ctx)
+    }
+
     isDescriptorExists(name: string, ctx?: CmdArgumentContextType) {
-        return this.findDescriptor(name, ctx) !== undefined
+        return this.findDescriptorByName(name, ctx) !== undefined
     }
 
     ////////
@@ -401,7 +432,7 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
     }
     
     setNextValueSetting(input: string): PChainResGType {
-        const desc = this.findDescriptor(input)!
+        const desc = this.findDescriptorByName(input)!
 
         this.nextValueSet = {
             type: desc.position != null ? 'positional' : 'standalone',
@@ -422,10 +453,10 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
         }
 
         if (this.nextValueSet.type === 'standalone') {
-            ret = this.setStandalone(this.nextValueSet.arg_name)
+            ret = this.setArgument_standalone(this.nextValueSet.arg_name)
         } else if (this.nextValueSet.type === 'positional') {
-            const pos_desc = this.findDescriptor(this.nextValueSet.arg_name)!
-            ret = this.setPositional(input, pos_desc.position!)
+            const pos_desc = this.findDescriptorByName(this.nextValueSet.arg_name)!
+            ret = this.setArgument_positional(input, pos_desc.position!)
         } else {
             throw `Can't set value from undefined next value setting`
         }
@@ -448,6 +479,8 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
         throw new Error(`Can't transite from ${this.state} to ${to}. Invalid state transition`)
     }
 
+    //
+
     /**
      * initiates context selection
      */
@@ -468,11 +501,59 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
         return 'ctx-switch' as PChainResGType
     }
 
+    //
+
+    /**
+     * Sets argument by descriptor and value
+     * removes existing argument if its positional or pair, then pushes new
+     * >>> ! toggle standalone and returns ! <<<
+     */
+    private __set_argument(desc: IArgumentDescriptor, value: string): PChainResGType {
+        const existing = this.findReadArgumentByDescritor(desc)
+        const argType = getArgumentDescType(desc)
+        if (existing) {
+            switch (argType) {
+                case 'positional':
+                    this.removeArgumentByPos(existing.position!, existing.ctx)
+                    break
+                case 'standalone':
+                    return this.removeArgumentStandalone(existing.name, existing.ctx)
+                case 'pair':
+                    this.removeArgumentByPos(existing.position!, existing.ctx)
+                    break
+            }
+        }
+        this.arguments.push(useDescriptorCreateArgument(desc, value))
+        const ret = argType ===
+            'standalone' ? 'set-standalone' :
+                argType === 'positional' ? 'set-positional' :
+                    argType === 'pair' ? 'set-pair-name' :
+                        'none'
+        return ret as PChainResGType
+    }
+
+    /**
+     * Sets argument by descriptor and value to pair argument only
+     */
+    private __set_argument_value(desc: IArgumentDescriptor, value: string): PChainResGType {
+        const existing = this.findReadArgumentByDescritor(desc)
+        if (existing) {
+            if (!existing.isPair) {
+                throw `Argument is not pair`
+            }
+            existing.value = value
+            return 'set-pair-value' as PChainResGType
+        }
+        return 'none' as PChainResGType
+    }
+
+    //
+
     /**
      * creates entry for positional
      */
-    private setPositional(value: string, pos?: number): PChainResGType {
-        const maxPos = this.descriptor.args.filter(arg => arg.position && arg.ctx == this.currentCtx).length
+    private setArgument_positional(arg_value: string, pos?: number): PChainResGType {
+        const maxPos = this.MaxPositionalInd
         pos = pos ?? this.NextPositionalInd
         if (pos > maxPos) {
             throw `Position exceeded: max: ${maxPos}, passed: ${pos}. `
@@ -484,17 +565,9 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
         if (!isArgumentDescPositional(desc)) {
             throw `Argument descriptor is not positional: ${pos}`
         }
-        this.removeArgByPos(pos)
-        this.readArgs.push({
-            name: encodePositionalName(desc.name, pos),
-            value: value,
-            standalone: false,
-            position: pos,
-            ctx: this.currentCtx
-        })
+        this.__set_argument(desc, arg_value)
 
         this.transitState('IDLE')
-
         return 'set-positional' as PChainResGType
     }
 
@@ -502,43 +575,24 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
      * creates entry for standalone
      * NOW ITS USE TOGGLE LOGIC
      */
-    private setStandalone(input: string): PChainResGType {
-        const desc = this.findDescriptor(input)!
+    private setArgument_standalone(arg_name: string): PChainResGType {
+        const desc = this.findDescriptorByName(arg_name)!
         if (!isArgumentDescStandalone(desc)) {
-            throw `Argument descriptor is not standalone: ${input}`
+            throw `Argument descriptor is not standalone: ${arg_name}`
         }
 
-        if (this.isStandaloneRead(input)) {
-            this.removeStandaloneArg(input)
-            return 'removed-standalone' as PChainResGType
-        } else {
-            this.readArgs.push({
-                name: input,
-                value: 'true',
-                standalone: true,
-                position: null,
-                ctx: this.currentCtx
-            })
-            return 'set-standalone' as PChainResGType
-        }
+        return this.__set_argument(desc, arg_name)
     }
 
     /**
      * creates entry for pair and set its name
      */
-    private setPairName(input: string): PChainResGType {
-        const desc = this.findDescriptor(input)!
+    private setArgument_pairName(arg_name: string): PChainResGType {
+        const desc = this.findDescriptorByName(arg_name)!
         if (!isArgumentDescPair(desc)) {
-            throw `Argument descriptor is not pair: ${input}`
+            throw `Argument descriptor is not pair: ${arg_name}`
         }
-        this.removeArgByName(input)
-        this.readArgs.push({
-            name: input,
-            value: '',
-            standalone: false,
-            position: desc.position,
-            ctx: desc.ctx
-        })
+        this.__set_argument(desc, arg_name)
 
         this.transitState('PAIR_VALUE')
 
@@ -548,37 +602,44 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
     /**
     * set value to pair of last read pair name
     */
-    private setPairValue(input: string): PChainResGType {
+    private setArgument_pairValue(arg_value: string): PChainResGType {
         if (this.LastReadArg.value != '') {
             throw `Pair value already set`
         }
-        this.readArgs[this.readArgs.length - 1].value = input
+        const desc = this.findDescriptorByName(this.LastReadArg.name)!
+        this.__set_argument_value(desc, arg_value)
+
         this.transitState('IDLE')
 
         return 'set-pair-value' as PChainResGType
     }
 
-    private removeArgByName(name: string, fromCtx?: CmdArgumentContextType): PChainResGType {
+    //
+
+    private removeArgumentByName(name: string, fromCtx?: CmdArgumentContextType): PChainResGType {
         fromCtx = this.ctxOrCurrent(fromCtx)
-        let before = this.readArgs.length
-        removeObjectByFieldsMutate(this.readArgs, { name: name, ctx: fromCtx })
-        return before - this.readArgs.length === 1 ? 'removed-pair' as PChainResGType : 'none' as PChainResGType
+        let before = this.arguments.length
+        removeObjectByFieldsMutate(this.arguments, { name: name, ctx: fromCtx })
+        return before - this.arguments.length === 1 ? 'removed-pair' as PChainResGType : 'none' as PChainResGType
     }
 
-    private removeArgByPos(pos: number, fromCtx?: CmdArgumentContextType): PChainResGType {
+    private removeArgumentByPos(pos: number, fromCtx?: CmdArgumentContextType): PChainResGType {
         fromCtx = this.ctxOrCurrent(fromCtx)
-        let before = this.readArgs.length
-        removeObjectByFieldsMutate(this.readArgs, { position: pos, ctx: fromCtx })
-        return before - this.readArgs.length === 1 ? 'removed-positional' as PChainResGType : 'none' as PChainResGType
+        let before = this.arguments.length
+        removeObjectByFieldsMutate(this.arguments, { position: pos, ctx: fromCtx })
+        return before - this.arguments.length === 1 ? 'removed-positional' as PChainResGType : 'none' as PChainResGType
     }
 
-    private removeStandaloneArg(name: string, fromCtx?: CmdArgumentContextType): PChainResGType {
+    private removeArgumentStandalone(name: string, fromCtx?: CmdArgumentContextType): PChainResGType {
         fromCtx = this.ctxOrCurrent(fromCtx)
-        let before = this.readArgs.length
-        removeObjectByFieldsMutate(this.readArgs, { name: name, standalone: true, ctx: fromCtx })
-        return before - this.readArgs.length === 1 ? 'removed-standalone' as PChainResGType : 'none' as PChainResGType
+        let before = this.arguments.length
+        removeObjectByFieldsMutate(this.arguments, { name: name, standalone: true, ctx: fromCtx })
+        return before - this.arguments.length === 1 ? 'removed-standalone' as PChainResGType : 'none' as PChainResGType
     }
 
+    /**
+    * Parser entry point
+    */
     parseNextToken(token: CBLexerToken): PChainResGType {
         this.setupChain()
         this.snap()

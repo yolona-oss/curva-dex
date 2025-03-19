@@ -2,9 +2,13 @@ import { BaseCommandService } from "@core/ui/types";
 
 import { PumpFunRobot } from "./robot";
 import { BLANK_USER_ID } from "@core/ui/command-processor";
-import { IPFServiceSessionData, PFConfigData, pfDefaultData, PFMessagesData, pfname, PFParamsData, PFServiceDataType } from "./service-data";
+import {
+    pfDefaultData,
+    pfname,
+    PFServiceDataType
+} from "./service-data";
 
-export class PumpFunService extends BaseCommandService<IPFServiceSessionData, PFConfigData, PFParamsData, PFMessagesData> {
+export class PumpFunService extends BaseCommandService<PFServiceDataType> {
 
     private robot?: PumpFunRobot
 

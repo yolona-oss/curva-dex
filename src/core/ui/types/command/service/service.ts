@@ -7,20 +7,20 @@ import { BLANK_SERVICE_NAME } from "./constants";
 import { DEFAULT_ACCOUNT_SESSION_NAME } from "@core/db/schemes/account/session";
 
 import {
-    BaseCmdServiceConfig,
-    BaseCmdServiceInteractMessages,
-    BaseCmdServiceParameters,
+    GlobalServiceConfig,
+    GlobalServiceMessages,
+    GlobalServiceParam,
     CmdServiceData,
     toDescriptor
 } from "./data";
 
-import { CmdArgumentMetadata } from "@core/ui/types/command";
+import { CommandMetadata } from "@core/ui/types/command";
 import { Extender } from "@core/utils/extender";
 
 import 'reflect-metadata';
 import { UiUnicodeSymbols } from "@core/ui";
-import { deepClone } from "@core/utils/object";
 import { log } from '@logger'
+import { deepMerge } from "@core/utils/object";
 
 interface IBaseCmdService_EvMap<T = string> extends EventMap {
     message: (msg: T) => void,
@@ -37,37 +37,62 @@ export class CommandServiceLoader {
     }
 }
 
-export abstract class BaseCommandService<
-        TSessionData,
-        TConfig extends BaseCmdServiceConfig = BaseCmdServiceConfig,
-        TParams extends BaseCmdServiceParameters = BaseCmdServiceParameters,
-        TInteractMessages extends BaseCmdServiceInteractMessages = BaseCmdServiceInteractMessages
-    >
+/**
+ * Base class for command services
+ * @template ServiceDataType - Type of service data not extended from base. See {@link CmdServiceData}
+ */
+export abstract class BaseCommandService<ServiceDataType extends CmdServiceData<any, any, any, any>>
     extends (EventEmitter as new () => TypedEventEmitter<IBaseCmdService_EvMap>)
     implements IRunnable
 {
     private _isInited = false
     private _isRunning: boolean = false
 
-    protected data: CmdServiceData<TConfig, TParams, TInteractMessages, TSessionData>
+    protected data: ServiceDataType
 
     constructor(
         protected userId: string,
-        private defaultData: CmdServiceData<TConfig, TParams, TInteractMessages, TSessionData>,
-        private inputServiceData: Partial<CmdServiceData<TConfig, TParams, TInteractMessages>>,
+        private defaultData: ServiceDataType,
+        private inputServiceData: Partial<ServiceDataType>,
         public readonly name: string = BLANK_SERVICE_NAME,
     ) {
         super()
-        this.data = Object.assign({}, defaultData)
+        console.log(defaultData)
+        const g_conf  = { config: new GlobalServiceConfig }
+        const g_param = { params: new GlobalServiceParam }
+        const g_msgs  = { messages: new GlobalServiceMessages }
+
+        let frame = {}
+        deepMerge(frame, defaultData)
+        deepMerge(frame, g_conf)
+        deepMerge(frame, g_param)
+        deepMerge(frame, g_msgs)
+
+        console.log(frame)
+        //deepMerge(frame, inputServiceData)
+
+        this.data = Object.assign({}, frame as ServiceDataType)
     }
 
     protected abstract runWrapper(): Promise<void>
     protected abstract terminateWrapper(): Promise<void>
     abstract receiveMsg(msg: string, args: string[]): Promise<void>
-    abstract clone(userId: string, input?: Partial<CmdServiceData>, newName?: string): BaseCommandService<TSessionData>
+    abstract clone(userId: string, input?: Partial<ServiceDataType>, newName?: string): BaseCommandService<ServiceDataType>
 
-    protected sendMsg(msg: string) {
+    protected sendToWorld(msg: string) {
         this.emit("message", msg)
+    }
+
+    //protected initLiveLog() {
+    //
+    //}
+
+    //protected sendToLiveLog(objId: string, msg: string) {
+    //
+    //}
+
+    protected sendToError(msg: string) {
+        this.emit("error", msg)
     }
 
     protected createServicePrefix() {
@@ -86,15 +111,15 @@ export abstract class BaseCommandService<
         return this._isRunning
     }
 
-    configDescriptor(): CmdArgumentMetadata<keyof TConfig> {
+    configDescriptor(): CommandMetadata {
         return toDescriptor(this.data.config)
     }
 
-    paramsDescriptor(): CmdArgumentMetadata<keyof TParams> {
+    paramsDescriptor(): CommandMetadata {
         return toDescriptor(this.data.params)
     }
 
-    receiveMsgDescriptor(): CmdArgumentMetadata<keyof TInteractMessages> {
+    receiveMsgDescriptor(): CommandMetadata {
         return toDescriptor(this.data.messages)
     }
 
@@ -192,7 +217,7 @@ export abstract class BaseCommandService<
             sessionId: account_module_session.name,
             messages: defaultData.messages,
             params: defaultData.params,
-        }
+        } as ServiceDataType
     }
 
     protected async setConfigValue(path: string, value: any) {

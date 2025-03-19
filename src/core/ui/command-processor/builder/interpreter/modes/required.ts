@@ -9,7 +9,7 @@ export class InterpreterModeRequired extends BaseInterpreterComponent {
     step(input: string) {
         const res = super.step(input)
 
-        if (this.parser.isRequiredRead()) {
+        if (this.parser.isRequiredArgumentsRead()) {
             const compiled = this.compile()
             return new EvaluationResult(
                 this.parser,

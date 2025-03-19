@@ -179,7 +179,7 @@ export class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
 
     protected compile(): ICommandCompiled {
         return {
-            command: this.parser.BuildingCommand,
+            command: this.parser.Command,
             proxy: new CmdArgumentProxy(this.parser.ReadArgs),
             raw: this.parser.ReadArgs
         }

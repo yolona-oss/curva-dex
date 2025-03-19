@@ -1,4 +1,4 @@
-import { BaseCmdServiceConfig, BaseCmdServiceParameters, BaseCmdServiceInteractMessages, CmdServiceData } from "@core/ui/types/command/service"
+import { GlobalServiceConfig, GlobalServiceParam, GlobalServiceMessages, CmdServiceData } from "@core/ui/types/command/service"
 import { defaultCfg, IPumpFunRobotConfig } from "./config"
 import { IPumpFunRobotSessionState } from "./robot/state"
 import { IMTCStateSave } from "@bots/traider/mtc"
@@ -9,14 +9,14 @@ import { IBaseDEXTradeAsset } from "@bots/traider"
 export const pfname = 'pump_fun'
 export const pfdescription = `Customizable servie for the pump.fun dex simulation activity and automated trading by setting a strategy schema.`
 
-export class PFConfigData extends BaseCmdServiceConfig implements IPumpFunRobotConfig {
+export class PFConfigData implements IPumpFunRobotConfig {
     @CmdArgument({
         required: false,
     })
     targetAsset!: IBaseDEXTradeAsset & { bondCurvMint: string }
 }
 
-export class PFParamsData extends BaseCmdServiceParameters {
+export class PFParamsData {
     @CmdArgument({
         required: false,
         description: "Run the service in dry-run mode",
@@ -25,7 +25,7 @@ export class PFParamsData extends BaseCmdServiceParameters {
     dryRun?: string
 }
 
-export class PFMessagesData extends BaseCmdServiceInteractMessages {
+export class PFMessagesData {
     @CmdArgument({
         required: false,
         standalone: true,

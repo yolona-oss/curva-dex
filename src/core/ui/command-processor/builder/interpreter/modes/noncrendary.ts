@@ -37,7 +37,7 @@ export class InterpreterModeNonCrendary extends BaseInterpreterComponent {
     }
 
     step(casulaInput: string) {
-        if (this.parser.IsDescArgsEmpty) {
+        if (this.parser.IsDescriptorEmpty) {
             log.trace(`Non-crendary mode: no args to parse, just printing`)
             // nothing to parse
         } else if (casulaInput.length !== 0) {

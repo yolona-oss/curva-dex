@@ -8,7 +8,7 @@ export class InterpreterModeComprehensive extends BaseInterpreterComponent {
     step(input: string) {
         const res = super.step(input)
 
-        if (this.parser.isEveryRead()) {
+        if (this.parser.isEveryArgumentsRead()) {
             const compiled = this.compile()
             return new EvaluationResult(
                 this.parser,

@@ -1,5 +1,5 @@
 import { WithNeighbors } from "@core/types/with-neighbors"
-import { ICmdArgumentDefenition, IArgumentDescriptor, IArgumentCompiled, CmdArgumentMeta } from "./argument"
+import { ICmdArgumentDefenition, IArgumentDescriptor, IArgumentCompiled, CmdArgumentMetadataRaw } from "./argument"
 import { BaseCommandService } from './service'
 import { BaseUIContext } from "@core/ui"
 
@@ -20,7 +20,7 @@ export type IUICommand = CommandSklet
 
 /** @description IUICommand with arguments read metadata */
 export interface IUICommandProcessed extends IUICommand {
-    readonly args: (CmdArgumentMeta & {name: string})[]
+    readonly args: (CmdArgumentMetadataRaw & {name: string})[]
 }
 
 /** RENAME IT! */
@@ -46,7 +46,7 @@ export function isService(mixin: IvokeableType<any>): mixin is ICmdService {
 type FuncResultType = ({error?: string})|void
 export type ICmdFunction<Ctx extends BaseUIContext> = (args: CmdArgumentProxy, ctx: Ctx) => Promise<FuncResultType>
 //export type ICmdObscuredFunction<Ctx> = (ctx: Ctx, ...args: any[]) => Promise<FuncResultType>
-export type ICmdService = BaseCommandService<any, any, any, any>
+export type ICmdService = BaseCommandService<any>
 export type IvokeableType<UI extends BaseUIContext> = ICmdFunction<UI> | ICmdService
 
 /**

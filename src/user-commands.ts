@@ -10,8 +10,6 @@ import log from "@core/application/logger"
 class AksArgs {
     @CmdArgument({
         required: false,
-        position: null,
-        standalone: false,
         pairOptions: ["misterial"],
         defaultValue: "misterial",
         validator: () => true,
@@ -70,7 +68,7 @@ export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegiste
                 }
                 await ctx.reply(`${aiName} AI selected`)
 
-                //const answer = await SingleThrottler.Instance.throttle<string>("ask", async () => {
+                const answer = await SingleThrottler.Instance.throttle<string>("ask", async () => {
                     let api_all = {
                         misterial: {
                             url: 'https://api.mistral.ai/v1/chat/completions',
@@ -78,32 +76,26 @@ export function InitializeUserCommands<Ctx extends BaseUIContext>(): ICmdRegiste
                         }
                     }
                     const api = api_all[aiName as keyof typeof api_all]
-                    log.trace(api)
                     const res = await fetch(api.url, {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json',
+                            'Content-Type':  'application/json',
                             'Authorization': `Bearer ${api.key}`,
                         },
                         body: JSON.stringify({
                             "model": "mistral-small-latest",
-                            "messages": [
-                                {
-                                    "role": "user",
-                                    "content": msg
-                                }
-                            ],
-                            "response_format": 
-                            {
-                                "type": "text"
-                            }
+                            "messages": [ { "role": "user", "content": msg } ],
+                            "response_format": { "type": "text" }
                         })
                     })
                     const json = await res.json()
-                console.log(res)
-                    //return json.choices[0].message.content
-                //})
-                await ctx.reply(json)
+                    if (json.ok != undefined && !json.ok) {
+                        return json.error ?? json.statusText
+                    }
+                    const ret = json.choices.map((choice: any) => choice.message.content).join('\n')
+                    return ret
+                })
+                await ctx.reply(answer)
             }
         },
         {

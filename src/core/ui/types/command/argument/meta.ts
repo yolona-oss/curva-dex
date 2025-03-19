@@ -1,53 +1,71 @@
+import { AllowNoneOrOne } from "@core/types/type-checks";
 import { validateArgumentDescriptor } from "./descriptor-helpers";
 import { CmdArgumentOptionSetter, CmdArgumentPairOptionsType } from "./option";
 import "reflect-metadata";
 
+// TODO may be create mutations for CmdArgumentMeta that describes one of three types of arguments(standalone, positional, pair)
+
 const COMMAND_ARG_DESC_KEY = Symbol('descriptor:command-argument');
 
 /**
- * @description Command argument descriptor-like defenition
+ * @param required - is argument required
+ * @param description - argument description
+ * @param validator - argument validator
+ * @param pairOptions - autocompete helper options
+ * @param defaultValue - argument default value
+ *
+ * @description only one of position or standalone can be used in a single argument.
+ *              if both undefined - argument is pair
+ * @param position - is argument position
+ * @param standalone - is argument standalone
+ * @param isPair - is argument pair
  */
-export interface CmdArgumentMeta {
+export interface CmdArgumentMetadataRaw {
     readonly required: boolean
-    readonly standalone: boolean
     readonly description: string
     readonly validator: (arg: string) => boolean
 
-    readonly position: number|null
+    readonly standalone?: boolean
+    readonly position?: number
+    readonly isPair?: boolean
+
     readonly pairOptions?: CmdArgumentPairOptionsType<CmdArgumentOptionSetter>
     readonly defaultValue?: string
 }
 
 /**
- * @description Command argument definition creation helper
+ * @description 
+ * Command argument metadata definition must have one of position or standalone, or field isPair will be set to true
  */
-interface CmdArgumentDTO {
-    required?: boolean
-    description?: string
-    standalone?: boolean
-    validator?: (arg: string) => boolean
+export type CmdArgumentMetadataDef = AllowNoneOrOne<Partial<CmdArgumentMetadataRaw>, 'standalone' | 'position'>
 
-    position?: number|null
-    pairOptions?: CmdArgumentPairOptionsType<CmdArgumentOptionSetter>
-    defaultValue?: string
-}
-
-const CmdArgumentDefaults: CmdArgumentMeta = {
+const CmdArgumentDefaults: CmdArgumentMetadataRaw = {
     validator: () => true,
     required: false,
-    standalone: false,
     description: "Common argument",
-    position: null,
+
+    standalone: false,
+    position: undefined,
+    isPair: true,
+
     pairOptions: undefined,
     defaultValue: undefined
 }
 
-export function CmdArgument(metadata: CmdArgumentDTO) {
+/**
+ * @description
+ * Creates description-like defenition for argument
+ * Applies metadata to object property
+ *
+ * @default by default argument is pair and not required with empty description
+ *          and without autocompete and default value
+ */
+export function CmdArgument(metadata: CmdArgumentMetadataDef) {
     return (target: any, propertyKey: string) => {
         const defaulted = {
             ...CmdArgumentDefaults,
             ...metadata
-        }
+        } as CmdArgumentMetadataRaw
         validateArgumentDescriptor(defaulted)
         const existingMetadata = Reflect.getMetadata(COMMAND_ARG_DESC_KEY, target) || {};
         existingMetadata[propertyKey] = defaulted
@@ -55,8 +73,8 @@ export function CmdArgument(metadata: CmdArgumentDTO) {
     }
 }
 
-export type CmdArgumentMetadata<T extends string|number|symbol = string> = Record<T, CmdArgumentMeta>
-export type CmdArgmuentKeyHolder = Record<string, any>
+export type CommandMetadata<T extends string|number|symbol = string> = Record<T, CmdArgumentMetadataRaw>
+export type CommandArgumentKeyHolder = Record<string, any>
 
 /**
  * @description @CmdArgument decorator metadata getter. Handles inheritance.
@@ -64,8 +82,8 @@ export type CmdArgmuentKeyHolder = Record<string, any>
  */
 export function getCmdArgMetadata<T>(
     target: any
-): CmdArgumentMetadata<keyof T> {
-    let metadataMap: Partial<Record<keyof T, CmdArgumentMeta>> = {};
+): CommandMetadata<keyof T> {
+    let metadataMap: Partial<Record<keyof T, CmdArgumentMetadataRaw>> = {};
     let proto = target.prototype || Object.getPrototypeOf(target);
 
     while (proto && proto !== Object.prototype) {
@@ -84,5 +102,5 @@ export function getCmdArgMetadata<T>(
         proto = Object.getPrototypeOf(proto);
     }
 
-    return metadataMap as CmdArgumentMetadata<keyof T>;
+    return metadataMap as CommandMetadata<keyof T>;
 }

@@ -23,7 +23,7 @@ import {
 import { isContainsAll } from "@core/utils/array";
 import { anyToString } from "@core/utils/misc";
 import { Account, IAccountSession, Manager } from "@core/db";
-import { CmdArgumentMeta, getCmdArgMetadata, isFunc, isService, IUICommandProcessed } from "@core/ui/types/command";
+import { CmdArgumentMetadataRaw, getCmdArgMetadata, isFunc, isService, IUICommandProcessed } from "@core/ui/types/command";
 
 import {
     SetVariableCommand,
@@ -146,7 +146,7 @@ export class CmdDispatcher<UIContextType extends BaseUIContext> extends WithInit
     }
 
     private registerWrapper({command, invokable}: ICmdRegisterEntry<UIContextType>, bounded = true) {
-        let argsDesc: (CmdArgumentMeta&{name: string})[] = []
+        let argsDesc: (CmdArgumentMetadataRaw&{name: string})[] = []
         if (command.args) {
             const _args = command.args
             const metaArg = getCmdArgMetadata<any>(_args)

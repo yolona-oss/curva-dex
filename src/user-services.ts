@@ -1,5 +1,5 @@
 import { BaseCommandService } from '@core/ui/types/command/service'
-import { BaseCmdServiceConfig, BaseCmdServiceInteractMessages, BaseCmdServiceParameters, CmdServiceData } from '@core/ui/types/command/service'
+import { GlobalServiceConfig, CmdServiceData } from '@core/ui/types/command/service'
 
 import { BLANK_USER_ID } from '@core/ui/command-processor'
 import { CmdArgument } from '@core/ui/types/command'
@@ -10,12 +10,13 @@ import log from '@core/application/logger'
 const TestServiceName = 'test_service'
 
 type TestServiceDataType = CmdServiceData<
-    BaseCmdServiceConfig,
+    GlobalServiceConfig,
     TestServiceParameters,
-    TestServiceInteractMessages
+    TestServiceInteractMessages,
+    TestServiceSessionData
 >
 
-class TestServiceInteractMessages extends BaseCmdServiceInteractMessages {
+class TestServiceInteractMessages {
     @CmdArgument({
         required: false,
         description: "Pause service",
@@ -47,20 +48,26 @@ class TestServiceInteractMessages extends BaseCmdServiceInteractMessages {
     setmax?: string
 }
 
-class TestServiceParameters extends BaseCmdServiceParameters {
+class TestServiceParameters {
     @CmdArgument({
         required: false,
-        position: null,
-        standalone: false,
         pairOptions: async () => new Array(10).fill(0).map(() => genRandomNumber(genRandomNumberBetween(1, 3)).toString()),
         defaultValue: "123",
         validator: (arg) => !Number.isNaN(Number(arg)),
         description: "Start value"
     })
     startValue?: string
+
+    @CmdArgument({
+        required: false,
+        pairOptions: async () => new Array(10).fill(0).map(() => genRandomNumber(genRandomNumberBetween(1, 3)).toString()),
+        validator: (arg) => !Number.isNaN(Number(arg)),
+        description: "Max value"
+    })
+    max?: string
 }
 
-const defaultTestServiceData: TestServiceDataType = new CmdServiceData<BaseCmdServiceConfig, TestServiceParameters, TestServiceInteractMessages>(
+const defaultTestServiceData: TestServiceDataType = new CmdServiceData<GlobalServiceConfig, TestServiceParameters, TestServiceInteractMessages>(
     {},
     new TestServiceParameters(),
     new TestServiceInteractMessages()
@@ -70,13 +77,13 @@ interface TestServiceSessionData {
     prev_max?: number
 }
 
-export class TestService extends BaseCommandService<TestServiceSessionData, BaseCmdServiceConfig, TestServiceParameters, TestServiceInteractMessages> {
-    private max = 5000n
-    private i = 3n
+export class TestService extends BaseCommandService<TestServiceDataType> {
+    private max!: bigint
+    private cur!: bigint
 
     constructor(
         userId: string = BLANK_USER_ID,
-        input: Partial<CmdServiceData<BaseCmdServiceConfig, BaseCmdServiceParameters, TestServiceInteractMessages>> = {},
+        input: Partial<TestServiceDataType> = {},
         name: string = TestServiceName
     ) {
         super(userId, defaultTestServiceData, input, name)
@@ -93,33 +100,34 @@ export class TestService extends BaseCommandService<TestServiceSessionData, Base
             await this.terminate()
         } else if (msg == 'reset') {
             this.max = 1000n
-            this.i = 3n
+            this.cur = 3n
         } else if (msg === 'setmax') {
             if (args.length < 1 || Number.isNaN(Number(args[0]))) {
-                this.sendMsg("Usage: setmax <max>")
+                this.sendToWorld("Usage: setmax <max>")
                 return
             }
             this.max = BigInt(args[0])
         }
     }
 
-    clone(userId: string, input: Partial<TestServiceDataType>, newName?: string): BaseCommandService<TestServiceSessionData> {
+    clone(userId: string, input: Partial<TestServiceDataType>, newName?: string): BaseCommandService<TestServiceDataType> {
         return new TestService(userId, input, newName)
     }
 
     async runWrapper() {
-        this.i = BigInt(this.data.params.startValue ?? 1)
-        this.sendMsg(`Start with ${this.i}, target value ${this.max}, prev target: ${this.data.sessionData.prev_max ?? 0}`)
+        this.cur = BigInt(this.data.params.startValue ?? 1)
+        this.max = BigInt(this.data.params.max ?? 5000)
+        this.sendToWorld(`Start with ${this.cur}, target value ${this.max}, prev target: ${this.data.sessionData.prev_max ?? 0}`)
         while (true) {
             if (!super.isRunning()) {
                 break
             }
             if (!this.isPaused) {
-                this.emit("message", "blob" + this.i)
-                this.i += genRandomNumberBetweenWithScatter(199n, 320n, 30n)
+                this.emit("message", "blob" + this.cur)
+                this.cur += genRandomNumberBetweenWithScatter(199n, 320n, 30n)
             }
             await sleep(1000)
-            if (this.i > this.max) {
+            if (this.cur > this.max) {
                 await this.terminate()
             }
         }
