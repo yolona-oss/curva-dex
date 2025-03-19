@@ -18,5 +18,5 @@
 [+] add to handle positional arguments of commands
 [-] create command builder descriptors cache with need reload param to reload not static pairOptions
 [-] @CmdArgument field "position" add not hard-code setting capability
-[+] add to markup default callback to switch interpritation mode
+[-] add to markup default callback to switch interpritation mode
 [-] create ctrl panal aka dashboard for active service for current user and for admin over-all dashboard aka "админка"

@@ -1,6 +1,8 @@
 import { CmdArgumentContextType } from "./context"
 import { CmdArgumentMeta } from "./meta"
 
+export type ArgumentDescriptorType = 'positional'|'pair'|'standalone'
+
 /**
  * @description Defined argument descriptions to parse from raw input
  */

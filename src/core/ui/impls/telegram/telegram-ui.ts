@@ -132,7 +132,6 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         this.bot.use(async (ctx, next) => {
             const manager = await Manager.findOne({ userId: ctx.from!.id })
             if (manager) {
-                log.info(`Authorized user detected. uname: ${ctx.from!.username} id: ${ctx.from!.id}`)
                 ctx.type = AvailableUIsEnum.Telegram
                 ctx.manager = manager
                 return await next()
@@ -142,7 +141,6 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
                     return next()
                 }
             }
-            log.info(`New user detected. uname: ${ctx.from!.username} id: ${ctx.from!.id}`)
             const botName = (await getConfig()).bot.name
             await ctx.replyWithMarkdownV2(`Welcome to ${botName}. To start using bot you need to be aproved by bot administrator.\n" +
 "Click on button for send approve request`,

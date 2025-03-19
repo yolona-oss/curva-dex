@@ -1,4 +1,5 @@
-import { CmdArgumentOptionSetter, CmdArgumentPairOptionsType, isCmdArgPairFunc } from "./option";
+import { validateArgumentDescriptor } from "./descriptor-helpers";
+import { CmdArgumentOptionSetter, CmdArgumentPairOptionsType } from "./option";
 import "reflect-metadata";
 
 const COMMAND_ARG_DESC_KEY = Symbol('descriptor:command-argument');
@@ -31,7 +32,7 @@ interface CmdArgumentDTO {
     defaultValue?: string
 }
 
-const CmdArgumentDefaults: Partial<CmdArgumentMeta> = {
+const CmdArgumentDefaults: CmdArgumentMeta = {
     validator: () => true,
     required: false,
     standalone: false,
@@ -47,20 +48,7 @@ export function CmdArgument(metadata: CmdArgumentDTO) {
             ...CmdArgumentDefaults,
             ...metadata
         }
-        if (defaulted.position != null && defaulted.position <= 0) {
-            throw new Error(`@CmdArgument: position must be greater than 0`)
-        }
-        if (defaulted.standalone) {
-            if (defaulted.position != null) {
-                throw new Error(`@CmdArgument: standalone and position can't be used together`)
-            }
-            if (defaulted.defaultValue != null) {
-                throw new Error(`@CmdArgument: standalone and defaultValue can't be used together`)
-            }
-            if (defaulted.pairOptions != undefined && (defaulted.pairOptions.length > 0 || isCmdArgPairFunc(defaulted.pairOptions))) {
-                throw new Error(`@CmdArgument: standalone and pairOptions can't be used together`)
-            }
-        }
+        validateArgumentDescriptor(defaulted)
         const existingMetadata = Reflect.getMetadata(COMMAND_ARG_DESC_KEY, target) || {};
         existingMetadata[propertyKey] = defaulted
         Reflect.defineMetadata(COMMAND_ARG_DESC_KEY, {...existingMetadata, ...defaulted}, target)

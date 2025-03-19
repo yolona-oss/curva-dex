@@ -13,6 +13,7 @@ import { CBLexerToken } from "./lexer";
 import log from "@core/application/logger";
 import { Chain, createChainFallbackHandler, chainHandlerFactory, IChainHandler } from "@core/utils/chain";
 import { removeObjectByFieldsMutate } from "@core/utils/array";
+import { isArgumentDescPair, isArgumentDescPositional, isArgumentDescStandalone } from "@core/ui/types/command/argument/descriptor-helpers";
 
 /**
  * @see ParserStateType to get more info
@@ -67,9 +68,10 @@ export interface ICBParserStateRaw {
 }
 
 export type PChainReq = CBLexerToken
-//export type PChainRes = ParserPerformedAction
-//export type PChainHandler = IChainHandler<PChainReq, PChainRes>
 
+// TODO create back to noraml mechanism for undo after throw inside parser
+
+// SPLIT THIS CLASS
 export class CBParser<PChainResGType extends ParserPerformedAction|string = ParserPerformedAction> {
     private readonly command!: string
     private readonly switchCtxKeyword!: string
@@ -123,6 +125,7 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
      * DOUBLE_DASH -> PAIR -> PAIR_VALUE: IDLE
      * -------------------- */
 
+    // must be reworked hard
     private setupChain() {
         this.tknParseChain = new Chain<PChainReq, PChainResGType>()
 
@@ -478,6 +481,9 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
         if (!desc) {
             throw `Cannot find descriptor for positional: ${pos}`
         }
+        if (!isArgumentDescPositional(desc)) {
+            throw `Argument descriptor is not positional: ${pos}`
+        }
         this.removeArgByPos(pos)
         this.readArgs.push({
             name: encodePositionalName(desc.name, pos),
@@ -497,6 +503,10 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
      * NOW ITS USE TOGGLE LOGIC
      */
     private setStandalone(input: string): PChainResGType {
+        const desc = this.findDescriptor(input)!
+        if (!isArgumentDescStandalone(desc)) {
+            throw `Argument descriptor is not standalone: ${input}`
+        }
 
         if (this.isStandaloneRead(input)) {
             this.removeStandaloneArg(input)
@@ -517,9 +527,11 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
      * creates entry for pair and set its name
      */
     private setPairName(input: string): PChainResGType {
-        this.removeArgByName(input)
-
         const desc = this.findDescriptor(input)!
+        if (!isArgumentDescPair(desc)) {
+            throw `Argument descriptor is not pair: ${input}`
+        }
+        this.removeArgByName(input)
         this.readArgs.push({
             name: input,
             value: '',
@@ -537,6 +549,9 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
     * set value to pair of last read pair name
     */
     private setPairValue(input: string): PChainResGType {
+        if (this.LastReadArg.value != '') {
+            throw `Pair value already set`
+        }
         this.readArgs[this.readArgs.length - 1].value = input
         this.transitState('IDLE')
 

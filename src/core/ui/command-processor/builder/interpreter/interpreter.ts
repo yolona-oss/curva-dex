@@ -64,6 +64,11 @@ export class CBInterpreter extends AbstractCtx<BaseInterpreterComponent> {
     }
 
     step(input: string): EvaluationResult {
-        return this.CurrentCtxStateObj.step(input)
+        try {
+            return this.CurrentCtxStateObj.step(input)
+        } catch(e) {
+            log.error(`Interpreter error: ${e}`)
+            return new EvaluationResult(this.parser, `Interpreter error: ${e}`)
+        }
     }
 }
