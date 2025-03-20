@@ -1,10 +1,10 @@
-import { Account, Manager } from "@core/db";
-import { IRunnable } from "@core/types/runnable";
+import { Account, Manager } from "@core/db"
+import { IRunnable } from "@core/types/runnable"
 import TypedEventEmitter, { EventMap } from 'typed-emitter'
 import EventEmitter from 'events'
 
-import { BLANK_SERVICE_NAME } from "./constants";
-import { DEFAULT_ACCOUNT_SESSION_NAME } from "@core/db/schemes/account/session";
+import { BLANK_SERVICE_NAME } from "./constants"
+import { DEFAULT_ACCOUNT_SESSION_NAME } from "@core/db/schemes/account/session"
 
 import {
     GlobalServiceConfig,
@@ -12,15 +12,14 @@ import {
     GlobalServiceParam,
     CmdServiceData,
     toDescriptor
-} from "./data";
+} from "./data"
 
-import { CommandMetadata } from "@core/ui/types/command";
-import { Extender } from "@core/utils/extender";
+import { CmdArgument, COMMAND_ARG_DESC_KEY, CommandMetadata } from "@core/ui/types/command"
+import { Extender } from "@core/utils/extender"
 
-import 'reflect-metadata';
-import { UiUnicodeSymbols } from "@core/ui";
+import 'reflect-metadata'
+import { UiUnicodeSymbols } from "@core/ui"
 import { log } from '@logger'
-import { deepMerge } from "@core/utils/object";
 
 interface IBaseCmdService_EvMap<T = string> extends EventMap {
     message: (msg: T) => void,
@@ -29,12 +28,31 @@ interface IBaseCmdService_EvMap<T = string> extends EventMap {
     liveLog: (logs: string[]) => void
 }
 
-export class CommandServiceLoader {
-    constructor() {
+function applyMixins(derivedCtor: any, baseCtors: any[]) {
+    baseCtors.forEach(baseCtor => {
+        Object.getOwnPropertyNames(baseCtor.prototype).forEach(name => {
+            Object.defineProperty(derivedCtor.prototype, name, Object.getOwnPropertyDescriptor(baseCtor.prototype, name)!);
+        });
+    });
+}
+
+function merge<T extends Object>(dst: T, src: T): T {
+    const merged = Object.create(Object.getPrototypeOf(dst));
+
+    Object.assign(merged, dst, src);
+
+    const dst_meta = Reflect.getMetadata(COMMAND_ARG_DESC_KEY, dst);
+    if (dst_meta) {
+        Reflect.defineMetadata(COMMAND_ARG_DESC_KEY, dst_meta, merged);
     }
 
-    process() {
+    const src_meta = Reflect.getMetadata(COMMAND_ARG_DESC_KEY, src);
+    if (src_meta) {
+        const existingMetadata = Reflect.getMetadata(COMMAND_ARG_DESC_KEY, merged) || {};
+        Reflect.defineMetadata(COMMAND_ARG_DESC_KEY, { ...existingMetadata, ...src_meta }, merged);
     }
+
+    return merged;
 }
 
 /**
@@ -57,21 +75,18 @@ export abstract class BaseCommandService<ServiceDataType extends CmdServiceData<
         public readonly name: string = BLANK_SERVICE_NAME,
     ) {
         super()
-        console.log(defaultData)
-        const g_conf  = { config: new GlobalServiceConfig }
-        const g_param = { params: new GlobalServiceParam }
-        const g_msgs  = { messages: new GlobalServiceMessages }
+        this.data = defaultData
+        const g_conf  = new GlobalServiceConfig
+        const g_param = new GlobalServiceParam
+        const g_msgs  = new GlobalServiceMessages
 
-        let frame = {}
-        deepMerge(frame, defaultData)
-        deepMerge(frame, g_conf)
-        deepMerge(frame, g_param)
-        deepMerge(frame, g_msgs)
+        this.data.config = merge(this.data.config, g_conf)
+        this.data.params = merge(this.data.params, g_param)
+        this.data.messages = merge(this.data.messages, g_msgs)
 
-        console.log(frame)
+        console.log(`--------#${this.name}#--------`)
+        console.log(this.data)
         //deepMerge(frame, inputServiceData)
-
-        this.data = Object.assign({}, frame as ServiceDataType)
     }
 
     protected abstract runWrapper(): Promise<void>
@@ -112,15 +127,24 @@ export abstract class BaseCommandService<ServiceDataType extends CmdServiceData<
     }
 
     configDescriptor(): CommandMetadata {
-        return toDescriptor(this.data.config)
+        return {
+            ...toDescriptor(new GlobalServiceConfig),
+            ...toDescriptor(this.data.config)
+        }
     }
 
     paramsDescriptor(): CommandMetadata {
-        return toDescriptor(this.data.params)
+        return {
+            ...toDescriptor(new GlobalServiceParam),
+            ...toDescriptor(this.data.params)
+        }
     }
 
     receiveMsgDescriptor(): CommandMetadata {
-        return toDescriptor(this.data.messages)
+        return {
+            ...toDescriptor(new GlobalServiceMessages),
+            ...toDescriptor(this.data.messages)
+        }
     }
 
     toString() {
@@ -145,8 +169,8 @@ export abstract class BaseCommandService<ServiceDataType extends CmdServiceData<
     }
 
     private async retrieveAccountData() {
-        const owner = (await Manager.findOne({userId: this.userId}))!;
-        const account = (await Account.findById(owner.account))!;
+        const owner = (await Manager.findOne({userId: this.userId}))!
+        const account = (await Account.findById(owner.account))!
 
         const sessionId = this.data.sessionId
         const {isNew, account_module} = await account.getModuleByNameOrCreate(this.name)

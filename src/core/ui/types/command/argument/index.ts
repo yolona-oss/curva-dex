@@ -23,6 +23,12 @@ import { CommandArgumentKeyHolder } from './meta'
 export type ICmdArgumentDefenition = CommandArgumentKeyHolder
 
 export function encodePositionalName(name: string, position: number) {
+    if (!Number.isInteger(position) || position <= 0) {
+        throw "Position must be a number"
+    }
+    if (name.trim().length == 0) {
+        throw "Name must be a string"
+    }
     return `positional-${position}-${name}`
 }
 

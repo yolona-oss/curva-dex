@@ -1,11 +1,11 @@
-import { AllowNoneOrOne } from "@core/types/type-checks";
-import { validateArgumentDescriptor } from "./descriptor-helpers";
-import { CmdArgumentOptionSetter, CmdArgumentPairOptionsType } from "./option";
-import "reflect-metadata";
+import { AllowNoneOrOne } from "@core/types/type-checks"
+import { validateArgumentDescriptor } from "./descriptor-helpers"
+import { CmdArgumentOptionSetter, CmdArgumentPairOptionsType } from "./option"
+import "reflect-metadata"
 
 // TODO may be create mutations for CmdArgumentMeta that describes one of three types of arguments(standalone, positional, pair)
 
-const COMMAND_ARG_DESC_KEY = Symbol('descriptor:command-argument');
+export const COMMAND_ARG_DESC_KEY = Symbol('descriptor:command-argument')
 
 /**
  * @param required - is argument required
@@ -46,7 +46,7 @@ const CmdArgumentDefaults: CmdArgumentMetadataRaw = {
 
     standalone: false,
     position: undefined,
-    isPair: true,
+    isPair: false,
 
     pairOptions: undefined,
     defaultValue: undefined
@@ -62,12 +62,20 @@ const CmdArgumentDefaults: CmdArgumentMetadataRaw = {
  */
 export function CmdArgument(metadata: CmdArgumentMetadataDef) {
     return (target: any, propertyKey: string) => {
-        const defaulted = {
+        let defaulted = {
             ...CmdArgumentDefaults,
             ...metadata
-        } as CmdArgumentMetadataRaw
+        }
         validateArgumentDescriptor(defaulted)
-        const existingMetadata = Reflect.getMetadata(COMMAND_ARG_DESC_KEY, target) || {};
+        if (
+            defaulted.position == undefined &&
+                (defaulted.standalone == undefined || defaulted.standalone == false)
+        ) {
+            console.log(`Defaulting argument ${propertyKey} to pair`)
+            defaulted.isPair = true
+        }
+            defaulted.isPair = true
+        const existingMetadata = Reflect.getMetadata(COMMAND_ARG_DESC_KEY, target) || {}
         existingMetadata[propertyKey] = defaulted
         Reflect.defineMetadata(COMMAND_ARG_DESC_KEY, {...existingMetadata, ...defaulted}, target)
     }
@@ -83,11 +91,11 @@ export type CommandArgumentKeyHolder = Record<string, any>
 export function getCmdArgMetadata<T>(
     target: any
 ): CommandMetadata<keyof T> {
-    let metadataMap: Partial<Record<keyof T, CmdArgumentMetadataRaw>> = {};
-    let proto = target.prototype || Object.getPrototypeOf(target);
+    let metadataMap: Partial<Record<keyof T, CmdArgumentMetadataRaw>> = {}
+    let proto = target.prototype || Object.getPrototypeOf(target)
 
     while (proto && proto !== Object.prototype) {
-        const metadata = Reflect.getMetadata(COMMAND_ARG_DESC_KEY, proto);
+        const metadata = Reflect.getMetadata(COMMAND_ARG_DESC_KEY, proto)
         if (metadata) {
             for (const key in metadata) {
                 if (key in CmdArgumentDefaults) {
@@ -96,11 +104,11 @@ export function getCmdArgMetadata<T>(
                 metadataMap[key as keyof T] = {
                     ...metadata[key],
                     ...metadataMap[key as keyof T],
-                };
+                }
             }
         }
-        proto = Object.getPrototypeOf(proto);
+        proto = Object.getPrototypeOf(proto)
     }
 
-    return metadataMap as CommandMetadata<keyof T>;
+    return metadataMap as CommandMetadata<keyof T>
 }

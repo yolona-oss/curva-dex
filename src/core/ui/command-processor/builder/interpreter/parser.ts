@@ -3,17 +3,19 @@
 //      handlers are sooo garbage its need to be refactored
 //
 
+// WTF IM DONE
+
 import { deepClone } from "@core/utils/object"
 import { IArgumentCompiled, IUICommandDescriptor } from '@core/ui/types'
 import { CmdArgumentContextType, IArgumentDescriptor } from "@core/ui/types/command";
-import { encodePositionalName, decodePositionalName } from "@core/ui/types/command";
+import { decodePositionalName } from "@core/ui/types/command";
 import { StateSnaper } from "./state-span";
 import { CBLexerToken } from "./lexer";
 
 import log from "@core/application/logger";
 import { Chain, createChainFallbackHandler, chainHandlerFactory, IChainHandler } from "@core/utils/chain";
 import { removeObjectByFieldsMutate } from "@core/utils/array";
-import { getArgumentDescType, isArgumentDescPair, isArgumentDescPositional, isArgumentDescStandalone, useDescriptorCreateArgument } from "@core/ui/types/command/argument/descriptor-helpers";
+import { getArgumentDescType, isArgumentDescPair, isArgumentDescPositional, isArgumentDescStandalone, compileArgumentFromDesc } from "@core/ui/types/command/argument/descriptor-helpers";
 
 /**
  * @see ParserStateType to get more info
@@ -22,19 +24,19 @@ export type ParserStateType =
   'PAIR'        // --pair_option
 | 'STAND_ALONE' // -o or -option_without_pair
 | 'POSITIONAL'  // simple text
-| 'CTX'         // context name from avaliable
+| 'ARG_CTX_SEL' // context name from avaliable
 | 'PAIR_VALUE'  // value for PAIR
 | 'IDLE'        // idle state, waits for pair, standalone, positional or ctx
 | 'WAIT_NEXT_V' // waiting for next value setted by TODO
 
 const stateTransiteMap: Record<ParserStateType, ParserStateType[]> = {
-    'IDLE': ['CTX', 'STAND_ALONE', 'POSITIONAL', 'PAIR', 'PAIR_VALUE', 'WAIT_NEXT_V', 'IDLE'],
-    'CTX': ['IDLE'],
+    'IDLE': ['ARG_CTX_SEL', 'STAND_ALONE', 'POSITIONAL', 'PAIR', 'PAIR_VALUE', 'WAIT_NEXT_V', 'IDLE'],
+    'ARG_CTX_SEL': ['IDLE'],
     'PAIR_VALUE': ['IDLE'],
     'STAND_ALONE': ['IDLE'],
     'POSITIONAL': ['IDLE'],
     'PAIR': ['PAIR_VALUE'],
-    'WAIT_NEXT_V': ['IDLE', 'STAND_ALONE', 'POSITIONAL']
+    'WAIT_NEXT_V': ['IDLE', 'STAND_ALONE', 'POSITIONAL', 'PAIR']
 }
 
 /**
@@ -58,53 +60,71 @@ export type ParserPerformedAction =
 
 | 'wait-next-inited'   // waiting for next value setted
 
+| 'value-validation-failed' // value validation failed
+
 export interface ICBParserStateRaw {
     command: string
     avaliableCtxs: CmdArgumentContextType[]
     descriptor: IUICommandDescriptor
     currentCtx: CmdArgumentContextType
     state: ParserStateType
-    read: IArgumentCompiled[]
+    arguments: IArgumentCompiled[]
 }
 
-export type PChainReq = CBLexerToken
+export type PChainReq = {
+    tkn: CBLexerToken
+    desc?: IArgumentDescriptor
+}
 
-// TODO create back to noraml mechanism for undo after throw inside parser
+export type PChainReqValidated = {
+    tkn: Required<CBLexerToken>
+    desc: IArgumentDescriptor
+}
+
+interface CBParserConfig {
+    command: string,
+    avaliableArgCtxs: CmdArgumentContextType[],
+    descriptor: IUICommandDescriptor,
+    switchArgCtxKeyword: string,
+    initialArgCtx?: CmdArgumentContextType
+}
 
 // SPLIT THIS CLASS
 export class CBParser<PChainResGType extends ParserPerformedAction|string = ParserPerformedAction> {
     private readonly command!: string
-    private readonly switchCtxKeyword!: string
-    private readonly avaliableCtxs!: CmdArgumentContextType[]
-    private currentCtx!: CmdArgumentContextType
+    private readonly switchArgCtxKeyword!: string
+    private readonly avaliableArgCtxs!: CmdArgumentContextType[]
+    private currentArgCtx!: CmdArgumentContextType
     private readonly descriptor!: IUICommandDescriptor
     private state!: ParserStateType
+    private posTickBypass = false
+    private _prevState!: ParserStateType
     private arguments!: IArgumentCompiled[]
 
     private snaper = new StateSnaper()
 
     private tknParseChain: Chain<PChainReq, PChainResGType>
 
-    constructor(
-        command: string,
-        avaliableCtxs: CmdArgumentContextType[],
-        descriptor: IUICommandDescriptor,
-        switchCtxKeyword: string,
-        initialCtx: CmdArgumentContextType|null = null
-    ) {
-        log.trace(`Parser created for command: ${command}\nDescriptor: ${JSON.stringify(descriptor)}`)
+    constructor(config: CBParserConfig) {
+        log.trace(`Parser created for command: ${config.command}\nDescriptor: ${JSON.stringify(config.descriptor, null, 4)}`)
         this.setupChain()
 
-        this.switchCtxKeyword = switchCtxKeyword
+        this.switchArgCtxKeyword = config.switchArgCtxKeyword
         this.snaper = new StateSnaper()
-        this.command = command
+        this.command = config.command
+        config.avaliableArgCtxs.forEach(ctx => this.validateContext(ctx))
+        this.avaliableArgCtxs = config.avaliableArgCtxs
 
-        avaliableCtxs.forEach(ctx => this.validateContext(ctx))
-        this.avaliableCtxs = avaliableCtxs
-        this.descriptor = descriptor
+        config.descriptor.args.forEach(v => {
+            if (v.name.trim() == '') {
+                throw `Descriptor Argument name can't be empty`
+            }
+        })
+        this.descriptor = config.descriptor
 
-        this.currentCtx = initialCtx ? initialCtx : this.avaliableCtxs[0]
+        this.currentArgCtx = config.initialArgCtx ? config.initialArgCtx : this.avaliableArgCtxs[0]
         this.state = 'IDLE'
+        this._prevState = this.state
         this.arguments = []
         this.tknParseChain = new Chain<PChainReq, PChainResGType>()
     }
@@ -126,93 +146,252 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
      * DOUBLE_DASH -> PAIR -> PAIR_VALUE: IDLE
      * -------------------- */
 
+    private waitNextBuf?: { type: 'standalone'|'positional'|'pair', value: string }
+    get NextValueSetType() {
+        return this.waitNextBuf?.type
+    }
+    get NextValueSetValue() {
+        return this.waitNextBuf?.value
+    }
+
     // must be reworked hard
     private setupChain() {
         this.tknParseChain = new Chain<PChainReq, PChainResGType>()
 
-        const setCtxHandler = chainHandlerFactory<PChainReq, PChainResGType>((req) => {
-            if (req.type == 'TEXT' && req.value && this.state === 'CTX' && this.IsContextInAvaliable(req.value)) {
-                return this.switchToContext(req.value as CmdArgumentContextType)
+        const switchArgCtx = chainHandlerFactory<PChainReq, PChainResGType>((req) => {
+            const { tkn } = req
+            if (
+                this.state === 'ARG_CTX_SEL' &&
+                    tkn.type == 'TEXT' &&
+                    tkn.value &&
+                    this.IsContextInAvaliable(tkn.value)
+            ) {
+                this.currentArgCtx = tkn.value as CmdArgumentContextType
+                this.transitState('IDLE')
+                return 'ctx-switch' as PChainResGType
             }
             return
         })
 
-        const setCtxSelectionHandler = chainHandlerFactory<PChainReq, PChainResGType>((req) => {
-            if (req.type == 'TEXT' && this.state == 'IDLE' && req.value && req.value === this.switchCtxKeyword) {
-                return this.switchToContextSelection()
+        const switchToArgCtxSelection = chainHandlerFactory<PChainReq, PChainResGType>((req) => {
+            const { tkn } = req
+            if (
+                this.state == 'IDLE' &&
+                    tkn.type == 'TEXT' &&
+                    tkn.value &&
+                    tkn.value === this.switchArgCtxKeyword
+            ) {
+                this.transitState('ARG_CTX_SEL')
+                return 'ctx-selection' as PChainResGType
             }
             return
         })
 
-        const setNextReadValueHandler = chainHandlerFactory<PChainReq, PChainResGType>((req) => {
-            if (req.type == 'TEXT' && req.value && this.state == 'IDLE') {
-                const desc = this.findDescriptorByName(req.value)
-                if (!desc) {
-                    return
-                }
-                if (desc.standalone === true || desc.position !== null) {
-                    return this.setNextValueSetting(req.value)
-                }
+        const validateRequest = chainHandlerFactory<PChainReq, PChainResGType>((req) => {
+            if (req.tkn.value === undefined || req.tkn.value === null) {
+                return 'none' as PChainResGType
             }
-            return
-        })
 
-        const setFromNextReadValueHandler = chainHandlerFactory<PChainReq, PChainResGType>((req) => {
-            if (req.type == 'TEXT' && req.value && this.state == 'WAIT_NEXT_V') {
-                this.setFromNextValue(req.value)
+            let desired_name
+            if (this.state === 'PAIR_VALUE') {
+                desired_name = this.arguments[this.arguments.length - 1].name
+            } else if (this.state == 'WAIT_NEXT_V') {
+                desired_name = this.waitNextBuf!.value
+            } else if (req.tkn.type == 'DOUBLE_DASH' || req.tkn.type == 'SINGLE_DASH') {
+                desired_name = req.tkn.value
             }
-            return
-        })
+            let desc = this.findDescriptorByName(desired_name ?? '')
 
-        const setPairNameHandler = chainHandlerFactory<PChainReq, PChainResGType>((req) => {
-            if (req.type == 'DOUBLE_DASH' && req.value && this.state == 'IDLE') {
-                this.transitState('PAIR')
-                return this.setArgument_pairName(req.value)
-            }
-            return
-        })
-
-        const setPairValueHandler = chainHandlerFactory<PChainReq, PChainResGType>((req) => {
-            if (req.type == 'TEXT' && req.value && this.state == 'PAIR_VALUE' && this.arguments.length !== 0) {
-                return this.setArgument_pairValue(req.value)
-            }
-            return
-        })
-
-        const setPosHandler = chainHandlerFactory<PChainReq, PChainResGType>((req) => {
-            if (req.type == 'TEXT' && req.value && this.state == 'IDLE') {
-                try {
-                    return this.setArgument_positional(req.value)
-                } catch (e) {
-                    log.error(e)
+            // preserve positional without passing its name before
+            let posPreserved = false
+            if (!desc && !(req.tkn.type == 'DOUBLE_DASH' || req.tkn.type == 'SINGLE_DASH')) {
+                if (this.NextPositionalInd <= this.MaxPositionalInd) {
+                    posPreserved = true
+                    desc = this.descriptor.args.find(arg => arg.position === this.NextPositionalInd)
                 }
             }
+
+            if (!desc) {
+                console.log(`Descriptor for ${desired_name ?? `positional(${this.NextPositionalInd})`} not found`)
+                return 'none' as PChainResGType
+            }
+
+            this.posTickBypass = posPreserved
+            req.desc = desc
+
             return
         })
 
-        const setStandaloneHandler = chainHandlerFactory<PChainReq, PChainResGType>((req) => {
-            if (req.type == 'SINGLE_DASH' && req.value && this.state == 'IDLE') {
-                this.transitState('STAND_ALONE')
-                return this.setArgument_standalone(req.value)
+        const setWaitNextBuf = chainHandlerFactory<PChainReqValidated, PChainResGType>((req) => {
+            const { tkn, desc } = req
+            if (this.state == 'IDLE') {
+                const type = getArgumentDescType(desc)
+                this.waitNextBuf = {
+                    type,
+                    value: tkn.value
+                }
+                this.transitState('WAIT_NEXT_V')
+
+                switch (type) {
+                    case 'positional':
+                        if (!this.posTickBypass) {
+                            console.log(`Skipping to next tick for ${tkn.value}`)
+                            this.posTickBypass = false
+                            return 'wait-next-inited' as PChainResGType
+                        }
+                        break
+                    case 'pair':
+                        // ?? its possible ??
+                        if (tkn.type !== 'DOUBLE_DASH') {
+                            log.debug(`DOUBLE_DASH token expected for descriptor but got ${tkn.type}`)
+                            this.state = this._prevState
+                        }
+                        break
+                    case 'standalone':
+                        break
+                }
             }
             return
         })
 
+        const transitByBuf = chainHandlerFactory<PChainReqValidated, PChainResGType>(() => {
+            if (this.state == 'WAIT_NEXT_V') {
+                if (this.waitNextBuf === undefined) {
+                    throw `Can't set value from undefined next value setting`
+                }
+
+                console.log(this.waitNextBuf)
+                if (this.waitNextBuf.type === 'standalone') {
+                    this.transitState('STAND_ALONE')
+                } else if (this.waitNextBuf.type === 'positional') {
+                    this.transitState('POSITIONAL')
+                } else if (this.waitNextBuf.type === 'pair') {
+                    this.transitState('PAIR')
+                } else {
+                    throw `Can't set value from undefined next value setting`
+                }
+            }
+            return
+        })
+
+        const expectUniqExistance = chainHandlerFactory<PChainReqValidated, PChainResGType>((req) => {
+            const { tkn, desc } = req
+
+            if (this.state === 'STAND_ALONE') {
+                removeObjectByFieldsMutate(this.arguments, { name: tkn.value, standalone: true, ctx: this.currentArgCtx })
+            } else if (this.state === 'POSITIONAL') {
+                const { position } = decodePositionalName(tkn.value)
+                removeObjectByFieldsMutate(this.arguments, { position, ctx: this.currentArgCtx })
+            } else if (this.state === 'PAIR') {
+                removeObjectByFieldsMutate(this.arguments, { name: tkn.value, ctx: this.currentArgCtx })
+            }
+        })
+
+        const setPairName = chainHandlerFactory<PChainReqValidated, PChainResGType>((req) => {
+            const { tkn, desc } = req
+            if (this.state === 'PAIR') {
+                if (!isArgumentDescPair(desc)) {
+                    throw `Argument descriptor is not pair: ${tkn.value}`
+                }
+                this.arguments.push(compileArgumentFromDesc(desc, ''))
+
+                this.transitState('PAIR_VALUE')
+                return 'set-pair-name' as PChainResGType
+            }
+            return
+        })
+
+        const validateArgumentValue = chainHandlerFactory<PChainReqValidated, PChainResGType>((req) => {
+            const { tkn, desc } = req
+            if (
+                this.state === 'STAND_ALONE' ||
+                    this.state === 'POSITIONAL' ||
+                    this.state === 'PAIR_VALUE'
+            ) {
+                if (!desc.validator(tkn.value)) {
+                    return 'value-validation-failed' as PChainResGType
+                }
+            }
+            return
+        })
+
+        const setPairValue = chainHandlerFactory<PChainReqValidated, PChainResGType>((req) => {
+            const { tkn } = req
+            if (
+                tkn.type == 'TEXT' &&
+                    this.state == 'PAIR_VALUE' &&
+                    this.arguments.length !== 0
+            ) {
+                if (this.LastReadArg.value != '') {
+                    throw `Pair value already set`
+                }
+                this.LastReadArg.value = tkn.value
+
+                this.transitState('IDLE')
+
+                return 'set-pair-value' as PChainResGType
+            }
+            return
+        })
+
+        const setPositional = chainHandlerFactory<PChainReqValidated, PChainResGType>((req) => {
+            const { tkn, desc } = req
+            if (this.state == 'POSITIONAL') {
+                const maxPos = this.MaxPositionalInd
+                let pos = this.NextPositionalInd
+
+                if (!isArgumentDescPositional(desc)) {
+                    throw `Argument descriptor is not positional: ${pos}`
+                }
+                if (pos > maxPos) {
+                    throw `Position exceeded: max: ${maxPos}, passed: ${pos}. `
+                }
+                this.arguments.push(compileArgumentFromDesc(desc, tkn.value))
+
+                this.transitState('IDLE')
+                return 'set-positional' as PChainResGType
+            }
+            return
+        })
+
+        const setStandalone = chainHandlerFactory<PChainReqValidated, PChainResGType>((req) => {
+            const { tkn, desc } = req
+            if (this.state == 'STAND_ALONE') {
+                if (!isArgumentDescStandalone(desc)) {
+                    throw `Argument descriptor is not standalone: ${tkn.value}`
+                }
+                if (desc.validator(tkn.value)) {
+                    this.arguments.push(compileArgumentFromDesc(desc, tkn.value))
+                } else {
+                    this.back()
+                }
+            }
+            return
+        })
+
+        // custom handlers phase
         for (const hndl of this._appliedHandlers) {
             this.tknParseChain.use(hndl)
         }
 
-        this.tknParseChain.use(setCtxHandler)
-        this.tknParseChain.use(setCtxSelectionHandler)
-        this.tknParseChain.use(setPairValueHandler)
-        this.tknParseChain.use(setPairNameHandler)
+        // change arg ctx phase
+        this.tknParseChain.use(switchToArgCtxSelection)
+        this.tknParseChain.use(switchArgCtx)
 
-        // must be before setting positional and standalone now
-        this.tknParseChain.use(setFromNextReadValueHandler)
-        this.tknParseChain.use(setNextReadValueHandler)
+        // applying and transforming needed data phace
+        this.tknParseChain.use(validateRequest)
+        this.tknParseChain.use(setWaitNextBuf)
+        this.tknParseChain.use(transitByBuf)
 
-        this.tknParseChain.use(setPosHandler)
-        this.tknParseChain.use(setStandaloneHandler)
+        // applying data to arguments
+        this.tknParseChain.use(expectUniqExistance)
+        this.tknParseChain.use(setPairName)
+        this.tknParseChain.use(validateArgumentValue)
+        this.tknParseChain.use(setPairValue)
+        this.tknParseChain.use(setPositional)
+        this.tknParseChain.use(setStandalone)
+
+        // fallback
         this.tknParseChain.use(createChainFallbackHandler<PChainReq, PChainResGType>('none' as PChainResGType))
     }
 
@@ -231,47 +410,54 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
     toRawState(): ICBParserStateRaw {
         return deepClone({
             command: this.command,
-            avaliableCtxs: this.avaliableCtxs,
+            avaliableCtxs: this.avaliableArgCtxs,
             descriptor: this.descriptor,
-            currentCtx: this.currentCtx,
+            currentCtx: this.currentArgCtx,
             state: this.state,
-            read: this.arguments,
+            arguments: this.arguments,
         })
     }
 
     private snap() {
         this.snaper.memorize({
-            currentCtx: this.currentCtx,
+            currentCtx: this.currentArgCtx,
             state: this.state,
-            read: deepClone(this.arguments)
+            _prevState: this._prevState,
+            args: deepClone(this.arguments),
+            waitNextBuf: deepClone(this.waitNextBuf),
         })
     }
 
     public back() {
+        // TODO its need to back twice on wait-next-inited resolved from chain handler cause of tick skip
         const snap = this.snaper.back
         if (snap) {
-            this.currentCtx = snap.currentCtx
+            this.currentArgCtx = snap.currentCtx
             this.state = snap.state
-            this.arguments = snap.read
+            this.arguments = snap.args
+            this._prevState = snap._prevState
+            this.waitNextBuf = snap.waitNextBuf
         } else {
             throw 'Can\'t back parser state'
         }
     }
+
+    //region Getters
 
     get State() {
         return this.state
     }
 
     get CurrentContext() {
-        return this.currentCtx
+        return this.currentArgCtx
     }
 
     get AvaliableContexts() {
-        return this.avaliableCtxs
+        return this.avaliableArgCtxs
     }
 
     IsContextInAvaliable(ctx: string) {
-        return this.avaliableCtxs.includes(ctx as CmdArgumentContextType)
+        return this.avaliableArgCtxs.includes(ctx as CmdArgumentContextType)
     }
 
     get ReadArgs() {
@@ -324,7 +510,7 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
     * @returns current context if passed, otherwise current
     */
     private ctxOrCurrent(ctx?: CmdArgumentContextType): CmdArgumentContextType {
-        return ctx ? ctx : this.currentCtx
+        return ctx ? ctx : this.currentArgCtx
     }
 
     private isAllArgumentRead_fromDescriptorSlice(descSlice: IUICommandDescriptor) {
@@ -346,7 +532,7 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
                     }
                     break;
                 default:
-                    throw `Invalid argument descriptor type: ${JSON.stringify(argDesc)}`
+                    throw `Invalid argument descriptor type: ${JSON.stringify(argDesc, null, 2)}`
             }
         }
 
@@ -409,7 +595,7 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
     }
 
     findDescriptorByName(name: string, ctx?: CmdArgumentContextType): IArgumentDescriptor | undefined {
-        return this.descriptor.args.find(arg => arg.name === name && arg.ctx === (ctx ?? this.currentCtx))
+        return this.descriptor.args.find(arg => arg.name === name && arg.ctx === (ctx ?? this.currentArgCtx))
     }
 
     findReadArgumentByDescritor(desc: IArgumentDescriptor): IArgumentCompiled | undefined {
@@ -420,229 +606,35 @@ export class CBParser<PChainResGType extends ParserPerformedAction|string = Pars
         return this.findDescriptorByName(name, ctx) !== undefined
     }
 
-    ////////
-
-
-    private nextValueSet?: { type: 'standalone'|'positional', arg_name: string }
-    get NextValueSetType() {
-        return this.nextValueSet?.type
-    }
-    get NextValueSetValue() {
-        return this.nextValueSet?.arg_name
-    }
-    
-    setNextValueSetting(input: string): PChainResGType {
-        const desc = this.findDescriptorByName(input)!
-
-        this.nextValueSet = {
-            type: desc.position != null ? 'positional' : 'standalone',
-            arg_name: input
-        }
-        this.transitState('WAIT_NEXT_V')
-        return 'wait-next-inited' as PChainResGType
-    }
-
     /**
-     * set read from this.nextValueSet if its dont undef
+     * @description Transits parser state by transit map and autocleans state resources
      */
-    setFromNextValue(input: string): PChainResGType {
-        let ret
-
-        if (this.nextValueSet === undefined) {
-            throw `Can't set value from undefined next value setting`
-        }
-
-        if (this.nextValueSet.type === 'standalone') {
-            ret = this.setArgument_standalone(this.nextValueSet.arg_name)
-        } else if (this.nextValueSet.type === 'positional') {
-            const pos_desc = this.findDescriptorByName(this.nextValueSet.arg_name)!
-            ret = this.setArgument_positional(input, pos_desc.position!)
-        } else {
-            throw `Can't set value from undefined next value setting`
-        }
-
-        this.transitState('IDLE')
-
-        return ret
-    }
-
     private transitState(to: ParserStateType): void {
+        console.log(`Transiting from ${this.state} to ${to}`)
         if (to === this.state) {
             return
         }
 
         if (stateTransiteMap[this.state].includes(to)) {
+            this._prevState = this.state
             this.state = to
+
+            if (this._prevState == 'WAIT_NEXT_V') {
+                this.waitNextBuf = undefined
+            }
+
             return
         }
 
         throw new Error(`Can't transite from ${this.state} to ${to}. Invalid state transition`)
     }
 
-    //
-
     /**
-     * initiates context selection
-     */
-    private switchToContextSelection(): PChainResGType {
-        this.transitState('CTX')
-
-        return 'ctx-selection' as PChainResGType
-    }
-
-    /**
-     * switches to new context
-     */
-    private switchToContext(ctx: CmdArgumentContextType): PChainResGType {
-        this.currentCtx = ctx
-
-        this.transitState('IDLE')
-
-        return 'ctx-switch' as PChainResGType
-    }
-
-    //
-
-    /**
-     * Sets argument by descriptor and value
-     * removes existing argument if its positional or pair, then pushes new
-     * >>> ! toggle standalone and returns ! <<<
-     */
-    private __set_argument(desc: IArgumentDescriptor, value: string): PChainResGType {
-        const existing = this.findReadArgumentByDescritor(desc)
-        const argType = getArgumentDescType(desc)
-        if (existing) {
-            switch (argType) {
-                case 'positional':
-                    this.removeArgumentByPos(existing.position!, existing.ctx)
-                    break
-                case 'standalone':
-                    return this.removeArgumentStandalone(existing.name, existing.ctx)
-                case 'pair':
-                    this.removeArgumentByPos(existing.position!, existing.ctx)
-                    break
-            }
-        }
-        this.arguments.push(useDescriptorCreateArgument(desc, value))
-        const ret = argType ===
-            'standalone' ? 'set-standalone' :
-                argType === 'positional' ? 'set-positional' :
-                    argType === 'pair' ? 'set-pair-name' :
-                        'none'
-        return ret as PChainResGType
-    }
-
-    /**
-     * Sets argument by descriptor and value to pair argument only
-     */
-    private __set_argument_value(desc: IArgumentDescriptor, value: string): PChainResGType {
-        const existing = this.findReadArgumentByDescritor(desc)
-        if (existing) {
-            if (!existing.isPair) {
-                throw `Argument is not pair`
-            }
-            existing.value = value
-            return 'set-pair-value' as PChainResGType
-        }
-        return 'none' as PChainResGType
-    }
-
-    //
-
-    /**
-     * creates entry for positional
-     */
-    private setArgument_positional(arg_value: string, pos?: number): PChainResGType {
-        const maxPos = this.MaxPositionalInd
-        pos = pos ?? this.NextPositionalInd
-        if (pos > maxPos) {
-            throw `Position exceeded: max: ${maxPos}, passed: ${pos}. `
-        }
-        const desc = this.descriptor.args.find(arg => arg.position === pos && arg.ctx === this.currentCtx)
-        if (!desc) {
-            throw `Cannot find descriptor for positional: ${pos}`
-        }
-        if (!isArgumentDescPositional(desc)) {
-            throw `Argument descriptor is not positional: ${pos}`
-        }
-        this.__set_argument(desc, arg_value)
-
-        this.transitState('IDLE')
-        return 'set-positional' as PChainResGType
-    }
-
-    /**
-     * creates entry for standalone
-     * NOW ITS USE TOGGLE LOGIC
-     */
-    private setArgument_standalone(arg_name: string): PChainResGType {
-        const desc = this.findDescriptorByName(arg_name)!
-        if (!isArgumentDescStandalone(desc)) {
-            throw `Argument descriptor is not standalone: ${arg_name}`
-        }
-
-        return this.__set_argument(desc, arg_name)
-    }
-
-    /**
-     * creates entry for pair and set its name
-     */
-    private setArgument_pairName(arg_name: string): PChainResGType {
-        const desc = this.findDescriptorByName(arg_name)!
-        if (!isArgumentDescPair(desc)) {
-            throw `Argument descriptor is not pair: ${arg_name}`
-        }
-        this.__set_argument(desc, arg_name)
-
-        this.transitState('PAIR_VALUE')
-
-        return 'set-pair-name' as PChainResGType
-    }
-
-    /**
-    * set value to pair of last read pair name
+    * @description Parser entry point
     */
-    private setArgument_pairValue(arg_value: string): PChainResGType {
-        if (this.LastReadArg.value != '') {
-            throw `Pair value already set`
-        }
-        const desc = this.findDescriptorByName(this.LastReadArg.name)!
-        this.__set_argument_value(desc, arg_value)
-
-        this.transitState('IDLE')
-
-        return 'set-pair-value' as PChainResGType
-    }
-
-    //
-
-    private removeArgumentByName(name: string, fromCtx?: CmdArgumentContextType): PChainResGType {
-        fromCtx = this.ctxOrCurrent(fromCtx)
-        let before = this.arguments.length
-        removeObjectByFieldsMutate(this.arguments, { name: name, ctx: fromCtx })
-        return before - this.arguments.length === 1 ? 'removed-pair' as PChainResGType : 'none' as PChainResGType
-    }
-
-    private removeArgumentByPos(pos: number, fromCtx?: CmdArgumentContextType): PChainResGType {
-        fromCtx = this.ctxOrCurrent(fromCtx)
-        let before = this.arguments.length
-        removeObjectByFieldsMutate(this.arguments, { position: pos, ctx: fromCtx })
-        return before - this.arguments.length === 1 ? 'removed-positional' as PChainResGType : 'none' as PChainResGType
-    }
-
-    private removeArgumentStandalone(name: string, fromCtx?: CmdArgumentContextType): PChainResGType {
-        fromCtx = this.ctxOrCurrent(fromCtx)
-        let before = this.arguments.length
-        removeObjectByFieldsMutate(this.arguments, { name: name, standalone: true, ctx: fromCtx })
-        return before - this.arguments.length === 1 ? 'removed-standalone' as PChainResGType : 'none' as PChainResGType
-    }
-
-    /**
-    * Parser entry point
-    */
-    parseNextToken(token: CBLexerToken): PChainResGType {
+    parseNextToken(tkn: CBLexerToken): PChainResGType {
         this.setupChain()
         this.snap()
-        return this.tknParseChain.handle(token)
+        return this.tknParseChain.handle({tkn})
     }
 }

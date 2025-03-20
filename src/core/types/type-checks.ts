@@ -21,3 +21,26 @@ export type WithDefaultField<T, Keys extends keyof T, DefaultKey extends Keys> =
 export type AllowNoneOrOne<T, Keys extends keyof T> =
     | RequireOnlyOne<T, Keys>
     | Pick<T, Exclude<keyof T, Keys>>
+
+//export type Shift<T extends any[]> = ((...t: T) => any) extends ((
+//  first: any,
+//  ...rest: infer Rest
+//) => any)
+//  ? Rest
+//  : never;
+//
+//type ShiftUnion<T> = T extends any[] ? Shift<T> : never;
+
+//export type DeepRequired<T, P extends string[]> = T extends object
+//  ? (Omit<T, Extract<keyof T, P[0]>> &
+//      Required<
+//        {
+//          [K in Extract<keyof T, P[0]>]: NonNullable<
+//            DeepRequired<T[K], ShiftUnion<P>>
+//          >
+//        }
+//      >)
+//  : T;
+export type DeepRequired<T> = Required<{
+    [K in keyof T]: T[K] extends Required<T[K]> ? T[K] : DeepRequired<T[K]>
+}>

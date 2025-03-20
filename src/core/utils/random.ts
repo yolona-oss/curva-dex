@@ -2,7 +2,7 @@ import crypto from "crypto"
 
 export const isNumberPositive = (v: number) => v > 0
 
-export const genRandomString = (length: number = 15) => Math.random().toString(36).substring(2, length)
+export const genRandomString = (length: number = 15) => Math.random().toString(36).substring(2, length+2)
 export const genRandomNumber = (length: number = 15) => genRandomNumberBetween(10 ** (length - 1), 10 ** length)
 
 export function genRandomNumberBetween<T extends number | bigint>(min: T, max: T): T {

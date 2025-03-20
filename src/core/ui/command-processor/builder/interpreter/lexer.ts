@@ -91,22 +91,24 @@ export class Lexer {
         throw new Error('Unexpected character after dash')
     }
 
-    public getNextToken(): CBLexerToken | null {
-        if (this.currentChar === null) {
-            return null; // No more tokens
-        }
-        if (/\s/.test(this.currentChar)) {
-            this.skipWhitespace()
-        }
+    public tokenizeCurrent(): CBLexerToken[] {
+        let tokens: CBLexerToken[] = []
+        while (this.currentChar !== null) {
+            if (/\s/.test(this.currentChar)) {
+                this.skipWhitespace()
+            }
 
-        if (this.currentChar === null) {
-            return null; // No more tokens after skipping whitespace
-        }
+            if (this.currentChar === null) {
+                return tokens; // No more tokens after skipping whitespace
+            }
 
-        if (DASHES.includes(this.currentChar!)) {
-            return this.dash()
-        }
+            if (DASHES.includes(this.currentChar!)) {
+                tokens.push(this.dash())
+                continue
+            }
 
-        return this.text()
+            tokens.push(this.text())
+        }
+        return tokens
     }
 }

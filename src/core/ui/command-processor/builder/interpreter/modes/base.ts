@@ -1,4 +1,4 @@
-import { Lexer } from "./../lexer";
+import { CBLexerToken, Lexer } from "./../lexer";
 import { UiUnicodeSymbols } from "@core/ui";
 import { BuilderActionSigns } from "./../../default-callbacks";
 import { ICommandCompiled } from '@core/ui/types/command';
@@ -28,21 +28,24 @@ export class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
         this.lexer = new Lexer()
 
         this.parser.applyHandler(chainHandlerFactory<PChainReq, ExtendedCBChainRes>(function(this: BaseInterpreterComponent, req) {
-            if (req.type == 'TEXT' && req.value && req.value === BuilderActionSigns.cancelBuild) {
+            const { tkn } = req
+            if (tkn.type == 'TEXT' && tkn.value && tkn.value === BuilderActionSigns.cancelBuild) {
                 return 'cancel'
             }
             return
         }, this))
 
         this.parser.applyHandler(chainHandlerFactory<PChainReq, ExtendedCBChainRes>(function(this: BaseInterpreterComponent, req) {
-            if (req.type == 'TEXT' && this.parser.State === 'IDLE' && req.value && req.value === BuilderActionSigns.execute) {
+            const { tkn } = req
+            if (tkn.type == 'TEXT' && this.parser.State === 'IDLE' && tkn.value && tkn.value === BuilderActionSigns.execute) {
                 return 'execute'
             }
             return
         }, this))
 
         this.parser.applyHandler(chainHandlerFactory<PChainReq, ExtendedCBChainRes>(function(this: BaseInterpreterComponent, req) {
-            if (req.type == 'TEXT' && req.value && req.value === BuilderActionSigns.cancelOp) {
+            const { tkn } = req
+            if (tkn.type == 'TEXT' && tkn.value && tkn.value === BuilderActionSigns.cancelOp) {
                 return 'cancel-op'
             }
             return
@@ -51,18 +54,21 @@ export class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
 
     step(input: string): EvaluationResult {
         this.lexer.setInput(input)
-        const token = this.lexer.getNextToken()
+        const tokens = this.lexer.tokenizeCurrent()
 
-        if (!token) {
+        if (tokens.length === 0) {
             return this.end()
         }
 
-        const action = this.parser.parseNextToken(token)
-
-        return this.processAction(action)
+        let lastEv!: EvaluationResult
+        for (const tkn of tokens) {
+            const action = this.parser.parseNextToken(tkn)
+            lastEv = this.processAction(action, tkn)
+        }
+        return lastEv
     }
 
-    protected processAction(action: ExtendedCBChainRes): EvaluationResult {
+    protected processAction(action: ExtendedCBChainRes, token: CBLexerToken): EvaluationResult {
         switch (action) {
             case 'none':
                 return new EvaluationResult(
@@ -74,7 +80,7 @@ export class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
             case 'cancel': 
                 return new EvaluationResult(
                     this.parser,
-                    `\n${UiUnicodeSymbols.cross} Build canceled by user`,
+                    `Build canceled by user`,
                     { done: true, addTo: 'end' }
                 )
 
@@ -82,7 +88,7 @@ export class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
                 this.parser.back()
                 return new EvaluationResult(
                     this.parser,
-                    `\n${UiUnicodeSymbols.cross} Operation canceled by user`,
+                    `${UiUnicodeSymbols.cross} Operation canceled by user`,
                     { done: false, addTo: 'end' }
                 )
 
@@ -154,6 +160,12 @@ export class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
                     `Positional was removed.`,
                 )
 
+            case 'value-validation-failed':
+                return new EvaluationResult(
+                    this.parser,
+                    `${UiUnicodeSymbols.error} - Value "${token.value}" validation failed.`
+                )
+
             case 'wait-next-inited':
                 return new EvaluationResult(
                     this.parser,
@@ -163,7 +175,7 @@ export class BaseInterpreterComponent extends AbstractState<CBInterpreter> {
             default:
                 return new EvaluationResult(
                     this.parser,
-                    `${UiUnicodeSymbols.error} - Unexpected action: "${action}"`,
+                    `${UiUnicodeSymbols.error} - Unexpected action: "${action}" on token "${JSON.stringify(token)}"`,
                     { done: true, error: `Unexpected action: ${action}`, addTo: 'end' }
                 )
         }

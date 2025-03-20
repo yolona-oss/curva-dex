@@ -71,7 +71,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         })
     }
 
-    private setTextHandler() {
+    private setByTextCmdHandler() {
         this.bot.on('message', async (ctx, next) => {
             const firstWord = ctx.text?.split(" ")[0]
             const fullText = ctx.text ? ctx.text : ""
@@ -102,7 +102,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         log.info(`Commands verified ${chalk.green("successfully")}. Total commands: ${chalk.bold(commands.length)}`)
 
         this.setCommandHandler(commands)
-        this.setTextHandler()
+        this.setByTextCmdHandler()
 
         // assign to autocomplete
         await this.bot.telegram.setMyCommands(commands)

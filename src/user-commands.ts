@@ -12,7 +12,7 @@ class AksArgs {
         required: false,
         pairOptions: ["misterial"],
         defaultValue: "misterial",
-        validator: () => true,
+        validator: (v) => ['misterial'].includes(v),
         description: "AI name"
     })
     ai?: string

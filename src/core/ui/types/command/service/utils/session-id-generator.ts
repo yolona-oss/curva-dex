@@ -10,7 +10,7 @@ export const sessionOpts: CmdArgumentOptionSetter = async (servName: string, o: 
 
 export const sessionOptsWithRand: CmdArgumentOptionSetter = async (servName: string, o: CmdDispatcher<any>, manager: IManager) => {
     const avliableSessions = await sessionOpts(servName, o, manager)
-    const randIds = new Array<string>(4).fill('').map(() => genRandomString(4))
+    const randIds = new Array<string>(4).fill('').map(() => genRandomString(8))
     avliableSessions.push(...randIds)
     return avliableSessions
 }

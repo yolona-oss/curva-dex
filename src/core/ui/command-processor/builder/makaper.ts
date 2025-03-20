@@ -39,7 +39,11 @@ export class Makaper {
     static BuildingString(state: ICBParserStateRaw, info = "", addTo: "begining"|"end" = "end"): string {
         const command = state.command
         info = info.length > 1 ? `${UiUnicodeSymbols.info} - ${info}` : ""
-        let buildStr = `${UiUnicodeSymbols.hammer} Building "${command}"\n`
+        let buildStr = `
+${UiUnicodeSymbols.hammer} Building "${command}"\n
+\n- State: ${state.state}
+\n- Debug: ${JSON.stringify(state.arguments, null, 4)}
+`
 
         const settedArgToStr = (arg: IArgumentCompiled) => {
             switch (arg.ctx) {
@@ -63,10 +67,10 @@ export class Makaper {
             return str
         }
 
-        const args = state.read.filter(arg => arg.ctx === "args")
-        const configs = state.read.filter(arg => arg.ctx === "config")
-        const params = state.read.filter(arg => arg.ctx === "params")
-        const messages = state.read.filter(arg => arg.ctx === "message")
+        const args = state.arguments.filter(arg => arg.ctx === "args")
+        const configs = state.arguments.filter(arg => arg.ctx === "config")
+        const params = state.arguments.filter(arg => arg.ctx === "params")
+        const messages = state.arguments.filter(arg => arg.ctx === "message")
 
         buildStr += args.length > 0 ? argGroupToString("Arguments", args) : ''
         buildStr += configs.length > 0 ? argGroupToString("Configs", configs) : ''

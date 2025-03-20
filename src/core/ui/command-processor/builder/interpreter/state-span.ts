@@ -6,7 +6,9 @@ export class StateSnap {
     constructor(
         public readonly currentCtx: CmdArgumentContextType,
         public readonly state: ParserStateType,
-        public readonly read: IArgumentCompiled[]
+        public readonly _prevState: ParserStateType,
+        public readonly waitNextBuf: { type: 'standalone'|'positional'|'pair', value: string }|undefined,
+        public readonly args: IArgumentCompiled[],
     ) {}
 }
 

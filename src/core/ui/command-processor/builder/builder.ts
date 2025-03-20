@@ -71,7 +71,13 @@ export class CommandBuilder {
         // NOTE: ok?
         const initialCtx = uniqCtxs[0]
 
-        const state = new CBParser(command, uniqCtxs, desc, BuilderActionSigns.switchCtx, initialCtx)
+        const state = new CBParser({
+            command,
+            descriptor: desc,
+            avaliableArgCtxs: uniqCtxs,
+            switchArgCtxKeyword: BuilderActionSigns.switchCtx,
+            initialArgCtx: initialCtx
+        })
         const interpreter = new CBInterpreter(state, mode)
         this.usersBuild.set(userId, interpreter)
 
@@ -93,7 +99,13 @@ export class CommandBuilder {
         const descriptor = await desc_compiler.compile(command, userId, dispatcher, ctx)
 
         const argContexts = CommandBuilder.selectReadingContexts(command, userId, dispatcher)
-        const parser = new CBParser(command, argContexts, descriptor, BuilderActionSigns.switchCtx, 'args')
+        const parser = new CBParser({
+            command,
+            avaliableArgCtxs: argContexts,
+            descriptor,
+            switchArgCtxKeyword: BuilderActionSigns.switchCtx,
+            initialArgCtx: 'args'
+        })
         const interpreter = new CBInterpreter(parser, 'non-crendary')
 
         try {

@@ -5,18 +5,35 @@ import { CmdArgumentMetadataRaw } from "./meta";
 import { encodePositionalName } from ".";
 
 export function validateArgumentDescriptor(desc: CmdArgumentMetadataRaw|IArgumentDescriptor) {
-    if (desc.position != null && desc.position <= 0) {
-        throw new Error(`position must be greater than 0`)
-    }
-    if (desc.standalone) {
-        if (desc.position != null) {
+    if (desc.position != undefined) {
+        if (desc.position <= 0) {
+            throw new Error(`position must be greater than 0`)
+        }
+        if (desc.standalone) {
             throw new Error(`standalone and position can't be used together`)
         }
-        if (desc.defaultValue != null) {
+        if (desc.isPair) {
+            throw new Error(`isPair and position can't be used together`)
+        }
+    }
+    if (desc.standalone) {
+        if (desc.position != undefined) {
+            throw new Error(`standalone and position can't be used together`)
+        }
+        if (desc.defaultValue != undefined) {
             throw new Error(`standalone and defaultValue can't be used together`)
         }
         if (desc.pairOptions != undefined && (desc.pairOptions.length > 0 || isOptionSetterFunc(desc.pairOptions))) {
             throw new Error(`standalone and pairOptions can't be used together`)
+        }
+    }
+
+    if (desc.isPair) {
+        if (desc.standalone) {
+            throw new Error(`isPair and standalone can't be used together`)
+        }
+        if (desc.position != undefined) {
+            throw new Error(`isPair and position can't be used together`)
         }
     }
 }
@@ -26,10 +43,10 @@ export function getArgumentDescType(desc: IArgumentDescriptor|IArgumentIdent): A
         return 'pair'
     } else if ('standalone' in desc && desc.standalone === true) {
         return 'standalone'
-    } else if ('position' in desc && Number.isNaN(desc.position) === false) {
+    } else if ('position' in desc && desc.position != undefined && Number.isInteger(desc.position)) {
         return 'positional'
     } else {
-        log.error(`Argument descriptor must have one of position or standalone, or field isPair will be set to true`)
+        log.error(`Cannot determine argument type.\nSetting to default...\nInvalid argument descriptor: ${JSON.stringify(desc)}`)
         return 'pair'
     }
 }
@@ -46,7 +63,11 @@ export function isArgumentDescPair(desc: IArgumentDescriptor|IArgumentIdent) {
     return getArgumentDescType(desc) === 'pair'
 }
 
-export function useDescriptorCreateArgument(desc: IArgumentDescriptor|IArgumentIdent, value: string): IArgumentCompiled {
+/**
+ * @param desc
+ * @param value argument value(will be skiped if desc used as standalone)
+ */
+export function compileArgumentFromDesc(desc: IArgumentDescriptor|IArgumentIdent, value: string): IArgumentCompiled {
     if (isArgumentDescStandalone(desc)) {
         return {
             name: desc.name,
@@ -61,7 +82,7 @@ export function useDescriptorCreateArgument(desc: IArgumentDescriptor|IArgumentI
             position: desc.position,
             ctx: desc.ctx
         }
-    } else {
+    } else if (isArgumentDescPair(desc)) {
         return {
             name: desc.name,
             value: value,
@@ -69,4 +90,5 @@ export function useDescriptorCreateArgument(desc: IArgumentDescriptor|IArgumentI
             ctx: desc.ctx
         }
     }
+    throw new Error(`Invalid argument descriptor type: ${JSON.stringify(desc)}`)
 }

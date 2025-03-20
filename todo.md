@@ -21,3 +21,4 @@
 [-] add to markup default callback to switch interpritation mode
 [-] create ctrl panal aka dashboard for active service for current user and for admin over-all dashboard aka "админка"
 [-] may be create mutations for CmdArgumentMeta that describes one of three types of arguments(standalone, positional, pair)
+[-] its too much confusing command argument metadata maninulation and need to bee siplified and refactored with SOLID
