@@ -6,10 +6,12 @@ import { PumpFunAssetType } from "@bots/traider/impl/pump.fun"
 import { CmdArgument } from "@core/ui"
 import { IBaseDEXTradeAsset } from "@bots/traider"
 
+import { FlattenedPaths, FlattenedPathsWithTypes } from "@core/utils/object"
+
 export const pfname = 'pump_fun'
 export const pfdescription = `Customizable servie for the pump.fun dex simulation activity and automated trading by setting a strategy schema.`
 
-export class PFConfigData implements IPumpFunRobotConfig {
+export class PFConfigData implements Partial<Record<FlattenedPaths<IPumpFunRobotConfig>, any>> {
     @CmdArgument({
         required: false,
     })

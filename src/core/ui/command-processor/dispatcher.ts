@@ -50,7 +50,7 @@ import 'reflect-metadata'
 
 import { BuiltInCommandNames, toRegister } from "./built-in-cmd";
 import { CommandInvoker } from "./invoker"
-import { UiUnicodeSymbols } from "@core/ui";
+import { IUI, UiUnicodeSymbols } from "@core/ui";
 import { HandleCommandAlias } from "./handlers/alias";
 import { ICommandHandlerChain } from "./handlers/abstract-handler";
 
@@ -80,8 +80,9 @@ export class CmdDispatcher<UIContextType extends BaseUIContext> extends WithInit
         this.chain.use(new HandleInvokation<UIContextType>)
     }
 
-    public async handleCommand(command: string, userText: string, ctx: UIContextType): Promise<IHandleResult> {
-        const args = this.getArgs(userText)
+    public async handleCommand(command: string, userText: string, ctx: UIContextType, uiImpl: IUI<UIContextType>): Promise<IHandleResult> {
+        const splited = userText.trim().split(" ")
+        const args = splited.slice(1)
         const _userId = ctx.manager?.userId
 
         if (!_userId) {
@@ -101,8 +102,9 @@ export class CmdDispatcher<UIContextType extends BaseUIContext> extends WithInit
                 text: userText,
                 userId: String(_userId),
                 ownerId: String(ctx.manager!._id),
-                args,
-                uiCtx: ctx
+                words: args,
+                uiCtx: ctx,
+                uiImpl: uiImpl
             })
         } catch(e: any) {
             log.error(anyToString(e))
@@ -359,11 +361,6 @@ export class CmdDispatcher<UIContextType extends BaseUIContext> extends WithInit
             throw `Command ${UiUnicodeSymbols.arrowRight} "${command}" not found.`
         }
         return cb!
-    }
-
-    private getArgs(text: string): string[] {
-        const splited = text.trim().split(" ")
-        return splited.slice(1)
     }
 
     public getRegistredServiceNames(): string[] {

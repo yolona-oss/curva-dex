@@ -3,23 +3,23 @@ import { getInitialConfig } from "@core/config";
 import { Manager, FilesWrapper } from "@core/db";
 
 import { TelegramUI } from "../telegram-ui";
-import { cb_data } from "./callback";
+import { auth_cb_prefix } from "./callback";
 
 import * as tg from "telegraf";
 
 export let actions = (() => {
 
     async function approverequest(this: TelegramUI, ctx: CqContext, next: () => void) {
-        let id = ctx.match.input.slice(cb_data.approveRequest.length);
+        let id = ctx.match.input.slice(auth_cb_prefix.approveRequest.length);
         let keyboard = tg.Markup.inlineKeyboard([
             [
                 {
                     text: "Approve",
-                    callback_data: cb_data.approveManager + " " + id
+                    callback_data: auth_cb_prefix.approveManager + " " + id
                 },
                 {
                     text: "Reject",
-                    callback_data: cb_data.rejectManager + " " + id
+                    callback_data: auth_cb_prefix.rejectManager + " " + id
                 }
             ]
         ])
@@ -30,7 +30,7 @@ export let actions = (() => {
     }
 
     async function approvemanager(this: TelegramUI, ctx: CqContext, next: () => void) {
-        let userId = Number(ctx.match.input.slice(cb_data.approveManager.length));
+        let userId = Number(ctx.match.input.slice(auth_cb_prefix.approveManager.length));
         let member = await this.bot.telegram.getChatMember(userId, userId);
         await Manager.create({
             userId: userId,
@@ -44,7 +44,7 @@ export let actions = (() => {
     }
 
     async function rejectmanager(this: TelegramUI, ctx: CqContext, next: () => void) {
-        let userId = Number(ctx.match.input.slice(cb_data.rejectManager.length));
+        let userId = Number(ctx.match.input.slice(auth_cb_prefix.rejectManager.length));
         await this.bot.telegram.sendMessage(userId, "Your request have been rejected");
         // this.bot.telegram.sendSticker(userId, this.stickers.evil);
         next();
@@ -56,4 +56,3 @@ export let actions = (() => {
         rejectmanager
     }
 })()
-

@@ -1,0 +1,26 @@
+{
+    "extends": "../../tsconfig.base.json",
+
+    "compilerOptions": {
+        "outDir": "./build",
+        "baseUrl": "./",
+        "declaration": false,
+        "paths": {
+            "@bots/*":              ["./src/bots/*"],
+            "@core/providers/*":    ["./src/providers/*"],
+            "@core/*":              ["../cmd-hub/src/*"],
+            "@logger":              ["../cmd-hub/src/application/logger"],
+            "@config":              ["./src/config"],
+            "@utils/blockchain/*":  ["./src/utils/blockchain/*"],
+            "@utils/*":             ["../cmd-hub/src/utils/*"],
+            "@paragon/*":           ["../cmd-hub/src/paragon/*"]
+        }
+    },
+    "include": [
+        "./src/**/*"
+    ],
+    "exclude": [
+        "./src/bots/traider/impl/example/**/*",
+        "node_modules"
+    ]
+}

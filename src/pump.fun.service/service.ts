@@ -50,7 +50,7 @@ export class PumpFunService extends BaseCommandService<PFServiceDataType> {
                     break
                 case 'sell-all':
                     await this.robot.sellAll()
-                    this.emit("message", "Sold all")
+                    this.emit("message", "All assets sold")
                     break
             }
         } catch (e: any) {

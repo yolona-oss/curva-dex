@@ -52,7 +52,7 @@ export class HandleCmdBuilder<UICtx extends BaseUIContext> extends AbstractCmdHa
     }
 
     public async handle(request: ICmdHandlerRequest<UICtx>): Promise<ICmdHandlerResponce> {
-        const { command, text, userId, uiCtx, args, dispatcher } = request
+        const { command, text, userId, uiCtx, words: args, dispatcher } = request
 
         const builder = dispatcher.CommandBuilder
         const builderRes = await this.handleBuildProcess(userId, text, uiCtx, builder, dispatcher)

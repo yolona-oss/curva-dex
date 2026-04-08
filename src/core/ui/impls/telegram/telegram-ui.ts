@@ -5,7 +5,6 @@ import { FilesWrapper, Manager } from '@core/db'
 import { WithInit } from '@core/types/with-init'
 
 import { TelegramUI_BuiltIns, toRegister } from './constants/commands'
-import { cb_data, actions } from './constants'
 import { TgContext } from "./types"
 
 import { LockManager } from '@utils/lock-manager'
@@ -21,14 +20,21 @@ import { UiUnicodeSymbols } from '@core/ui/ui-unicode-symbols'
 import { fromTgContext } from '@core/db/schemes/messages-history'
 
 import { CmdDispatcher, IHandleResult } from '@core/ui/command-processor'
-import { IBaseMarkup } from '@core/ui/command-processor/types/markup'
+import { IBaseMarkup, IMarkupOption } from '@core/ui/command-processor/types/markup'
 
-//async function tg_deleteMesasge(bot: telegraf.Telegraf<TgContext>, message_id: number, chat_id: number) {
-//    await bot.telegram.deleteMessage(chat_id, message_id)
-//}
+import {
+    auth_cb_prefix
+
+} from './constants/callback'
+
+import {
+    rejectJoinRequest,
+    sendJoinRequestToAdmin,
+    approveJoinRequest
+} from './actions/auth'
+
 
 export class TelegramUI extends WithInit implements IUI<TgContext> {
-
     static UserIdFromCtx(ctx: TgContext): string {
         const id = String(ctx.manager.userId)
         if (!id || id.length == 0) {
@@ -48,6 +54,34 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         this.bot = new telegraf.Telegraf(botApiKey)
     }
 
+    max_message_width() {
+        //return 48 // at slim screen
+        return 72 // at wide screen
+    }
+
+    async sendMessage(user_id: string, message: string, mk_opts?: IMarkupOption[]): Promise<string> {
+        const rmk = mk_opts ? {
+            reply_markup: {
+                inline_keyboard: this.createCommonKeyboard(mk_opts)
+            }
+        } : undefined
+
+        return String((await this.bot.telegram.sendMessage(user_id, message, rmk)).message_id)
+    }
+
+    async editMessage(user_id: string, message_id: number|string, message: string, mk_opts?: IMarkupOption[]): Promise<void> {
+        const rmk = mk_opts ? {
+            reply_markup: {
+                inline_keyboard: this.createCommonKeyboard(mk_opts)
+            }
+        } : undefined
+        await this.bot.telegram.editMessageText(user_id, Number(message_id), undefined, message, rmk)
+    }
+
+    async deleteMessage(user_id: string, message_id: number|string): Promise<void> {
+        await this.bot.telegram.deleteMessage(user_id, Number(message_id))
+    }
+
     private setCommandHandler(commands: IUICommandProcessed[]) {
         commands.forEach(cmd => {
             log.info(`-- Assigning command: "${chalk.bold(cmd.command)}"`)
@@ -58,14 +92,23 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
     }
 
     private async setupActions() {
-        this.bot.action(RegExp(cb_data.approveRequest + "*"), (ctx, next) => actions.approverequest.call(this, ctx, next))
-        this.bot.action(RegExp(cb_data.approveManager + "*"), (ctx, next) => actions.approvemanager.call(this, ctx, next))
-        this.bot.action(RegExp(cb_data.rejectManager + "*"),  (ctx, next) => actions.rejectmanager.call(this, ctx, next))
+        // bot auth algorithm actions
+        this.bot.action(RegExp(auth_cb_prefix.directJoinRequestToAdmin + "*"), (ctx, next) => sendJoinRequestToAdmin.call(this, ctx, next))
+        this.bot.action(RegExp(auth_cb_prefix.approveJoinRequest + "*"),       (ctx, next) => approveJoinRequest.call(this, ctx, next))
+        this.bot.action(RegExp(auth_cb_prefix.rejectJoinRequest + "*"),        (ctx, next) => rejectJoinRequest.call(this, ctx, next))
+
+        this.bot.action(RegExp('dashboard_*'), async (ctx) => {
+            const action = String(ctx.match.input.slice('msg_bonder_'.length))
+
+            const res = await this.dispatcher.handleCommand(action, action, ctx as any, this)
+            await this.replyByCommandResult(ctx as any, res)
+            await ctx.deleteMessage()
+        })
 
         // handle builder buttons
         this.bot.action(RegExp("builder_*"), async (ctx) => {
             const action = String(ctx.match.input.slice("builder_".length))
-            const res = await this.dispatcher.handleCommand(action, action, ctx as any)
+            const res = await this.dispatcher.handleCommand(action, action, ctx as any, this)
             await this.replyByCommandResult(ctx as any, res)
             await ctx.deleteMessage()
         })
@@ -110,23 +153,6 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
         this.setInitialized()
     }
 
-    private async setupReplyRedifinition() {
-        //this.bot.use(async (ctx, next) => {
-        //    const originalReply = ctx.reply.bind(ctx)
-        //
-        //    ctx.reply = async (...args: Parameters<telegraf.Context["reply"]>) => {
-        //        const message = args[0]?.toString()
-        //
-        //        const manager = await Manager.findById(ctx.manager.id)
-        //        const dto = fromTgContext(ctx)
-        //        await manager!.appendMessageHistory(dto)
-        //
-        //        return originalReply(...args); // Call the original reply function
-        //    }
-        //    await next()
-        //})
-    }
-
     private async setupAuth() {
         // Authorization
         this.bot.use(async (ctx, next) => {
@@ -137,14 +163,14 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
                 return await next()
             } else if (ctx.updateType == 'callback_query') {
                 //@ts-ignore
-                if (ctx.update.callback_query.data.includes(cb_data.approveRequest)) {
+                if (ctx.update.callback_query.data.includes(auth_cb_prefix.directJoinRequestToAdmin)) {
                     return next()
                 }
             }
             const botName = (await getConfig()).bot.name
             await ctx.replyWithMarkdownV2(`Welcome to ${botName}. To start using bot you need to be aproved by bot administrator.\n" +
 "Click on button for send approve request`,
-                telegraf.Markup.inlineKeyboard([ [ { text: "Send", callback_data: cb_data.approveRequest + " " + ctx.from!.id  }, ] ]))
+                telegraf.Markup.inlineKeyboard([ [ { text: "Send", callback_data: auth_cb_prefix.directJoinRequestToAdmin + " " + ctx.from!.id  }, ] ]))
         })
     }
 
@@ -189,7 +215,6 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
     private async setup() {
         await this.setupAuth()
         await this.setupHistorySave()
-        await this.setupReplyRedifinition()
         await this.setupCommands()
         await this.setupActions()
     }
@@ -312,8 +337,16 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
 
     // Commands handlers utility
 
+    private createCommonKeyboard(btns: IMarkupOption[], perLine = 3) {
+        let arr: Array<Array<InlineKeyboardButton>> = []
+        for (let i = 0; i < btns.length; i += perLine) {
+            arr.push(btns.slice(i, i + perLine).map(m => telegraf.Markup.button.callback(m.text, m.data)))
+        }
+        return arr
+    }
+
     // NOTE: check text length for each btn and select correct perline for each row(after determine max line len)
-    private createKeyboard(markup: IBaseMarkup, perLine = 3) {
+    private createCommandBuilderKeyboard(markup: IBaseMarkup, perLine = 3) {
         let arr: Array<Array<InlineKeyboardButton.CallbackButton>> = []
         const mk_options = markup.buttons
         if (!mk_options) {
@@ -340,7 +373,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
     }
 
     private async replyByCommandResult(ctx: TgContext, response: IHandleResult) {
-        const layout = response.markup ? this.createKeyboard(response.markup) : []
+        const layout = response.markup ? this.createCommandBuilderKeyboard(response.markup) : []
         let keyboard = telegraf.Markup.inlineKeyboard(layout)
         const sendText = response.markup?.text
         if (sendText && sendText.length) {
@@ -352,7 +385,7 @@ export class TelegramUI extends WithInit implements IUI<TgContext> {
 
     private async handleInput(input: string, userText: string, ctx: TgContext) {
         try {
-            const response = await this.dispatcher.handleCommand(input, userText, ctx)
+            const response = await this.dispatcher.handleCommand(input, userText, ctx, this)
             await this.replyByCommandResult(ctx, response)
         } catch (e: any) {
             await ctx.reply(`TelegramUI::handleCmd error: ${anyToString(e)}`)
